@@ -12,11 +12,11 @@ export const RESERVED_PORTS = [STATIC_PORT, ADMIN_PORT, SOCKET_PORT, GRAPHQL_POR
 
 export const JSON_CONTENT_HEADER = { 'Content-Type': 'application/json' }
 
-export const LIFETIME_MODE = {
+export const LIFETIME_MODE: Record<Lifetime, Lifetime> = {
   SINGLETON: 'SINGLETON',
   SCOPED: 'SCOPED',
   TRANSIENT: 'TRANSIENT',
-} as const
+}
 
 export const CORE_CONNECTORS: Record<
   CoreConnectors,
