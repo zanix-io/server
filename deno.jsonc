@@ -1,0 +1,90 @@
+{
+  "name": "@zanix/server",
+  "version": "1.0.0",
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "strict": true,
+    "noImplicitAny": true,
+    "types": [
+      "./src/typings/context.d.ts",
+      "./src/typings/targets.d.ts",
+      "./src/typings/server.d.ts",
+      "./src/typings/router.d.ts",
+      "./src/typings/program.d.ts",
+      "./src/typings/middlewares.d.ts",
+      "./src/typings/decorators.d.ts"
+    ]
+  },
+  "lint": {
+    "rules": {
+      "tags": [
+        "recommended",
+        "jsr"
+      ],
+      "include": [
+        "eqeqeq",
+        "default-param-last",
+        "camelcase",
+        "no-await-in-loop",
+        "no-const-assign",
+        "no-eval",
+        "no-non-null-asserted-optional-chain",
+        "no-non-null-assertion",
+        "no-self-compare",
+        "no-sync-fn-in-async-fn",
+        "no-throw-literal",
+        "no-useless-rename"
+      ]
+    },
+    "exclude": [
+      ".dist"
+    ],
+    "plugins": [
+      "jsr:@zanix/utils/linter/deno-zanix-plugin"
+    ],
+    "report": "pretty"
+  },
+  "fmt": {
+    "exclude": [".dist"],
+    "proseWrap": "always",
+    "indentWidth": 2,
+    "singleQuote": true,
+    "lineWidth": 100,
+    "useTabs": false,
+    "semiColons": false
+  },
+  "imports": {
+    "@std/path": "jsr:@std/path@0.224",
+    "@std/assert": "jsr:@std/assert@0.224",
+    "@std/testing": "jsr:@std/testing@1.0.9",
+    "graphql": "npm:graphql@16",
+    "graphql-jit": "npm:graphql-jit@0.1.0",
+    "@zanix/logger": "jsr:@zanix/utils@2.*/logger",
+    "@zanix/helpers": "jsr:@zanix/utils@2.*/helpers",
+    "@zanix/validator": "jsr:@zanix/utils@2.*/validator",
+    "@zanix/regex": "jsr:@zanix/utils@2.*/regex",
+    "@zanix/errors": "jsr:@zanix/utils@2.*/errors",
+    "@zanix/types": "jsr:@zanix/utils@2.*/types",
+    "@std/uuid": "jsr:@std/uuid@0.224",
+    "shared/": "./src/shared/",
+    "typings/": "./src/typings/",
+    "utils/": "./src/utils/",
+    "modules/": "./src/modules/",
+    "handlers/": "./src/modules/infra/handlers/",
+    "interactors/": "./src/modules/infra/interactors/",
+    "connectors/": "./src/modules/infra/connectors/",
+    "middlewares/": "./src/modules/infra/middlewares/",
+    "webserver/": "./src/modules/webserver/"
+  },
+  "exports": { ".": "./mod.ts" },
+  "publish": {
+    "exclude": [".github", "src/@tests"]
+  },
+  "test": {
+    "include": ["src/@tests/**/*.test.ts"]
+  },
+  "zanix": {
+    "project": "library",
+    "hash": "zs226a"
+  }
+}

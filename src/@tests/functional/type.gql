@@ -1,0 +1,10 @@
+"""Input Data comment"""
+input InputData {
+    name: String!
+}
+
+"""Output Data comment"""
+type OutputData {
+    searchParam: String
+    searchParam3: String
+}
