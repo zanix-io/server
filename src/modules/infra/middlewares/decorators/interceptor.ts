@@ -1,3 +1,6 @@
+import type { ZanixGenericDecorator } from 'typings/decorators.ts'
+import type { MiddlewareInterceptor } from 'typings/middlewares.ts'
+
 import { defineInterceptorDecorator } from './assembly.ts'
 
 /**

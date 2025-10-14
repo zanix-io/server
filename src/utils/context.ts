@@ -1,3 +1,5 @@
+import type { HandlerContext, ScopedContext } from 'typings/context.ts'
+
 export const processScopedPayload = (
   payload: HandlerContext['payload'],
 ): ScopedContext['payload'] => {

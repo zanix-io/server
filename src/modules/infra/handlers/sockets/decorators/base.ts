@@ -1,4 +1,6 @@
 import type { RtoTypes } from '@zanix/types'
+import type { SocketDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
+import type { ZanixInteractorClass } from 'typings/targets.ts'
 
 import { defineSocketDecorator } from './assembly.ts'
 

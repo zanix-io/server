@@ -1,3 +1,5 @@
+import type { ServerOptions } from 'typings/server.ts'
+
 import { errorResponses } from './errors.ts'
 import logger from '@zanix/logger'
 

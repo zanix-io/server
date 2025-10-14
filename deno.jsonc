@@ -1,19 +1,11 @@
 {
   "name": "@zanix/server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true,
     "noImplicitAny": true,
-    "types": [
-      "./src/typings/context.d.ts",
-      "./src/typings/targets.d.ts",
-      "./src/typings/server.d.ts",
-      "./src/typings/router.d.ts",
-      "./src/typings/program.d.ts",
-      "./src/typings/middlewares.d.ts",
-      "./src/typings/decorators.d.ts"
-    ]
+    "types": []
   },
   "lint": {
     "rules": {

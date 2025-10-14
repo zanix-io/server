@@ -1,3 +1,12 @@
+import type {
+  MetadataObjects,
+  MetadataTypes,
+  MetadataTypesKey,
+  ModuleTypes,
+  StartMode,
+} from 'typings/program.ts'
+import type { ClassConstructor } from 'typings/targets.ts'
+
 /**
  * Base Metadata Container
  */

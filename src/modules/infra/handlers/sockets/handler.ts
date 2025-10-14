@@ -1,5 +1,6 @@
 import type { ZanixWebSocket } from './base.ts'
 import type { RtoTypes } from '@zanix/types'
+import type { HandlerFunction } from 'typings/router.ts'
 
 import { baseErrorResponses } from 'modules/webserver/helpers/errors.ts'
 import { routeOnEnd, routeOnStart } from 'utils/routes.ts'

@@ -1,3 +1,6 @@
+import type { HandlerContext } from 'typings/context.ts'
+import type { SocketPrototype, ZanixInteractorGeneric } from 'typings/targets.ts'
+
 import { HandlerGenericClass } from '../generic.ts'
 
 import logger from '@zanix/logger'

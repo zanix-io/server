@@ -1,3 +1,5 @@
+import type { ResolverTypes } from 'typings/decorators.ts'
+
 import { defineScalars, getGqlTypes, scalarTypes } from './types.ts'
 import { readConfig } from '@zanix/helpers'
 import { buildSchema } from 'graphql'

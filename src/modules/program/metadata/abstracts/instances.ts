@@ -1,4 +1,5 @@
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
+import type { MetadataInstances, ModuleTypes } from 'typings/program.ts'
 
 import { BaseContainer } from './main.ts'
 import { HttpError } from '@zanix/errors'

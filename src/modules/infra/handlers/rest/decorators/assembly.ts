@@ -1,3 +1,11 @@
+import type {
+  HandlerDecoratorMethodOptions,
+  HandlerDecoratorOptions,
+  ZanixClassDecorator,
+  ZanixMethodDecorator,
+} from 'typings/decorators.ts'
+import type { HttpMethods } from 'typings/router.ts'
+
 import { applyMiddlewaresToTarget, definePipeDecorator } from 'middlewares/decorators/assembly.ts'
 import { requestValidationPipe } from 'middlewares/validation.pipe.ts'
 import Program from 'modules/program/main.ts'

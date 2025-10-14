@@ -1,4 +1,6 @@
 import type { Program } from 'modules/program/main.ts'
+import type { ScopedContext } from 'typings/context.ts'
+import type { ProcessedRouteDefinition } from 'typings/router.ts'
 
 import { HttpError } from '@zanix/errors'
 import { processScopedPayload } from 'utils/context.ts'

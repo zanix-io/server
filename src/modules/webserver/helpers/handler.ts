@@ -1,3 +1,6 @@
+import type { HandlerContext } from 'typings/context.ts'
+import type { ServerHandler, WebServerTypes } from 'typings/server.ts'
+
 import { getDefaultGlobalPipe, getResponseInterceptor } from './middlewares.ts'
 
 import { bodyPayloadProperty, cleanRoute } from 'utils/routes.ts'

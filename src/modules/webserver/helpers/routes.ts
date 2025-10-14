@@ -1,3 +1,6 @@
+import type { HandlerFunction, ProcessedRoutes } from 'typings/router.ts'
+import type { WebServerTypes } from 'typings/server.ts'
+
 import { cleanRoute, getParamNames, pathToRegex, routeOnEnd, routeOnStart } from 'utils/routes.ts'
 import Program from 'modules/program/main.ts'
 import { capitalize } from '@zanix/helpers'

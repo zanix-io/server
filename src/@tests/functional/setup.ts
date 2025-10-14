@@ -2,6 +2,10 @@
 console.error = () => {}
 console.info = () => {}
 
+import type { MiddlewareGlobalInterceptor, MiddlewareGlobalPipe } from 'typings/middlewares.ts'
+import type { HandlerContext } from 'typings/context.ts'
+import type { ModuleTypes } from 'typings/program.ts'
+
 import { BaseRTO, IsEmail, IsNumber, IsString, isUUID } from '@zanix/validator'
 import { ZanixController } from 'modules/infra/handlers/rest/base.ts'
 import { Controller } from 'modules/infra/handlers/rest/decorators/base.ts'

@@ -1,3 +1,6 @@
+import type { ZanixGenericDecorator } from 'typings/decorators.ts'
+import type { MiddlewarePipe } from 'typings/middlewares.ts'
+
 import { definePipeDecorator } from './assembly.ts'
 
 /**

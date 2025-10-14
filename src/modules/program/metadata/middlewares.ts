@@ -1,3 +1,7 @@
+import type { MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
+import type { MetadataProps } from 'typings/program.ts'
+import type { WebServerTypes } from 'typings/server.ts'
+
 import { BaseContainer } from './abstracts/main.ts'
 
 export class MiddlewaresContainer extends BaseContainer {

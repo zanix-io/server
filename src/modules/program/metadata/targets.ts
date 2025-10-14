@@ -1,3 +1,6 @@
+import type { MetadataProps, MetadataTargetsProps } from 'typings/program.ts'
+import type { ClassConstructor } from 'typings/targets.ts'
+
 import { BaseInstancesContainer } from './abstracts/instances.ts'
 
 /**

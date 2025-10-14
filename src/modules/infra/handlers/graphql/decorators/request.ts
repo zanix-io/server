@@ -1,3 +1,5 @@
+import type { ZanixMethodDecorator } from 'typings/decorators.ts'
+
 import { defineResolverRequestDecorator } from './assembly.ts'
 
 /**

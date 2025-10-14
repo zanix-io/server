@@ -1,5 +1,9 @@
 import type { MiddlewaresContainer } from './middlewares.ts'
 import type { TargetContainer } from './targets.ts'
+import type { MetadataProps } from 'typings/program.ts'
+import type { HttpMethods, RouteDefinitionProps, RoutesObject } from 'typings/router.ts'
+import type { WebServerTypes } from 'typings/server.ts'
+import type { ClassConstructor } from 'typings/targets.ts'
 
 import { BaseContainer } from './abstracts/main.ts'
 import { cleanRoute } from 'utils/routes.ts'

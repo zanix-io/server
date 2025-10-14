@@ -1,19 +1,24 @@
-type HandlerResponse = Record<string, unknown> | Response | string
+import type { HandlerContext } from './context.ts'
+import type { MiddlewareInterceptor, MiddlewarePipe } from './middlewares.ts'
+import type { MetadataProps } from './program.ts'
+import type { WebServerTypes } from './server.ts'
 
-type HttpMethods = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
+export type HandlerResponse = Record<string, unknown> | Response | string
 
-type HandlerFunction = (
+export type HttpMethods = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
+
+export type HandlerFunction = (
   ctx: HandlerContext,
 ) => Promise<HandlerResponse> | HandlerResponse
 
-type RouteDefinition = {
+export type RouteDefinition = {
   handler: HandlerFunction | Required<MetadataProps>
   methods?: HttpMethods[]
   pipes?: MiddlewarePipe[]
   interceptors?: MiddlewareInterceptor[]
 }
 
-type ProcessedRouteDefinition =
+export type ProcessedRouteDefinition =
   & {
     /**
      * The regular expression used to match or filter routes
@@ -38,10 +43,10 @@ type ProcessedRouteDefinition =
   }
   & Omit<Required<RouteDefinition>, 'handler'>
 
-type ProcessedRoutes = Record<string, ProcessedRouteDefinition>
+export type ProcessedRoutes = Record<string, ProcessedRouteDefinition>
 
-type RoutesObject = Partial<
+export type RoutesObject = Partial<
   Record<WebServerTypes, Record<string, Required<RouteDefinition>>>
 >
 
-type RouteDefinitionProps = RouteDefinition & { path?: string }
+export type RouteDefinitionProps = RouteDefinition & { path?: string }

@@ -1,4 +1,6 @@
 import type { RtoTypes } from '@zanix/types'
+import type { HandlerContext } from 'typings/context.ts'
+import type { MiddlewarePipe } from 'typings/middlewares.ts'
 
 import { processScopedPayload } from 'utils/context.ts'
 import { classValidation } from '@zanix/validator'

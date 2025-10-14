@@ -1,3 +1,5 @@
+import type { ScopedContext } from 'typings/context.ts'
+
 import { HttpError } from '@zanix/errors'
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import Program from 'modules/program/main.ts'

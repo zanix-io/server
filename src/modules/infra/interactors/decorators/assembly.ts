@@ -1,3 +1,7 @@
+import type { InteractorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
+import type { Lifetime } from 'typings/program.ts'
+import type { ZanixConnectors } from 'typings/targets.ts'
+
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import { CORE_CONNECTORS } from 'utils/constants.ts'
 import { getTargetKey } from 'utils/targets.ts'

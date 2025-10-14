@@ -1,3 +1,5 @@
+import type { Lifetime, MetadataObjects, ModuleTypes, StartMode } from 'typings/program.ts'
+
 export abstract class TargetBaseClass {
   constructor() {
     Object.assign(this, this.constructor.prototype)

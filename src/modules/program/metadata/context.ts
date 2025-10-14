@@ -1,3 +1,5 @@
+import type { BaseContext } from 'typings/context.ts'
+
 import { BaseContainer } from './abstracts/main.ts'
 
 /**

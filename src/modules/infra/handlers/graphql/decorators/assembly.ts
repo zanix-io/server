@@ -1,3 +1,11 @@
+import type {
+  HandlerDecoratorOptions,
+  ResolverRequestOptions,
+  ResolverTypes,
+  ZanixClassDecorator,
+  ZanixMethodDecorator,
+} from 'typings/decorators.ts'
+
 import { applyMiddlewaresToTarget } from 'middlewares/decorators/assembly.ts'
 import { buildGqlInput, scalarTypes } from 'handlers/graphql/types.ts'
 import { gqlSchemaDefinitions } from '../schema.ts'

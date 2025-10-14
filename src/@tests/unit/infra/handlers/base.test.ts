@@ -1,4 +1,5 @@
-// handler_base_class.test.ts
+import type { ZanixInteractorGeneric } from 'typings/targets.ts'
+
 import { assertEquals } from '@std/assert'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 

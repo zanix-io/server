@@ -1,3 +1,6 @@
+import type { ConnectorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
+import type { ConnectorTypes, GenericConnectors, Lifetime, StartMode } from 'typings/program.ts'
+
 import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
 
 /**

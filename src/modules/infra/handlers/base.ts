@@ -1,3 +1,5 @@
+import type { HandlerPrototype, ZanixInteractorGeneric } from 'typings/targets.ts'
+
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import Program from 'modules/program/main.ts'
 

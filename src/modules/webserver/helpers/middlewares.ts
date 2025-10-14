@@ -1,3 +1,6 @@
+import type { MiddlewareInternalInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
+import type { HttpMethods, ProcessedRouteDefinition } from 'typings/router.ts'
+
 import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
 import { errorResponses } from './errors.ts'
 import { HttpError } from '@zanix/errors'

@@ -1,3 +1,6 @@
+import type { HandlerContext } from 'typings/context.ts'
+import type { HandlerFunction } from 'typings/router.ts'
+
 import { defineSchema } from './schema.ts'
 import { execute, parse } from 'graphql'
 

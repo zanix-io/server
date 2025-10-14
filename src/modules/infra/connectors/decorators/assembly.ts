@@ -1,3 +1,6 @@
+import type { ConnectorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
+import type { ConnectorTypes, CoreConnectors, Lifetime, StartMode } from 'typings/program.ts'
+
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import Program from 'modules/program/main.ts'

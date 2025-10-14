@@ -1,3 +1,5 @@
+import type { ServerManagerData, ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
+
 import { RESERVED_PORTS } from 'utils/constants.ts'
 import { capitalize, fileExists } from '@zanix/helpers'
 import { getMainHandler } from './helpers/handler.ts'
@@ -16,7 +18,7 @@ export class WebServerManager {
   private portValidation = (type: WebServerTypes) => {
     const portValue = Deno.env.get(`PORT_${type.toUpperCase()}`) || Deno.env.get('PORT')
 
-    if (!portValue) return 8000 // default port
+    if (!portValue) return
 
     const portNumber = Number(portValue)
 
@@ -49,8 +51,8 @@ export class WebServerManager {
    */
   #start(serverType: WebServerTypes) {
     const server = this.#servers[serverType]
-    if (server?.addr) return
-    server?._start()
+    if (!server || server.addr) return
+    server._start()
   }
 
   /**
@@ -76,15 +78,15 @@ export class WebServerManager {
     } = options
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
-    if (Object.hasOwn(options, 'cert')) {
-      this.#sslOptions = { cert: options['cert' as never], key: options['key' as never] }
+    if (!this.#sslOptions && options.server?.ssl) {
+      this.#sslOptions = { cert: options.server.ssl.cert, key: options.server.ssl.key }
     }
 
     // Protocol assignment
     const protocol = this.#sslOptions.cert ? 'https' : 'http'
 
     // Port assignment
-    opts.port = opts.port || this.portValidation(type)
+    opts.port = this.portValidation(type) || opts.port || 8000 //default port
 
     // Ssl assignment
     Object.assign(opts, { ...this.#sslOptions })

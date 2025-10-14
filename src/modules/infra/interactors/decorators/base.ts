@@ -1,3 +1,6 @@
+import type { InteractorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
+import type { ZanixConnectors } from 'typings/targets.ts'
+
 import { defineInteractorDecorator } from './assembly.ts'
 
 /**

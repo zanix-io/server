@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
+import type { MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertArrayIncludes } from '@std/assert/assert-array-includes'
 import { MiddlewaresContainer } from 'modules/program/metadata/middlewares.ts'

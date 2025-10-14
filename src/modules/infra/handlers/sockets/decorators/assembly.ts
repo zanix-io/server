@@ -1,4 +1,5 @@
 import type { RtoTypes } from '@zanix/types'
+import type { SocketDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
 
 import Program from 'modules/program/main.ts'
 import { ZanixWebSocket } from '../base.ts'

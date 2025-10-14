@@ -1,3 +1,6 @@
+import type { HandlerDecoratorMethodOptions, ZanixMethodDecorator } from 'typings/decorators.ts'
+import type { HttpMethods } from 'typings/router.ts'
+
 import { defineControllerMethodDecorator } from './assembly.ts'
 
 /**

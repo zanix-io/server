@@ -1,3 +1,5 @@
+import type { HandlerDecoratorMethodOptions, ZanixMethodDecorator } from 'typings/decorators.ts'
+
 import { defineControllerMethodDecorator } from './assembly.ts'
 
 /**

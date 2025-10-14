@@ -1,3 +1,5 @@
+import type { ZanixInteractorGeneric } from 'typings/targets.ts'
+
 import { HandlerGenericClass } from '../generic.ts'
 
 /**

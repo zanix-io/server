@@ -1,3 +1,15 @@
+import type {
+  MiddlewareGlobalInterceptor,
+  MiddlewareGlobalPipe,
+  MiddlewareInterceptor,
+  MiddlewarePipe,
+} from 'typings/middlewares.ts'
+import type {
+  ZanixInteractorClass,
+  ZanixInteractorGeneric,
+  ZanixInteractorsGetter,
+} from 'typings/targets.ts'
+
 import { getTargetKey } from 'utils/targets.ts'
 import Program from 'modules/program/main.ts'
 

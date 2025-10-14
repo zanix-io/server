@@ -1,4 +1,9 @@
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
+import type {
+  ZanixInteractorClass,
+  ZanixInteractorGeneric,
+  ZanixInteractorsGetter,
+} from 'typings/targets.ts'
 
 import { CoreBaseClass } from 'modules/infra/base/core.ts'
 import { getTargetKey } from 'utils/targets.ts'

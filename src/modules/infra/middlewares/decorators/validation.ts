@@ -1,4 +1,5 @@
 import type { RtoTypes } from '@zanix/types'
+import type { ZanixGenericDecorator } from 'typings/decorators.ts'
 
 import { requestValidationPipe } from '../validation.pipe.ts'
 import { definePipeDecorator } from './assembly.ts'

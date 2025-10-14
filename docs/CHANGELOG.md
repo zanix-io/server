@@ -6,3 +6,27 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) a
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [1.0.1] - 2025-10-13
+
+### Added
+
+- Some modules to export
+
+### Fixed
+
+- Global types to local types
+
+### Changed
+
+- Readme.md
+
+## [1.0.0] - 2025-10-13
+
+### Added
+
+- REST Servers: Efficient and scalable REST API server management for seamless communication.
+- GraphQL Servers: Easily build and manage GraphQL endpoints for flexible data querying.
+- Socket Servers: Real-time communication via WebSockets for interactive, event-driven applications.
+- Interactors and Connectors: Built with design patterns like the Adapter pattern, ensuring clean
+  separation of concerns and flexibility when integrating with external services and APIs.

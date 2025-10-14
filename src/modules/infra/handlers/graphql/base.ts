@@ -1,3 +1,6 @@
+import type { HandlerContext } from 'typings/context.ts'
+import type { GQLPrototype, ZanixInteractorGeneric } from 'typings/targets.ts'
+
 import { HandlerBaseClass } from '../base.ts'
 
 /**

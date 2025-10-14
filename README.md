@@ -26,11 +26,84 @@ deploy applications within Deno.
 
 ## Features
 
-- REST Servers: Efficient and scalable REST API server management for seamless communication.
-- GraphQL Servers: Easily build and manage GraphQL endpoints for flexible data querying.
-- Socket Servers: Real-time communication via WebSockets for interactive, event-driven applications.
-- Interactors and Connectors: Built with design patterns like the Adapter pattern, ensuring clean
-  separation of concerns and flexibility when integrating with external services and APIs.
+### **Architecture Overview**
+
+This repository follows a **hybrid architectural pattern**, primarily inspired by the **Adapter
+Pattern**, but combining additional concepts to better support modularity, scalability, and
+separation of concerns. The structure facilitates clean integration with external services and
+promotes reusable, testable components.
+
+Below is a high-level overview of the architecture of a **ZANIX** application:
+
+```
++-------------------------+
+|      External Inputs    |   <- HTTP, GraphQL, WebSocket, Events
++-------------------------+
+            |
+            v
++-------------------------+
+|        HANDLERS         |   <- *.handler.ts
+| Controllers, Resolvers, |
+| Subscribers, WebSocket  |
++-------------------------+
+            |
+            v
++-------------------------+
+|       INTERACTORS       |   <- *.interactor.ts
+| Business Logic, Services|
+| Orchestration Layer     |
++-------------------------+
+            |
+            v
++-------------------------+
+|        CONNECTORS       |   <- *.connector.ts
+| DB, APIs, Queues, Cache |
+| External Integration    |
++-------------------------+
+
+         ▲         ▲
+         |         |
+         |         |
++--------+---------+-------------------------+
+|             DEPENDENCIES (HOCs)            |  <- *.hoc.ts
+| Middleware, Jobs, Models, Auth Guards, etc |
++--------------------------------------------+
+```
+
+---
+
+### **Component Descriptions**
+
+- **Handlers** (`*.handler.ts`): Include **controllers**, **resolvers**, **subscribers**, and
+  **WebSocket handlers**. They handle incoming requests or events and delegate execution to the
+  appropriate interactors (services).
+
+- **Interactors** (`*.interactor.ts`): Encapsulate the **core business logic**. These typically
+  include **services** or **adapters**, and are responsible for orchestrating application behavior.
+  They act as intermediaries between handlers and connectors.
+
+- **Connectors** (`*.connector.ts`): Serve as **clients or providers** to external systems (e.g.,
+  APIs, databases, caches, queues). They handle integration logic, including API requests, database
+  queries, or cache access.
+
+- **Dependencies**: Shared building blocks used across the application as **HOCs (Higher-Order
+  Components)** (`*.hoc.ts`): Reusable functions that enhance or wrap other components (e.g.,
+  Middlewares, Jobs, Models).
+
+---
+
+### **File Naming Conventions**
+
+To ensure consistency and maintainability, follow the naming conventions below:
+
+| Component Type               | File Suffix      | Example                |
+| ---------------------------- | ---------------- | ---------------------- |
+| Handler                      | `.handler.ts`    | `user.handler.ts`      |
+| Interactor                   | `.interactor.ts` | `auth.interactor.ts`   |
+| Connector                    | `.connector.ts`  | `payment.connector.ts` |
+| Higher-Order Component (HOC) | `.hoc.ts`        | `auth-guard.hoc.ts`    |
+
+---
 
 ## Installation
 

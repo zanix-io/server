@@ -1,3 +1,7 @@
+import type { ZanixGenericDecorator } from 'typings/decorators.ts'
+import type { MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
+import type { ClassConstructor } from 'typings/targets.ts'
+
 import Program from 'modules/program/main.ts'
 
 /** Define decorator to register a pipe */
