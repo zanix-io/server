@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { WebServerManager } from 'modules/webserver/manager.ts'
-import { assert, assertEquals, assertThrows } from '@std/assert'
+import { assert, assertEquals, assertMatch, assertThrows } from '@std/assert'
 import { stub } from '@std/testing/mock'
 import { getTemporaryFolder } from '@zanix/helpers'
 
@@ -76,9 +76,9 @@ Deno.test('Web server manager should start multiple servers', async () => {
     Deno.errors.Interrupted,
     `Port 9183 is already in use and cannot be assigned to the REST server with ID ${id2}. Please choose a different port.`,
   ) // cannot start with the same port
-  assertEquals(
+  assertMatch(
     (err.cause as any)?.message,
-    `Address already in use (os error 48) by REST server with ID ${id}.`,
+    new RegExp(`Address already in use \\(os error \\d+\\) by REST server with ID ${id}.`),
   )
 
   assertEquals(webServerManager.info(id).addr?.port, 9183)
