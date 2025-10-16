@@ -84,7 +84,7 @@ export {
 
 // Types
 export type { ModuleTypes } from 'typings/program.ts'
-export type { ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
+export type { ServerID, ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
 
 // Main
 export { WebServerManager }

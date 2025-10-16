@@ -154,7 +154,9 @@ export class WebServerManager {
    * @param {ServerID} id - The identificator of the server.
    * @returns {{ addr?: Deno.NetAddr | undefined; protocol?: string }} The server's address and protocol, or `undefined` if the server does not exist.
    */
-  public info(id: ServerID): Partial<ServerManagerData[never]> {
+  public info(
+    id: ServerID,
+  ): Readonly<Pick<ServerManagerData[never], 'addr' | 'protocol' | 'type'>> {
     const server = this.#servers[id] || ({} as ServerManagerData[never])
 
     return Object.freeze({ addr: server.addr, protocol: server.protocol, type: server.type })
@@ -163,21 +165,19 @@ export class WebServerManager {
   /**
    * Starts the specified web server if it is not already running.
    *
-   * @param {ServerID} id - The identifier of the server to start. If not provided, all servers will be started.
+   * @param {ServerID} id - The identifier of the server to start.
    */
-  public start(id?: ServerID): void {
+  public start(id: ServerID | ServerID[]): void {
     const processor = (callback: () => void) => {
       callback() // main function to execute
       // Delete unused references once the server has started
       Program.cleanupMetadata()
     }
 
-    if (id) return processor(() => this.#start(id))
+    if (typeof id === 'string') return processor(() => this.#start(id))
 
     processor(() => {
-      for (const key in this.#servers) {
-        this.#start(key as ServerID)
-      }
+      for (const key of id) this.#start(key)
     })
   }
 
@@ -187,8 +187,10 @@ export class WebServerManager {
    * @param {ServerID} id - The identificator of the server to stop.
    * @returns {Promise<void>} A promise that resolves when the server has been stopped.
    */
-  public async stop(id: ServerID): Promise<void> {
-    await this.#servers[id]?.stop()
+  public async stop(id: ServerID | ServerID[]): Promise<void> {
+    if (typeof id === 'string') return this.#servers[id]?.stop()
+
+    await Promise.all(id.map((key) => this.#servers[key]?.stop()))
   }
 
   /**
@@ -196,7 +198,10 @@ export class WebServerManager {
    *
    * @param {ServerID} id - The identificator of the server to delete.
    */
-  public delete(id: ServerID) {
-    delete this.#servers[id]
+  public delete(id: ServerID | ServerID[]): boolean {
+    if (typeof id === 'string') return delete this.#servers[id]
+
+    for (const key of id) delete this.#servers[key]
+    return true
   }
 }

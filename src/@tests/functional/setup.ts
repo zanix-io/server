@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import type { MiddlewareGlobalInterceptor, MiddlewareGlobalPipe } from 'typings/middlewares.ts'
 import type { HandlerContext } from 'typings/context.ts'
 import type { ModuleTypes } from 'typings/program.ts'
@@ -32,6 +33,10 @@ stub(console, 'error')
 
 /** RTOS */
 class C extends BaseRTO {
+  constructor() {
+    super()
+    ;(this.context as any).payload.pasrams //this should not fail
+  }
   @IsEmail({ expose: true })
   accessor email!: string
 }
@@ -231,13 +236,23 @@ class _Controller extends ZanixController<InteractorX> {
   }
 }
 
+@Controller()
+class _ControllerBasic extends ZanixController {
+  @Get()
+  public hello() {
+    return 'response'
+  }
+}
+
 export const SOCKET_PORT = 9222
 export const GQL_PORT = 9333
 
 try {
-  webServerManager.create('rest', { server: { globalPrefix: '/api//' } })
-  webServerManager.create('socket', { server: { port: SOCKET_PORT } })
-  webServerManager.create('graphql', { server: { port: GQL_PORT, globalPrefix: '/gql//' } })
+  const id1 = webServerManager.create('rest', { server: { globalPrefix: '/api//' } })
+  const id2 = webServerManager.create('socket', { server: { port: SOCKET_PORT } })
+  const id3 = webServerManager.create('graphql', {
+    server: { port: GQL_PORT, globalPrefix: '/gql//' },
+  })
 
   await Promise.all(
     Program.targets.getTargetsByStartMode('onSetup').map((key) => {
@@ -248,7 +263,7 @@ try {
     }),
   )
 
-  webServerManager.start()
+  webServerManager.start([id1, id2, id3])
 } catch {
   // ignore
 }

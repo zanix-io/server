@@ -259,8 +259,8 @@ Here’s a basic example of how to use the module:
 import { webServerManager } from 'jsr:@zanix/server@[version]'
 
 // Example of starting a REST server:
-const server = webServerManager.create('rest', { handler: () => new Response('Hello World') })
-webServerManager.start('rest')
+const serverId = webServerManager.create('rest', { handler: () => new Response('Hello World') })
+webServerManager.start(serverId)
 ```
 
 Refer to the full documentation for more advanced usage and examples.

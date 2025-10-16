@@ -19,7 +19,7 @@ Deno.test('Web server manager should start one server', async () => {
     },
   })
 
-  webServerManager.start()
+  webServerManager.start(id)
 
   const server = webServerManager.info(id)
   assertEquals(server.addr?.port, 8000)

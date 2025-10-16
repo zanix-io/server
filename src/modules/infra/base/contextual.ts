@@ -11,7 +11,7 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
 
   protected get config(): Omit<typeof Deno.env, 'toObject' | 'has'> {
     const { get, set, delete: del } = Deno.env
-    // TODO: implement types on params
+    // TODO: implement types on keys params. e.g get(currentKeys:types)
     return { get, set, delete: del }
   }
 

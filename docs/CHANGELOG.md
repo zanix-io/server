@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.4] - 2025-10-15
+
+### Fixed
+
+- Fix stop and start methods for multiple servers
+
 ## [1.0.3] - 2025-10-15
 
 ### Removed

@@ -64,7 +64,7 @@ export function defineControllerMethodDecorator(
   let { rto, pathOrRTO } = options
   if (typeof pathOrRTO !== 'string') {
     rto = pathOrRTO
-    pathOrRTO = '/'
+    pathOrRTO = ''
   }
   if (rto && typeof rto !== 'object') rto = { Search: rto }
 
@@ -72,7 +72,10 @@ export function defineControllerMethodDecorator(
 
   return function (method) {
     const handler = method.name.toString()
-    Program.decorators.addDecoratorData({ handler, endpoint, httpMethod }, 'controller')
+    Program.decorators.addDecoratorData(
+      { handler, endpoint: endpoint || handler, httpMethod },
+      'controller',
+    )
     if (rto) definePipeDecorator((ctx) => requestValidationPipe(ctx, rto))(method)
   }
 }

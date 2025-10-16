@@ -22,18 +22,19 @@ export const requestValidationPipe: MiddlewarePipe<[RtoTypes]> = async (
 ): Promise<void> => {
   const { payload, id } = ctx
 
-  // TODO: send base context to class validation
-
-  // Important to call payload props only when needed (Because of lazy-load getters)
-
+  // It's important to perform this validation to call the payload properties only when needed (due to lazy-loaded getters)
   if (rto.Body) {
-    ctx.payload.body = await classValidation(rto.Body, payload.body)
+    ctx.payload.body = await classValidation(rto.Body, payload.body, { ctx })
   }
   if (rto.Params) {
-    ctx.payload.params = await classValidation(rto.Params, processUrlParams(payload.params))
+    ctx.payload.params = await classValidation(rto.Params, processUrlParams(payload.params), {
+      ctx,
+    })
   }
   if (rto.Search) {
-    ctx.payload.search = await classValidation(rto.Search, processUrlParams(payload.search))
+    ctx.payload.search = await classValidation(rto.Search, processUrlParams(payload.search), {
+      ctx,
+    })
   }
 
   // setting scoped context

@@ -4,6 +4,12 @@ import { assertEquals } from '@std/assert'
 
 const restUrl = 'http://0.0.0.0:8000/api'
 
+Deno.test('Verifying controller api rest basic', async () => {
+  const query = await fetch(`${restUrl}/hello`)
+  const response = await query.text()
+  assertEquals(response, 'response')
+})
+
 Deno.test('Verifying controller api rest welcome service', async () => {
   const query = await fetch(`${restUrl}/welcome/iscam%40gmail.com?qparam=6`)
   const response = await query.json()
