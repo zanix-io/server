@@ -28,7 +28,8 @@ export type ServerManagerData = Record<
     _start: () => void
     stop: () => void | Promise<void>
     addr?: Deno.NetAddr
-    protocol?: string
+    protocol: string
+    type: WebServerTypes
   }
 >
 

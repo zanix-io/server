@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-explicit-any
 import { WebServerManager } from 'modules/webserver/manager.ts'
 import { assert, assertEquals, assertThrows } from '@std/assert'
 import { stub } from '@std/testing/mock'
@@ -23,6 +24,7 @@ Deno.test('Web server manager should start one server', async () => {
   const server = webServerManager.info(id)
   assertEquals(server.addr?.port, 8000)
   assertEquals(server.protocol, 'http')
+  assertEquals(server.type, 'rest')
   await webServerManager.stop(id)
 
   webServerManager.delete(id)
@@ -31,25 +33,25 @@ Deno.test('Web server manager should start one server', async () => {
   assert(webServerManager.info(id).protocol === undefined)
 })
 
-Deno.test('Web server manager should crash because of reserved ports', () => {
+Deno.test('Web server manager should return env ports', () => {
   Deno.env.set('PORT', '20201')
-  assertThrows(() => new WebServerManager()['envPortValidation']('rest'))
+  assertEquals(new WebServerManager()['getEnvPort']('rest'), 20201)
   Deno.env.delete('PORT')
 
   Deno.env.set('PORT', '20202')
-  assertThrows(() => new WebServerManager()['envPortValidation']('rest'))
+  assertEquals(new WebServerManager()['getEnvPort']('rest'), 20202)
   Deno.env.delete('PORT')
 
   Deno.env.set('PORT', '30248')
-  assertThrows(() => new WebServerManager()['envPortValidation']('rest'))
+  assertEquals(new WebServerManager()['getEnvPort']('rest'), 30248)
   Deno.env.delete('PORT')
 
   Deno.env.set('PORT_GRAPHQL', '30248')
-  assertThrows(() => new WebServerManager()['envPortValidation']('graphql'))
+  assertEquals(new WebServerManager()['getEnvPort']('graphql'), 30248)
   Deno.env.delete('PORT_GRAPHQL')
 
   Deno.env.set('PORT_SOCKET', '20202')
-  assertThrows(() => new WebServerManager()['envPortValidation']('socket'))
+  assertEquals(new WebServerManager()['getEnvPort']('socket'), 20202)
   Deno.env.delete('PORT_SOCKET')
 })
 
@@ -69,7 +71,15 @@ Deno.test('Web server manager should start multiple servers', async () => {
   webServerManager.start(id)
   webServerManager.start(id) // ignore start
 
-  assertThrows(() => webServerManager.start(id2), Deno.errors.Interrupted) // cannot start with the same port
+  const err = assertThrows(
+    () => webServerManager.start(id2),
+    Deno.errors.Interrupted,
+    `Port 9183 is already in use and cannot be assigned to the REST server with ID ${id2}. Please choose a different port.`,
+  ) // cannot start with the same port
+  assertEquals(
+    (err.cause as any)?.message,
+    `Address already in use (os error 48) by REST server with ID ${id}.`,
+  )
 
   assertEquals(webServerManager.info(id).addr?.port, 9183)
   assertEquals(webServerManager.info(id).protocol, 'http')

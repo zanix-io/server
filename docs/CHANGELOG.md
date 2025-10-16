@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.3] - 2025-10-15
+
+### Removed
+
+- Reserved ports
+
+### Added
+
+- Already addr in use error
+
 ## [1.0.2] - 2025-10-15
 
 ### Fixed

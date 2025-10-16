@@ -5,7 +5,6 @@ import type {
   WebServerTypes,
 } from 'typings/server.ts'
 
-import { RESERVED_PORTS } from 'utils/constants.ts'
 import { capitalize, fileExists, generateBasicUUID } from '@zanix/helpers'
 import { getMainHandler } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
@@ -49,23 +48,17 @@ export class WebServerManager {
   }
 
   /**
-   * private envPortValidation
+   * private getEnvPort
    * @param type
    * @param port
    * @returns
    */
-  private envPortValidation = (type: WebServerTypes, port?: number, isAdmin?: boolean) => {
-    const portValue = Deno.env.get(`PORT_${type.toUpperCase()}`) || Deno.env.get('PORT') || port
+  private getEnvPort = (type: WebServerTypes) => {
+    const portValue = Deno.env.get(`PORT_${type.toUpperCase()}`) || Deno.env.get('PORT')
 
     if (!portValue) return
 
-    const portNumber = Number(portValue)
-
-    if (!isAdmin && RESERVED_PORTS.includes(portNumber)) {
-      throw new Deno.errors.Interrupted(`The port '${portNumber}' is reserved and cannot be used.`)
-    }
-
-    return portNumber
+    return Number(portValue)
   }
 
   /**
@@ -96,7 +89,7 @@ export class WebServerManager {
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
     // Port assignment
-    opts.port = this.envPortValidation(type, opts.port, isAdmin) || 8000 //default port
+    opts.port = this.getEnvPort(type) || opts.port || 8000 //default port
 
     if (!this.#sslOptions && ssl) this.#sslOptions = { cert: ssl.cert, key: ssl.key }
 
@@ -111,14 +104,13 @@ export class WebServerManager {
     opts.onListen = onListen(currentListenHandler, protocol, serverName)
     opts.onError = onErrorListener(currentErrorHandler, serverName)
 
-    this.#servers[serverID] = {
-      stop: () => {},
+    const currentServers = this.#servers
+    currentServers[serverID] = {
       _start() {
         try {
           const server = Deno.serve(opts, handler)
           this.addr = server.addr
 
-          this.protocol = protocol
           server.finished.then(() => {
             onceStop?.()
           })
@@ -128,11 +120,29 @@ export class WebServerManager {
               logger.info(`${serverName} server is finished`)
             })
         } catch (error) {
+          const serverInUse = Object.entries(currentServers).find(([_, server]) =>
+            server?.addr?.port === opts.port
+          )
+
+          if (serverInUse?.[1]) {
+            const addInUseType = serverInUse[1].type.toUpperCase()
+            ;(error as Error).message += isAdmin
+              ? ` by an admin ${addInUseType} server.`
+              : ` by ${addInUseType} server with ID ${serverInUse[0]}.`
+            throw new Deno.errors.Interrupted(
+              `Port ${opts.port} is already in use and cannot be assigned to the ${this.type.toUpperCase()} server with ID ${serverID}. Please choose a different port.`,
+              { cause: error },
+            )
+          }
+
           throw new Deno.errors.Interrupted(`An error ocurred on ${serverName} server`, {
             cause: error,
           })
         }
       },
+      stop: () => {},
+      protocol,
+      type,
     }
 
     return serverID
@@ -147,7 +157,7 @@ export class WebServerManager {
   public info(id: ServerID): Partial<ServerManagerData[never]> {
     const server = this.#servers[id] || ({} as ServerManagerData[never])
 
-    return Object.freeze({ addr: server.addr, protocol: server.protocol })
+    return Object.freeze({ addr: server.addr, protocol: server.protocol, type: server.type })
   }
 
   /**
