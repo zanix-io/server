@@ -36,6 +36,9 @@ export function defineGlobalPipeHOC(
   target: MiddlewareGlobalPipe,
 ) {
   const { exports: { server } } = target
+
+  getTargetKey(target) // validate internal key use
+
   delete target['exports' as never]
 
   const pipe: MiddlewarePipe = (ctx) => {
@@ -62,6 +65,8 @@ export function defineGlobalInterceptorHOC(
 ) {
   const { exports: { server } } = target
   delete target['exports' as never]
+
+  getTargetKey(target) // validate internal key use
 
   const interceptor: MiddlewareInterceptor = (ctx, response) => {
     return target({ ...ctx, interactors: interactors(ctx.id) }, response)

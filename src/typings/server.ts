@@ -1,25 +1,21 @@
 /**
  * Represents the various types of web servers that can be managed by the system.
  *
- * - `'static'`: Serves static files (HTML, CSS, JS, etc.).
  * - `'graphql'`: Handles GraphQL API requests.
  * - `'rest'`: Handles RESTful API requests.
  * - `'socket'`: Handles WebSocket connections.
- * - `'admin'`: Serves an admin panel or dashboard.
- * - `'custom'`: A user-defined server type not covered by the predefined categories.
  */
-export type WebServerTypes =
-  | 'static'
-  | 'graphql'
-  | 'rest'
-  | 'socket'
-  | 'admin'
-  | 'custom'
+export type WebServerTypes = 'graphql' | 'rest' | 'socket'
 
 /**
- * Represents the runtime data and control functions for each managed server type.
+ * Represents the server identificator
+ */
+export type ServerID = `${string}-${string}-${string}-${string}-${string}`
+
+/**
+ * Represents the runtime data and control functions for each managed server.
  *
- * Each key corresponds to a `WebServerTypes` value, and maps to an object that includes:
+ * Each key corresponds to a `uuid` value, and maps to an object that includes:
  *
  * - `_start`: A function to start the server instance.
  * - `stop`: A function to stop the server. Can be synchronous or return a `Promise`.
@@ -27,7 +23,7 @@ export type WebServerTypes =
  * - `protocol` (optional): The communication protocol used (e.g., 'http', 'https').
  */
 export type ServerManagerData = Record<
-  WebServerTypes,
+  ServerID,
   {
     _start: () => void
     stop: () => void | Promise<void>
@@ -70,6 +66,6 @@ export type ServerOptions =
  */
 export type ServerManagerOptions<T extends WebServerTypes> = {
   handler?: ServerHandler
-  server?: T extends 'graphql' | 'rest' ? { globalPrefix?: string } & ServerOptions
+  server?: T extends Exclude<WebServerTypes, 'socket'> ? { globalPrefix?: string } & ServerOptions
     : ServerOptions
 }

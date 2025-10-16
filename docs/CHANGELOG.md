@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.2] - 2025-10-15
+
+### Fixed
+
+- Multiple server creation
+
+### Added
+
+- Reserved ports and names
+
 ## [1.0.1] - 2025-10-13
 
 ### Added

@@ -2,8 +2,10 @@ import './setup.ts'
 
 import { assertEquals } from '@std/assert'
 
+const restUrl = 'http://0.0.0.0:8000/api'
+
 Deno.test('Verifying controller api rest welcome service', async () => {
-  const query = await fetch('http://0.0.0.0:8000/api/welcome/iscam%40gmail.com?qparam=6')
+  const query = await fetch(`${restUrl}/welcome/iscam%40gmail.com?qparam=6`)
   const response = await query.json()
   assertEquals(response, {
     message: 'welcome:iscam@gmail.com',
@@ -15,7 +17,7 @@ Deno.test('Verifying controller api rest welcome service', async () => {
   })
   assertEquals(query.headers.get('global-header'), 'global interceptor header')
 
-  const query2 = await fetch('http://0.0.0.0:8000/api/welcome/intercepted')
+  const query2 = await fetch(`${restUrl}/welcome/intercepted`)
   const response2 = await query2.json()
   assertEquals(response2.message, 'hello intercepted')
   assertEquals(query.headers.get('global-header'), 'global interceptor header')
@@ -23,7 +25,7 @@ Deno.test('Verifying controller api rest welcome service', async () => {
 
 Deno.test('Verifying bad request and not found on api rest welcome service', async () => {
   // email must be valid
-  const query = await fetch('http://0.0.0.0:8000/api/welcome/iscamgmail.com')
+  const query = await fetch(`${restUrl}/welcome/iscamgmail.com`)
   const response = await query.json()
 
   assertEquals(response.message, 'BAD_REQUEST')
@@ -44,7 +46,7 @@ Deno.test('Verifying bad request and not found on api rest welcome service', asy
   })
 
   // only url encoded
-  const query2 = await fetch('http://0.0.0.0:8000/api/welcome/iscam@gmail.com')
+  const query2 = await fetch(`${restUrl}/welcome/iscam@gmail.com`)
   const response2 = await query2.json()
 
   assertEquals(response2.message, 'NOT_FOUND')
@@ -52,7 +54,7 @@ Deno.test('Verifying bad request and not found on api rest welcome service', asy
   assertEquals(response2.status.value, 404)
 
   // qparam is required
-  const query3 = await fetch('http://0.0.0.0:8000/api/welcome/iscam%40gmail.com')
+  const query3 = await fetch(`${restUrl}/welcome/iscam%40gmail.com`)
   const response3 = await query3.json()
 
   assertEquals(response3.message, 'BAD_REQUEST')

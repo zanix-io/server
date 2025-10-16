@@ -2,9 +2,12 @@
 import './setup.ts'
 
 import { assert, assertEquals } from '@std/assert'
+import { GQL_PORT } from './setup.ts'
+
+const gqlUrl = `http://0.0.0.0:${GQL_PORT}/gql`
 
 Deno.test('Verifying resolver gql Hello and Hello3 query', async () => {
-  const query = await fetch('http://0.0.0.0:20203/gql', {
+  const query = await fetch(gqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -33,7 +36,7 @@ Deno.test('Verifying resolver gql Hello and Hello3 query', async () => {
     },
   })
 
-  const query2 = await fetch('http://0.0.0.0:20203/gql', {
+  const query2 = await fetch(gqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -63,7 +66,7 @@ Deno.test('Verifying resolver gql Hello and Hello3 query', async () => {
 })
 
 Deno.test('Verifying bad request on resolver gql Hello query', async () => {
-  const query = await fetch('http://0.0.0.0:20203/gql', {
+  const query = await fetch(gqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -92,7 +95,7 @@ Deno.test('Verifying bad request on resolver gql Hello query', async () => {
 })
 
 Deno.test('Verifying resolver gql Hello2, Hello4 and 5 query', async () => {
-  const query = await fetch('http://0.0.0.0:20203/gql', {
+  const query = await fetch(gqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -120,7 +123,7 @@ Deno.test('Verifying resolver gql Hello2, Hello4 and 5 query', async () => {
   })
   assert(!query.headers.get('global-header')) // local interceptor does not send this header
 
-  const query4 = await fetch('http://0.0.0.0:20203/gql', {
+  const query4 = await fetch(gqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -140,7 +143,7 @@ Deno.test('Verifying resolver gql Hello2, Hello4 and 5 query', async () => {
     data: { welcomeHello4: 'Hello 4 ' },
   })
 
-  const query5 = await fetch('http://0.0.0.0:20203/gql', {
+  const query5 = await fetch(gqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -175,7 +178,7 @@ Deno.test('Validate schema on gql server', async () => {
   }
 `
 
-  const res = await fetch('http://0.0.0.0:20203/gql', {
+  const res = await fetch(gqlUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

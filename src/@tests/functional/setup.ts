@@ -1,7 +1,3 @@
-/** mocks */
-console.error = () => {}
-console.info = () => {}
-
 import type { MiddlewareGlobalInterceptor, MiddlewareGlobalPipe } from 'typings/middlewares.ts'
 import type { HandlerContext } from 'typings/context.ts'
 import type { ModuleTypes } from 'typings/program.ts'
@@ -24,10 +20,15 @@ import { Query } from 'handlers/graphql/decorators/query.ts'
 import { Pipe } from 'middlewares/decorators/pipe.ts'
 import { Interceptor } from 'modules/infra/middlewares/decorators/interceptor.ts'
 
-import { GRAPHQL_PORT, JSON_CONTENT_HEADER, SOCKET_PORT } from 'utils/constants.ts'
+import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
 import Program from 'modules/program/main.ts'
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { webServerManager } from '@zanix/server'
+import { stub } from '@std/testing/mock'
+
+/** mocks */
+stub(console, 'info')
+stub(console, 'error')
 
 /** RTOS */
 class C extends BaseRTO {
@@ -230,17 +231,24 @@ class _Controller extends ZanixController<InteractorX> {
   }
 }
 
-webServerManager.create('rest', { server: { globalPrefix: '/api//' } })
-webServerManager.create('socket', { server: { port: SOCKET_PORT } })
-webServerManager.create('graphql', { server: { port: GRAPHQL_PORT, globalPrefix: '/gql//' } })
+export const SOCKET_PORT = 9222
+export const GQL_PORT = 9333
 
-await Promise.all(
-  Program.targets.getTargetsByStartMode('onSetup').map((key) => {
-    const [type, id] = key.split(':') as [ModuleTypes, string]
-    const instance = Program.targets.getInstance<ZanixConnector>(id, type)
-    if (type !== 'connector') return
-    return instance.startConnection()
-  }),
-)
+try {
+  webServerManager.create('rest', { server: { globalPrefix: '/api//' } })
+  webServerManager.create('socket', { server: { port: SOCKET_PORT } })
+  webServerManager.create('graphql', { server: { port: GQL_PORT, globalPrefix: '/gql//' } })
 
-webServerManager.start()
+  await Promise.all(
+    Program.targets.getTargetsByStartMode('onSetup').map((key) => {
+      const [type, id] = key.split(':') as [ModuleTypes, string]
+      const instance = Program.targets.getInstance<ZanixConnector>(id, type)
+      if (type !== 'connector') return
+      return instance.startConnection()
+    }),
+  )
+
+  webServerManager.start()
+} catch {
+  // ignore
+}

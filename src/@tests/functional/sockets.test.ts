@@ -1,9 +1,12 @@
 import './setup.ts'
 
 import { assertEquals } from '@std/assert'
+import { SOCKET_PORT } from './setup.ts'
+
+const sockerUrl = `ws://0.0.0.0:${SOCKET_PORT}/mysock`
 
 Deno.test('connects to WebSocket server', async () => {
-  const ws = new WebSocket('ws://0.0.0.0:20201/mysock/1')
+  const ws = new WebSocket(`${sockerUrl}/1`)
 
   // Wait for the connection to open
   await new Promise((resolve) => (ws.onopen = resolve))
@@ -27,7 +30,7 @@ Deno.test('connects to WebSocket server', async () => {
 })
 
 Deno.test('should return error message on data validation', async () => {
-  const ws = new WebSocket('ws://0.0.0.0:20201/mysock/1')
+  const ws = new WebSocket(`${sockerUrl}/1`)
 
   // Wait for the connection to open
   await new Promise((resolve) => (ws.onopen = resolve))

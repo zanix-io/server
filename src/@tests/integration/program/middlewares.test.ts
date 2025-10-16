@@ -20,12 +20,12 @@ Deno.test('MiddlewaresContainer: add global pipe', () => {
   const container = new MiddlewaresContainer()
   const pipe: MiddlewarePipe = (x) => x as any
 
-  container.addGlobalPipe(pipe, ['custom', 'admin'])
+  container.addGlobalPipe(pipe, ['rest', 'socket'])
 
-  const httpPipes = container.getPipes({ propertyKey: 'custom' })
+  const httpPipes = container.getPipes({ propertyKey: 'rest' })
   assertArrayIncludes(httpPipes, [pipe])
 
-  const httpsPipes = container.getPipes({ propertyKey: 'admin' })
+  const httpsPipes = container.getPipes({ propertyKey: 'socket' })
   assertArrayIncludes(httpsPipes, [pipe])
 })
 
@@ -101,10 +101,10 @@ Deno.test('MiddlewaresContainer: getMiddlewares returns full set for given serve
 
   container.addInterceptor(interceptor, { Target })
   container.addPipe(pipe, { Target })
-  container.addGlobalInterceptor(interceptor, ['static'])
-  container.addGlobalPipe(pipe, ['static'])
+  container.addGlobalInterceptor(interceptor, ['rest'])
+  container.addGlobalPipe(pipe, ['rest'])
 
-  const { interceptors, pipes } = container.getMiddlewares('static', {
+  const { interceptors, pipes } = container.getMiddlewares('rest', {
     Target,
     propertyKey: 'handle',
   })

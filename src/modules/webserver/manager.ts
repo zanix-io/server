@@ -1,11 +1,16 @@
-import type { ServerManagerData, ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
+import type {
+  ServerID,
+  ServerManagerData,
+  ServerManagerOptions,
+  WebServerTypes,
+} from 'typings/server.ts'
 
 import { RESERVED_PORTS } from 'utils/constants.ts'
-import { capitalize, fileExists } from '@zanix/helpers'
+import { capitalize, fileExists, generateBasicUUID } from '@zanix/helpers'
 import { getMainHandler } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
-import logger from '@zanix/logger'
 import Program from '../program/main.ts'
+import logger from '@zanix/logger'
 
 /**
  * WebServerManager is a utility class for managing web servers with optional SSL support.
@@ -15,19 +20,7 @@ import Program from '../program/main.ts'
 export class WebServerManager {
   #servers: Partial<ServerManagerData> = {}
   #sslOptions: { key?: string; cert?: string } = {}
-  private portValidation = (type: WebServerTypes) => {
-    const portValue = Deno.env.get(`PORT_${type.toUpperCase()}`) || Deno.env.get('PORT')
 
-    if (!portValue) return
-
-    const portNumber = Number(portValue)
-
-    if (RESERVED_PORTS.includes(portNumber)) {
-      throw new Deno.errors.Interrupted(`The port '${portNumber}' is reserved and cannot be used.`)
-    }
-
-    return portNumber
-  }
   /**
    * Initializes the WebServerManager instance and loads ports and SSL options from environment variables (`SSL_KEY_PATH` and `SSL_CERT_PATH`).
    */
@@ -46,13 +39,33 @@ export class WebServerManager {
 
   /**
    * Private start function
-   * @param serverType
+   * @param id
    * @returns
    */
-  #start(serverType: WebServerTypes) {
-    const server = this.#servers[serverType]
+  #start(id: ServerID) {
+    const server = this.#servers[id]
     if (!server || server.addr) return
     server._start()
+  }
+
+  /**
+   * private envPortValidation
+   * @param type
+   * @param port
+   * @returns
+   */
+  private envPortValidation = (type: WebServerTypes, port?: number, isAdmin?: boolean) => {
+    const portValue = Deno.env.get(`PORT_${type.toUpperCase()}`) || Deno.env.get('PORT') || port
+
+    if (!portValue) return
+
+    const portNumber = Number(portValue)
+
+    if (!isAdmin && RESERVED_PORTS.includes(portNumber)) {
+      throw new Deno.errors.Interrupted(`The port '${portNumber}' is reserved and cannot be used.`)
+    }
+
+    return portNumber
   }
 
   /**
@@ -66,27 +79,29 @@ export class WebServerManager {
   public create<T extends WebServerTypes>(
     type: T,
     options: ServerManagerOptions<T> = {},
-  ): Omit<ServerManagerData[keyof ServerManagerData], '_start'> {
-    if (this.#servers[type]) return this.#servers[type]
+  ): ServerID {
+    const serverID = `${new TextEncoder().encode(type).toHex()}${generateBasicUUID()}` as ServerID
+
+    if (this.#servers[serverID]) return serverID
+
+    const globalPrefix = (options as ServerManagerOptions<'graphql' | 'rest'>).server
+      ?.globalPrefix
+
+    const isAdmin = globalPrefix === '{{zanix-admin-server-id}}'
 
     const {
-      server: { onceStop, ...opts } = {},
-      handler = getMainHandler(
-        type,
-        (options as ServerManagerOptions<'graphql' | 'rest'>).server?.globalPrefix,
-      ),
+      server: { onceStop, ssl, ...opts } = {},
+      handler = getMainHandler(type, isAdmin ? serverID : globalPrefix),
     } = options
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
-    if (!this.#sslOptions && options.server?.ssl) {
-      this.#sslOptions = { cert: options.server.ssl.cert, key: options.server.ssl.key }
-    }
+    // Port assignment
+    opts.port = this.envPortValidation(type, opts.port, isAdmin) || 8000 //default port
+
+    if (!this.#sslOptions && ssl) this.#sslOptions = { cert: ssl.cert, key: ssl.key }
 
     // Protocol assignment
     const protocol = this.#sslOptions.cert ? 'https' : 'http'
-
-    // Port assignment
-    opts.port = this.portValidation(type) || opts.port || 8000 //default port
 
     // Ssl assignment
     Object.assign(opts, { ...this.#sslOptions })
@@ -96,7 +111,7 @@ export class WebServerManager {
     opts.onListen = onListen(currentListenHandler, protocol, serverName)
     opts.onError = onErrorListener(currentErrorHandler, serverName)
 
-    this.#servers[type] = {
+    this.#servers[serverID] = {
       stop: () => {},
       _start() {
         try {
@@ -120,56 +135,58 @@ export class WebServerManager {
       },
     }
 
-    return this.#servers[type]
+    return serverID
   }
 
   /**
    * Returns info such as address and protocol (`http` or `https`) of the specified server.
    *
-   * @param {WebServerTypes} type - The name of the server.
+   * @param {ServerID} id - The identificator of the server.
    * @returns {{ addr?: Deno.NetAddr | undefined; protocol?: string }} The server's address and protocol, or `undefined` if the server does not exist.
    */
-  public info(type: WebServerTypes): { addr?: Deno.NetAddr | undefined; protocol?: string } {
-    const server = this.#servers[type]
-    return { addr: server?.addr, protocol: server?.protocol }
+  public info(id: ServerID): Partial<ServerManagerData[never]> {
+    const server = this.#servers[id] || ({} as ServerManagerData[never])
+
+    return Object.freeze({ addr: server.addr, protocol: server.protocol })
   }
 
   /**
    * Starts the specified web server if it is not already running.
    *
-   * @param {WebServerTypes} type - The name of the server to start. If not provided, all servers will be started.
+   * @param {ServerID} id - The identifier of the server to start. If not provided, all servers will be started.
    */
-  public start(type?: WebServerTypes) {
-    if (type) this.#start(type)
-    else {
-      for (const serverType in this.#servers) {
-        this.#start(serverType as WebServerTypes)
-      }
+  public start(id?: ServerID): void {
+    const processor = (callback: () => void) => {
+      callback() // main function to execute
+      // Delete unused references once the server has started
+      Program.cleanupMetadata()
     }
 
-    // Delete unused references once the server has started
-    Program.cleanupMetadata()
+    if (id) return processor(() => this.#start(id))
+
+    processor(() => {
+      for (const key in this.#servers) {
+        this.#start(key as ServerID)
+      }
+    })
   }
 
   /**
    * Stops the specified web server.
    *
-   * @param {WebServerTypes} type - The name of the server to stop.
+   * @param {ServerID} id - The identificator of the server to stop.
    * @returns {Promise<void>} A promise that resolves when the server has been stopped.
    */
-  public async stop(type: WebServerTypes): Promise<void> {
-    await this.#servers[type]?.stop()
+  public async stop(id: ServerID): Promise<void> {
+    await this.#servers[id]?.stop()
   }
 
   /**
    * Deletes the specified web server from the manager.
    *
-   * @param {WebServerTypes} name - The name of the server to delete.
+   * @param {ServerID} id - The identificator of the server to delete.
    */
-  public delete(name: WebServerTypes) {
-    delete this.#servers[name]?.addr // delete reference
-    delete this.#servers[name]?.protocol // delete reference
-
-    delete this.#servers[name]
+  public delete(id: ServerID) {
+    delete this.#servers[id]
   }
 }

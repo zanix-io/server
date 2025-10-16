@@ -71,11 +71,23 @@ export { Interceptor } from 'middlewares/decorators/interceptor.ts'
 export { RequestValidation } from 'middlewares/decorators/validation.ts'
 
 // Constants
-export { GRAPHQL_PORT, JSON_CONTENT_HEADER, SOCKET_PORT } from 'utils/constants.ts'
+export {
+  ADMIN_GRAPHQL_PORT,
+  ADMIN_REST_PORT,
+  ADMIN_SOCKET_PORT,
+  ADMIN_STATIC_PORT,
+  GRAPHQL_PORT,
+  JSON_CONTENT_HEADER,
+  SOCKET_PORT,
+  STATIC_PORT,
+} from 'utils/constants.ts'
 
 // Types
 export type { ModuleTypes } from 'typings/program.ts'
 export type { ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
+
+// Main
+export { WebServerManager }
 
 /**
  * An instance of the `WebServerManager` class responsible for managing multiple web servers.
@@ -109,4 +121,4 @@ export type { ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
  *
  * @type {WebServerManager}
  */
-export const webServerManager: WebServerManager = new WebServerManager()
+export const webServerManager: Readonly<WebServerManager> = Object.freeze(new WebServerManager())

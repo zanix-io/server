@@ -6,11 +6,11 @@ import { ZanixWorkerConnector } from 'connectors/worker.ts'
 import { ZanixAsyncmqConnector } from 'connectors/asyncmq.ts'
 
 /**
- * Reserved port for default socket server
+ * Reserved port for default SOCKET server
  */
 export const SOCKET_PORT = 20201
 /**
- * Reserved port for default static server
+ * Reserved port for default STATIC server
  */
 export const STATIC_PORT = 20202
 /**
@@ -18,11 +18,31 @@ export const STATIC_PORT = 20202
  */
 export const GRAPHQL_PORT = 20203
 /**
- * Reserved port for default admin server
+ * Reserved port for default admin REST server
  */
-export const ADMIN_PORT = 30248
+export const ADMIN_REST_PORT = 30248
+/**
+ * Reserved port for default admin GQL server
+ */
+export const ADMIN_GRAPHQL_PORT = 30249
+/**
+ * Reserved port for default admin SOCKET server
+ */
+export const ADMIN_SOCKET_PORT = 30250
+/**
+ * Reserved port for default admin STATIC server
+ */
+export const ADMIN_STATIC_PORT = 30251
 
-export const RESERVED_PORTS = [STATIC_PORT, ADMIN_PORT, SOCKET_PORT, GRAPHQL_PORT]
+export const RESERVED_PORTS = [
+  STATIC_PORT,
+  SOCKET_PORT,
+  GRAPHQL_PORT,
+  ADMIN_GRAPHQL_PORT,
+  ADMIN_REST_PORT,
+  ADMIN_SOCKET_PORT,
+  ADMIN_STATIC_PORT,
+]
 
 /**
  * Content header for http JSON application

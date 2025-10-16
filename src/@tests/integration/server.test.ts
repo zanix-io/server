@@ -12,70 +12,87 @@ Deno.env.delete('SSL_CERT_PATH')
 Deno.test('Web server manager should start one server', async () => {
   const webServerManager = new WebServerManager()
 
-  const server = webServerManager.create('static', {
+  const id = webServerManager.create('rest', {
     handler: () => {
       return new Response('response')
     },
   })
 
   webServerManager.start()
+
+  const server = webServerManager.info(id)
   assertEquals(server.addr?.port, 8000)
   assertEquals(server.protocol, 'http')
-  await server.stop()
+  await webServerManager.stop(id)
 
-  webServerManager.delete('static')
-  assert(server.addr === undefined)
-  assert(server.protocol === undefined)
+  webServerManager.delete(id)
+
+  assert(webServerManager.info(id).addr === undefined)
+  assert(webServerManager.info(id).protocol === undefined)
 })
 
 Deno.test('Web server manager should crash because of reserved ports', () => {
   Deno.env.set('PORT', '20201')
-  assertThrows(() => new WebServerManager()['portValidation']('rest'))
+  assertThrows(() => new WebServerManager()['envPortValidation']('rest'))
   Deno.env.delete('PORT')
 
   Deno.env.set('PORT', '20202')
-  assertThrows(() => new WebServerManager()['portValidation']('custom'))
+  assertThrows(() => new WebServerManager()['envPortValidation']('rest'))
   Deno.env.delete('PORT')
 
   Deno.env.set('PORT', '30248')
-  assertThrows(() => new WebServerManager()['portValidation']('rest'))
+  assertThrows(() => new WebServerManager()['envPortValidation']('rest'))
   Deno.env.delete('PORT')
 
-  Deno.env.set('PORT_STATIC', '30248')
-  assertThrows(() => new WebServerManager()['portValidation']('static'))
-  Deno.env.delete('PORT_STATIC')
+  Deno.env.set('PORT_GRAPHQL', '30248')
+  assertThrows(() => new WebServerManager()['envPortValidation']('graphql'))
+  Deno.env.delete('PORT_GRAPHQL')
 
-  Deno.env.set('PORT_ADMIN', '20202')
-  assertThrows(() => new WebServerManager()['portValidation']('admin'))
-  Deno.env.delete('PORT_ADMIN')
+  Deno.env.set('PORT_SOCKET', '20202')
+  assertThrows(() => new WebServerManager()['envPortValidation']('socket'))
+  Deno.env.delete('PORT_SOCKET')
 })
 
 Deno.test('Web server manager should start multiple servers', async () => {
   Deno.env.set('PORT', '9183')
   const webServerManager = new WebServerManager()
 
-  webServerManager.create('static', {
-    handler: () => {
-      return new Response('response')
-    },
+  const id = webServerManager.create('rest', {
+    handler: () => new Response('response'),
   })
+  const id2 = webServerManager.create('rest', {
+    handler: () => new Response('response'),
+  })
+
   Deno.env.delete('PORT')
 
-  webServerManager.start('static')
-  webServerManager.start('static') // ignore start
+  webServerManager.start(id)
+  webServerManager.start(id) // ignore start
 
-  assertEquals(webServerManager.info('static').addr?.port, 9183)
-  assertEquals(webServerManager.info('static').protocol, 'http')
+  assertThrows(() => webServerManager.start(id2), Deno.errors.Interrupted) // cannot start with the same port
 
-  webServerManager.start('socket')
-  assert(webServerManager.info('socket').addr === undefined)
+  assertEquals(webServerManager.info(id).addr?.port, 9183)
+  assertEquals(webServerManager.info(id).protocol, 'http')
 
-  await webServerManager.stop('static')
-  await webServerManager.stop('static') // ignore stop
+  const rest = webServerManager.create('rest', {
+    handler: () => new Response('response'),
+  })
 
-  webServerManager.delete('static')
-  assert(webServerManager.info('static').addr === undefined)
-  assert(webServerManager.info('static').protocol === undefined)
+  webServerManager.start(rest)
+  assertEquals(webServerManager.info(rest).addr?.port, 8000)
+  assertEquals(webServerManager.info(rest).protocol, 'http')
+  webServerManager.stop(rest)
+
+  const randomId = 'random-server-undefined-1-1'
+  webServerManager.start(randomId)
+  assert(webServerManager.info(randomId).addr === undefined)
+
+  await webServerManager.stop(id)
+  await webServerManager.stop(id) // ignore stop
+
+  webServerManager.delete(id)
+  assert(webServerManager.info(id).addr === undefined)
+  assert(webServerManager.info(id).protocol === undefined)
 })
 
 Deno.test('Web server should start https', async () => {
@@ -145,17 +162,15 @@ jyYkHXyzeg8h3FWE8e+iDp0L
 
   const webServerManager = new WebServerManager()
 
-  webServerManager.create('rest', {
-    handler: () => {
-      return new Response('response')
-    },
+  const id = webServerManager.create('rest', {
+    handler: () => new Response('response'),
   })
 
-  webServerManager.start()
+  webServerManager.start(id)
 
-  assertEquals(webServerManager.info('rest').protocol, 'https')
+  assertEquals(webServerManager.info(id).protocol, 'https')
 
-  await webServerManager.stop('rest')
+  await webServerManager.stop(id)
 
   Deno.env.delete('SSL_KEY_PATH')
   Deno.env.delete('SSL_CERT_PATH')

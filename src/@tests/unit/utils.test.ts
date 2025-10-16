@@ -1,8 +1,9 @@
-import { assertEquals, assertMatch } from '@std/assert'
+import { assertEquals, assertMatch, assertThrows } from '@std/assert'
 import { uuidRegex } from '@zanix/regex'
 import { contextId } from 'utils/uuid.ts'
 import { cleanRoute, pathToRegex } from 'utils/routes.ts'
 import { processUrlParams } from 'utils/params.ts'
+import { getTargetKey } from 'utils/targets.ts'
 
 Deno.test('contextId should return a correct uuid', async () => {
   assertMatch(await contextId(), uuidRegex)
@@ -75,4 +76,10 @@ Deno.test('processUrlParams should decode mixed nested arrays and objects', () =
   }
 
   assertEquals(processUrlParams(input), expected)
+})
+
+Deno.test('getTargetKey for reserved classes', () => {
+  class _ZanixClass {}
+
+  assertThrows(() => getTargetKey(_ZanixClass as never), Deno.errors.Interrupted)
 })
