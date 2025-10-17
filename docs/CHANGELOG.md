@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.6] - 2025-10-17
+
+- Exporting additional types
+
+### Fixed
+
 ## [1.0.5] - 2025-10-17
 
 ### Fixed

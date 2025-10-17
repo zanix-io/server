@@ -85,6 +85,14 @@ export {
 // Types
 export type { ModuleTypes } from 'typings/program.ts'
 export type { ServerID, ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
+export type {
+  MiddlewareGlobalInterceptor,
+  MiddlewareGlobalPipe,
+  MiddlewareInterceptor,
+  MiddlewareInternalInterceptor,
+  MiddlewarePipe,
+} from 'typings/middlewares.ts'
+export type { HandlerContext } from 'typings/context.ts'
 
 // Main
 export { WebServerManager }

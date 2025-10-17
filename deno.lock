@@ -150,7 +150,14 @@
       ]
     },
     "@zanix/utils@2.1.4": {
-      "integrity": "614e681c4eda49f24731abc077517fbdac8cd44e777c03ee3d4b0601562ce64e"
+      "integrity": "614e681c4eda49f24731abc077517fbdac8cd44e777c03ee3d4b0601562ce64e",
+      "dependencies": [
+        "jsr:@luca/esbuild-deno-loader",
+        "jsr:@std/fmt",
+        "jsr:@std/path@0.224",
+        "npm:esbuild",
+        "npm:javascript-obfuscator"
+      ]
     }
   },
   "npm": {
