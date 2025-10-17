@@ -47,7 +47,7 @@ export type InteractorDecoratorOptions<C extends ZanixConnectors> = {
 }
 
 export type ConnectorDecoratorOptions = ConnectorTypes | {
-  type: ConnectorTypes
+  type?: ConnectorTypes
   startMode?: StartMode
   lifetime?: Lifetime
 }

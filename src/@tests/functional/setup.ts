@@ -49,7 +49,7 @@ class S extends BaseRTO {
 }
 
 /** Connectors */
-@Connector({ type: 'custom', startMode: 'onSetup' })
+@Connector({ startMode: 'onSetup' })
 class Connectors extends ZanixAsyncmqConnector {
   public stopConnection() {
   }

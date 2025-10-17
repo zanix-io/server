@@ -12,7 +12,7 @@ import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
  * @param {ConnectorTypes} type - The type of the interactor connector.
  * @returns {ZanixClassDecorator} The class decorator function.
  */
-export function Connector(type: ConnectorTypes): ZanixClassDecorator
+export function Connector(type?: ConnectorTypes): ZanixClassDecorator
 /**
  * Class decorator for defining Provider or Client interactors with detailed connector options.
  *
@@ -28,10 +28,10 @@ export function Connector(type: ConnectorTypes): ZanixClassDecorator
  * @returns {ZanixClassDecorator} The class decorator function.
  */
 export function Connector(options: {
-  type: GenericConnectors
+  type?: GenericConnectors
   startMode?: StartMode
   lifetime?: Lifetime
 }): ZanixClassDecorator
-export function Connector(options: ConnectorDecoratorOptions): ZanixClassDecorator {
+export function Connector(options?: ConnectorDecoratorOptions): ZanixClassDecorator {
   return defineConnectorDecorator(options)
 }

@@ -11,15 +11,16 @@ export function defineConnectorDecorator(
   options?: ConnectorDecoratorOptions,
 ): ZanixClassDecorator {
   let key: string
-  let type: ConnectorTypes
-  let startMode: StartMode | undefined
-  let lifetime: Lifetime
+  let type: ConnectorTypes = 'custom'
+  let startMode: StartMode = 'postBoot'
+  let lifetime: Lifetime = 'SINGLETON'
+
   if (typeof options === 'string') {
     type = options
   } else if (options) {
-    type = options.type
-    startMode = options.startMode || 'postBoot'
-    lifetime = options.lifetime || 'SINGLETON'
+    type = options.type || type
+    startMode = options.startMode || startMode
+    lifetime = options.lifetime || lifetime
   }
 
   const coreConnectors = Object.keys(CORE_CONNECTORS)

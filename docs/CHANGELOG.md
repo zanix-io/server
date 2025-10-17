@@ -7,11 +7,17 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [1.0.6] - 2025-10-17
-
-- Exporting additional types
+## [1.0.7] - 2025-10-17
 
 ### Fixed
+
+- Connector default configuration
+
+## [1.0.6] - 2025-10-17
+
+### Added
+
+- Exporting additional types
 
 ## [1.0.5] - 2025-10-17
 
