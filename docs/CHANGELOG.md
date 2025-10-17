@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.5] - 2025-10-17
+
+### Fixed
+
+- Decorators types
+
 ## [1.0.4] - 2025-10-15
 
 ### Fixed

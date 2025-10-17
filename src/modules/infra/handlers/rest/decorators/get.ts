@@ -1,4 +1,5 @@
 import type { HandlerDecoratorMethodOptions, ZanixMethodDecorator } from 'typings/decorators.ts'
+import type { RtoTypes } from '@zanix/types'
 
 import { defineControllerMethodDecorator } from './assembly.ts'
 
@@ -10,12 +11,12 @@ import { defineControllerMethodDecorator } from './assembly.ts'
  * to define the expected request structure for validation or documentation purposes.
  *
  * @param {string} path - The route path for the GET request (e.g., `/users/:id`).
- * @param {HandlerDecoratorMethodOptions['rto']} [rto] - Optional request transfer object for input validation or schema documentation.
+ * @param {Omit<RtoTypes, 'Body'>} [rto] - Optional request transfer object for input validation or schema documentation.
  * @returns {ZanixMethodDecorator} The method decorator function.
  */
 export function Get(
   path?: string,
-  rto?: HandlerDecoratorMethodOptions['rto'],
+  rto?: Omit<RtoTypes, 'Body'>,
 ): ZanixMethodDecorator
 
 /**
@@ -26,10 +27,10 @@ export function Get(
  * to define the expected request structure for validation or documentation purposes.
  * Default `path` is the function name.
  *
- * @param {HandlerDecoratorMethodOptions['rto']} [rto] - Optional request transfer object for input validation or schema documentation.
+ * @param {Omit<RtoTypes, 'Body'>} [rto] - Optional request transfer object for input validation or schema documentation.
  * @returns {ZanixMethodDecorator} The method decorator function.
  */
-export function Get(rto: HandlerDecoratorMethodOptions['rto']): ZanixMethodDecorator
+export function Get(rto: Omit<RtoTypes, 'Body'>): ZanixMethodDecorator
 export function Get(
   pathOrRTO?: HandlerDecoratorMethodOptions['pathOrRTO'],
   rto?: HandlerDecoratorMethodOptions['rto'],

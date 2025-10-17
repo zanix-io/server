@@ -18,7 +18,6 @@ import { defineInterceptorDecorator } from './assembly.ts'
  * It can be synchronous or asynchronous and must return a `Response` or a `Promise<Response>`.
  *
  * @param {MiddlewareInterceptor} interceptor - The middleware interceptor function to apply.
- * @returns {ZanixGenericDecorator} The method decorator that registers the interceptor for the target handler.
  *
  * @example
  * ```ts
@@ -27,6 +26,7 @@ import { defineInterceptorDecorator } from './assembly.ts'
  *   return new Response('User data');
  * }
  * ```
+ * @returns {ZanixGenericDecorator} The method decorator that registers the interceptor for the target handler.
  */
 export function Interceptor(interceptor: MiddlewareInterceptor): ZanixGenericDecorator {
   return defineInterceptorDecorator(interceptor)

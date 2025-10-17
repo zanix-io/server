@@ -53,8 +53,8 @@ export type ConnectorDecoratorOptions = ConnectorTypes | {
 }
 
 export type HandlerDecoratorMethodOptions = {
-  pathOrRTO?: string | (Omit<RtoTypes, 'Body'> | RtoTypes['Search'])
-  rto?: Omit<RtoTypes, 'Body'> | RtoTypes['Search']
+  pathOrRTO?: string | RtoTypes
+  rto?: RtoTypes
 }
 
 export type ResolverTypes = 'Query' | 'Mutation'

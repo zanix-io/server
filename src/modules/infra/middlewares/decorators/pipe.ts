@@ -16,7 +16,6 @@ import { definePipeDecorator } from './assembly.ts'
  * {@link HandlerContext} and any additional custom arguments. It can be asynchronous.
  *
  * @param {MiddlewarePipe} pipe - The middleware pipe function to apply to the handler.
- * @returns {MethodDecorator} The method decorator that registers the pipe for the target handler.
  *
  * @example
  * ```ts
@@ -25,6 +24,7 @@ import { definePipeDecorator } from './assembly.ts'
  *   // handler logic here
  * }
  * ```
+ * @returns {MethodDecorator} The method decorator that registers the pipe for the target handler.
  */
 export function Pipe(pipe: MiddlewarePipe): ZanixGenericDecorator {
   return definePipeDecorator(pipe)

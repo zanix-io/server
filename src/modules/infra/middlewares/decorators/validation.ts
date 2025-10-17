@@ -14,7 +14,6 @@ import { definePipeDecorator } from './assembly.ts'
  * helping ensure that incoming data conforms to the specified contracts before handler execution.
  *
  * @param {RtoTypes} rto - The request transfer object definitions specifying validation schemas for body, params, and query.
- * @returns {MethodDecorator} The method decorator that applies the validation to the target handler.
  *
  * @example
  * ```ts
@@ -27,6 +26,7 @@ import { definePipeDecorator } from './assembly.ts'
  *   // Handler logic here, with validated input
  * }
  * ```
+ * @returns {MethodDecorator} The method decorator that applies the validation to the target handler.
  */
 export function RequestValidation(rto: RtoTypes): ZanixGenericDecorator {
   return definePipeDecorator((ctx) => requestValidationPipe(ctx, rto))
