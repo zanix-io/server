@@ -8,11 +8,19 @@ import type {
 import type { ClassConstructor } from 'typings/targets.ts'
 
 /**
- * Base Metadata Container
+ * Abstract base class for managing metadata containers.
+ *
+ * Provides utility methods for storing, retrieving, and managing metadata and target references
+ * using `Reflect` and custom keys. Supports grouping by data type, start mode, or module type.
  */
 export abstract class BaseContainer {
   #metadata = 'metadata'
 
+  /**
+   * Registers a container object to track metadata keys.
+   * @param container The target object to register.
+   * @private
+   */
   private registerMetadataContainer(container: object) {
     // register targets
     const targets = new Set(Reflect.get(this.constructor, this.#metadata) || [])
@@ -20,15 +28,23 @@ export abstract class BaseContainer {
     Reflect.set(this.constructor, this.#metadata, Array.from(targets))
   }
 
+  /**
+   * Constructs a unique metadata key based on type, class name, and property key.
+   * @param key The property key.
+   * @param type The metadata type (e.g., 'data', 'target').
+   * @returns A string key to use for metadata storage.
+   * @private
+   */
   private key(key: string, type: MetadataTypes): MetadataTypesKey {
     return `${type}:${this.constructor.name}:${key}`
   }
 
   /**
-   * Set data
-   * @param key
-   * @param data
-   * @param container
+   * Stores metadata data under the specified key.
+   * @param key The key to associate the data with.
+   * @param data Optional data to store.
+   * @param container Optional container object (defaults to `this`).
+   * @protected
    */
   protected setData<T extends MetadataObjects>(key: string, data?: T, container: object = this) {
     this.registerMetadataContainer(container)
@@ -36,9 +52,11 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Get data
-   * @param key
-   * @param container
+   * Retrieves metadata data by key.
+   * @param key The key to retrieve.
+   * @param container Optional container object (defaults to `this`).
+   * @returns The stored data or undefined.
+   * @protected
    */
   protected getData<T extends MetadataObjects | undefined>(
     key: string,
@@ -49,10 +67,11 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Set a target object
-   * @param key
-   * @param data
-   * @param container
+   * Stores a target (e.g., class constructor) under the specified key.
+   * @param key The key to associate the target with.
+   * @param data Optional target data.
+   * @param container Optional container object (defaults to `this`).
+   * @protected
    */
   protected setTarget<T extends ClassConstructor>(key: string, data?: T, container: object = this) {
     this.registerMetadataContainer(container)
@@ -60,10 +79,11 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Set a target by startMode
-   * @param key
-   * @param startMode
-   * @param container
+   * Registers a key under a specific start mode.
+   * @param key The key to register.
+   * @param startMode The start mode identifier.
+   * @param container Optional container object (defaults to `this`).
+   * @protected
    */
   protected setTargetByStartMode(
     key: string,
@@ -78,10 +98,11 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Set a target by type
-   * @param key
-   * @param startMode
-   * @param container
+   * Registers a key under a specific module type.
+   * @param key The key to register.
+   * @param type The module type identifier.
+   * @param container Optional container object (defaults to `this`).
+   * @protected
    */
   protected setTargetByType(
     key: string,
@@ -96,10 +117,11 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Function to get a target
-   * @param key
-   * @param container
-   * @returns
+   * Retrieves a registered target by key.
+   * @param key The key to retrieve.
+   * @param container Optional container object (defaults to `this`).
+   * @returns The stored class constructor.
+   * @protected
    */
   protected getTarget<T extends ClassConstructor>(key: string, container: object = this): T {
     this.registerMetadataContainer(container)
@@ -107,10 +129,10 @@ export abstract class BaseContainer {
   }
 
   /**
-   * get all targets by start mode
-   * @param startMode
-   * @param container
-   * @returns
+   * Gets all registered keys for a specific start mode.
+   * @param startMode The start mode identifier.
+   * @param container Optional container object (defaults to `this`).
+   * @returns An array of registered keys.
    */
   public getTargetsByStartMode(startMode: StartMode, container: object = this): string[] {
     this.registerMetadataContainer(container)
@@ -118,10 +140,10 @@ export abstract class BaseContainer {
   }
 
   /**
-   * get all targets by type
-   * @param type
-   * @param container
-   * @returns
+   * Gets all registered keys for a specific module type.
+   * @param type The module type identifier.
+   * @param container Optional container object (defaults to `this`).
+   * @returns An array of registered keys.
    */
   public getTargetsByType(type: ModuleTypes, container: object = this): string[] {
     this.registerMetadataContainer(container)
@@ -129,10 +151,12 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Check for a target
-   * @param key
-   * @param type
-   * @returns
+   * Checks whether a key of a specific type exists in the metadata.
+   * @param key The key to check.
+   * @param type The metadata type.
+   * @param container Optional container object (defaults to `this`).
+   * @returns True if key exists; otherwise false.
+   * @protected
    */
   protected has(key: string, type: MetadataTypes, container: object = this): boolean {
     this.registerMetadataContainer(container)
@@ -140,9 +164,10 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Delete data key
-   * @param key
-   * @param container
+   * Deletes stored metadata data by key.
+   * @param key The key to delete.
+   * @param container Optional container object (defaults to `this`).
+   * @protected
    */
   protected deleteData(key: string, container: object = this) {
     this.registerMetadataContainer(container)
@@ -150,9 +175,10 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Delete target key
-   * @param key
-   * @param container
+   * Deletes stored target reference by key.
+   * @param key The key to delete.
+   * @param container Optional container object (defaults to `this`).
+   * @protected
    */
   protected deleteTarget(key: string, container: object = this) {
     this.registerMetadataContainer(container)
@@ -160,17 +186,22 @@ export abstract class BaseContainer {
   }
 
   /**
-   * get container Metadata Keys
-   * @returns
+   * Retrieves all own metadata keys from a container.
+   * @param container Optional container object (defaults to `this`).
+   * @returns An array of metadata keys.
+   * @protected
    */
   protected getContainerKeys(container: object = this): (string | symbol)[] {
     return Reflect.ownKeys(container)
   }
 
   /**
-   * Reset all container data. Defaults to current container
-   * @param keys Specific keys to delete. By default all keys are deleted. Can be string regex,
-   * @param props Sepecify data type to delete
+   * Resets (deletes) metadata from registered containers.
+   *
+   * Can filter by specific keys and metadata types.
+   *
+   * @param keys Specific keys to delete (string or array). Defaults to [''] (all).
+   * @param props Metadata types to delete (e.g., 'data', 'target'). Defaults to all.
    */
   public resetContainer(
     keys: string | string[] = [''],

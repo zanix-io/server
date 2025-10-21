@@ -32,6 +32,7 @@ self.addEventListener('unload', async () => {
 })
 
 export { Program, ProgramModule }
+export { BaseContainer as ProgramContainer } from 'modules/program/metadata/abstracts/main.ts'
 
 // Handlers
 export { ZanixController } from 'handlers/rest/base.ts'
