@@ -24,7 +24,7 @@ class TestContextual extends ContextualBaseClass {
   }
 }
 
-Deno.test('ContextualBaseClass.config returns env accessors', () => {
+Deno.test('ContextualBaseClass.testConfig returns env accessors', () => {
   const instance = new TestContextual('ctx1')
   const config = instance.testConfig
 
@@ -33,7 +33,7 @@ Deno.test('ContextualBaseClass.config returns env accessors', () => {
   assertEquals(typeof config.delete, 'function')
 })
 
-Deno.test('ContextualBaseClass.context throws in SINGLETON mode', () => {
+Deno.test('ContextualBaseClass.testContext throws in SINGLETON mode', () => {
   const instance = new TestContextual('ctx-singleton')
   instance.setZnxProps({ lifetime: 'SINGLETON' })
 
@@ -44,7 +44,7 @@ Deno.test('ContextualBaseClass.context throws in SINGLETON mode', () => {
   )
 })
 
-Deno.test('ContextualBaseClass.context returns scoped context when not SINGLETON', () => {
+Deno.test('ContextualBaseClass.testContext returns scoped context when not SINGLETON', () => {
   const fakeContext = { user: 'test-user' }
 
   // Spy on Program.context.getContext

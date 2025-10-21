@@ -45,10 +45,12 @@ import logger from '@zanix/logger'
  */
 export abstract class ZanixWebSocket<Interactor extends ZanixInteractorGeneric = never>
   extends HandlerGenericClass<Interactor, SocketPrototype | HandlerContext> {
-  #context!: HandlerContext
+  #context: HandlerContext
 
-  constructor(contextId: string) {
-    super(contextId)
+  constructor(context: HandlerContext) {
+    super(context.id)
+
+    this.#context = context
 
     const currentOnMessage = this.onmessage.bind(this)
 

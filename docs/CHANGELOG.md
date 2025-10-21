@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.8] - 2025-10-20
+
+## Fixed
+
+- Connector and database connector structure
+
+### Fixed
+
 ## [1.0.7] - 2025-10-17
 
 ### Fixed

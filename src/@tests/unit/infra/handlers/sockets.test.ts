@@ -43,7 +43,7 @@ class TestSocketHandler {
 Deno.test('ZanixWebSocket onopen logs correctly', () => {
   const logSpy = spy(logger, 'info')
 
-  const ws = new TestWebSocket('context-id')
+  const ws = new TestWebSocket({ id: 'context-id' } as never)
   const event = new Event('open')
 
   ws.triggerOnopen(event)
@@ -58,7 +58,7 @@ Deno.test('ZanixWebSocket onopen logs correctly', () => {
 Deno.test('ZanixWebSocket onclose logs correctly', () => {
   const logSpy = spy(logger, 'info')
 
-  const ws = new TestWebSocket('context-id')
+  const ws = new TestWebSocket({ id: 'context-id' } as never)
   const event = new CloseEvent('close')
 
   ws.triggerOnclose(event)
@@ -73,7 +73,7 @@ Deno.test('ZanixWebSocket onclose logs correctly', () => {
 Deno.test('ZanixWebSocket onmessage logs correctly', () => {
   const logSpy = spy(logger, 'info')
 
-  const ws = new TestWebSocket('context-id')
+  const ws = new TestWebSocket({ id: 'context-id' } as never)
   const event = new MessageEvent('message', { data: 'test' })
 
   ws.triggerOnmessage(event)
@@ -88,7 +88,7 @@ Deno.test('ZanixWebSocket onmessage logs correctly', () => {
 Deno.test('ZanixWebSocket onerror logs correctly', () => {
   const logSpy = spy(logger, 'error')
 
-  const ws = new TestWebSocket('context-id')
+  const ws = new TestWebSocket({ id: 'context-id' } as never)
   const errorEvent = new ErrorEvent('error', { message: 'failure' })
 
   ws.triggerOnerror(errorEvent)

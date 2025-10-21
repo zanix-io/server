@@ -28,6 +28,7 @@ export class WebServerManager {
     const sslKeyPath = Deno.env.get('SSL_KEY_PATH')
     const sslCertPath = Deno.env.get('SSL_CERT_PATH')
 
+    // TODO: review for downloading ssl files on web using these paths
     if (sslKeyPath && sslCertPath && fileExists(sslKeyPath) && fileExists(sslCertPath)) {
       this.#sslOptions = {
         cert: Deno.readTextFileSync(sslCertPath),

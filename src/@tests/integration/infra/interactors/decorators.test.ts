@@ -4,7 +4,7 @@ import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import { defineInteractorDecorator } from 'modules/infra/interactors/decorators/assembly.ts'
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
-import { CORE_CONNECTORS } from 'utils/constants.ts'
+import ConnectorCoreModules from 'modules/infra/connectors/core.ts'
 
 const originalToBeInstanced = Program.targets.toBeInstanced
 
@@ -56,9 +56,9 @@ Deno.test('should throw error if using core connector directly', () => {
   // Create a fake core connector
   class CoreConnector {}
   const coreConnectorKey = 'coreKey' as never
-  const originalCache = CORE_CONNECTORS.cache
+  const originalCache = ConnectorCoreModules.cache
   // Inject it into CORE_CONNECTORS
-  CORE_CONNECTORS.cache = {
+  ConnectorCoreModules.cache = {
     key: coreConnectorKey,
     Target: CoreConnector,
   }
@@ -85,5 +85,5 @@ Deno.test('should throw error if using core connector directly', () => {
   )
 
   // Restore Program.targets
-  CORE_CONNECTORS.cache = originalCache
+  ConnectorCoreModules.cache = originalCache
 })

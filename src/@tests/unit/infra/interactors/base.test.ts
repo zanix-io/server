@@ -7,9 +7,11 @@ import Program from 'modules/program/main.ts'
 
 // Mock ZanixConnector
 class MockConnector extends ZanixConnector {
-  public override startConnection(): Promise<void> | void {
+  public override startConnection(): Promise<boolean> | boolean {
+    return true
   }
-  public override stopConnection(): Promise<void> | void {
+  public override stopConnection(): Promise<boolean> | boolean {
+    return true
   }
   public foo = 'bar'
 }
@@ -40,7 +42,7 @@ const getInstanceStub = stub(
   'getInstance',
   (_key: string, type: string, options?: unknown) => {
     if (type === 'connector') {
-      return new MockConnector()
+      return new MockConnector('ctx-check')
     }
     if (type === 'interactor') {
       return new OtherInteractor((options as { ctx: string })?.ctx ?? 'ctx-missing')
@@ -68,9 +70,10 @@ Deno.test('ZanixInteractor.interactors returns other interactor instance when no
 })
 
 Deno.test('ZanixInteractor.interactors.get passes correct context', () => {
+  Program.context.addContext({ id: 'ctx-check' })
   const instance = new MockInteractor('ctx-check')
   const result = instance['interactors'].get(OtherInteractor)
-  assertEquals(result['contextId'], 'ctx-check')
+  assertEquals(result['context'].id, 'ctx-check')
 })
 
 // Cleanup

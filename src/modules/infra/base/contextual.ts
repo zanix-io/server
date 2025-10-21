@@ -1,12 +1,14 @@
 import type { ScopedContext } from 'typings/context.ts'
 
 import { HttpError } from '@zanix/errors'
-import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import Program from 'modules/program/main.ts'
+import { TargetBaseClass } from './target.ts'
 
 export abstract class ContextualBaseClass extends TargetBaseClass {
-  constructor(private contextId: string) {
+  #contextId
+  constructor(contextId: string) {
     super()
+    this.#contextId = contextId
   }
 
   protected get config(): Omit<typeof Deno.env, 'toObject' | 'has'> {
@@ -23,6 +25,6 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
       })
     }
 
-    return Program.context.getContext<ScopedContext>(this.contextId)
+    return Program.context.getContext<ScopedContext>(this.#contextId)
   }
 }

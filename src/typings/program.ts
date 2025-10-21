@@ -43,6 +43,16 @@ export type GenericConnectors = 'custom'
 
 export type ConnectorTypes = CoreConnectors | GenericConnectors
 
+/**
+ * **SINGLETON**: Guarantees a single instance throughout the entire application lifecycle.
+ * The same instance is reused across the application's entire execution.
+ *
+ * **SCOPED**: Creates a single instance per server request.
+ * A new instance is created for each request, but it is reused throughout the duration of that request.
+ *
+ * **TRANSIENT**: Creates a new instance for each call or invocation.
+ * No instance is reused, and each call receives a fresh, independent instance.
+ */
 export type Lifetime = 'SINGLETON' | 'SCOPED' | 'TRANSIENT'
 
 /**

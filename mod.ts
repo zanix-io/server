@@ -60,12 +60,15 @@ export { Interactor } from 'interactors/decorators/base.ts'
 export { ZanixConnector } from 'connectors/base.ts'
 export { ZanixAsyncmqConnector } from 'connectors/asyncmq.ts'
 export { ZanixCacheConnector } from 'connectors/cache.ts'
-export { ZanixDatabaseConnector } from 'connectors/database.ts'
+export { ZanixDatabaseConnector } from 'modules/infra/connectors/database.ts'
 export { ZanixWorkerConnector } from 'connectors/worker.ts'
 export { Connector } from 'connectors/decorators/base.ts'
 
 // Middlewares
-export { defineGlobalInterceptorHOC, defineGlobalPipeHOC } from 'middlewares/hocs/global.ts'
+export {
+  defineGlobalInterceptorHOC,
+  defineGlobalPipeHOC,
+} from 'modules/infra/middlewares/hocs/base.ts'
 export { Pipe } from 'middlewares/decorators/pipe.ts'
 export { Interceptor } from 'middlewares/decorators/interceptor.ts'
 export { RequestValidation } from 'middlewares/decorators/validation.ts'
@@ -84,6 +87,7 @@ export {
 
 // Types
 export type { ModuleTypes } from 'typings/program.ts'
+export type { Seeders } from 'typings/general.ts'
 export type { ServerID, ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
 export type {
   MiddlewareGlobalInterceptor,

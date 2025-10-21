@@ -263,6 +263,20 @@ const serverId = webServerManager.create('rest', { handler: () => new Response('
 webServerManager.start(serverId)
 ```
 
+### 🔧 Special Environment Variables
+
+Zanix Server provides the following environment variables to customize and configure different parts
+of your development environment:
+
+| Name            | Description                           |
+| --------------- | ------------------------------------- |
+| `SSL_KEY_PATH`  | Path to the SSL private key file      |
+| `SSL_CERT_PATH` | Path to the SSL certificate file      |
+| `PORT`          | Base/default port for the application |
+| `PORT_GRAPHQL`  | Port for the GraphQL API              |
+| `PORT_SOCKET`   | Port for WebSocket connections        |
+| `PORT_REST`     | Port for the REST API                 |
+
 Refer to the full documentation for more advanced usage and examples.
 
 ## Documentation

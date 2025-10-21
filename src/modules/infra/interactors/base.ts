@@ -5,7 +5,7 @@ import type {
   ZanixInteractorsGetter,
 } from 'typings/targets.ts'
 
-import { CoreBaseClass } from 'modules/infra/base/core.ts'
+import { ContextualBaseClass } from '../base/contextual.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import Program from 'modules/program/main.ts'
 
@@ -24,10 +24,10 @@ import Program from 'modules/program/main.ts'
  *                       By default, it is set to `never`, meaning no connector is provided unless explicitly specified.
  */
 export abstract class ZanixInteractor<Connector extends ZanixConnector = never>
-  extends CoreBaseClass {
-  #connector: string
-  #contextId: string
-  #key: string
+  extends ContextualBaseClass {
+  #connector
+  #contextId
+  #key
 
   constructor(contextId: string) {
     super(contextId)
@@ -47,7 +47,9 @@ export abstract class ZanixInteractor<Connector extends ZanixConnector = never>
    * @returns {Connector} The resolved connector instance.
    */
   protected get connector(): Connector {
-    return Program.targets.getInstance<Connector>(this.#connector, 'connector')
+    return Program.targets.getInstance<Connector>(this.#connector, 'connector', {
+      ctx: this.#contextId,
+    })
   }
 
   /**

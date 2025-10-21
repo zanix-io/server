@@ -1,9 +1,4 @@
-import type { CoreConnectors, Lifetime } from 'typings/program.ts'
-
-import { ZanixCacheConnector } from 'connectors/cache.ts'
-import { ZanixDatabaseConnector } from 'connectors/database.ts'
-import { ZanixWorkerConnector } from 'connectors/worker.ts'
-import { ZanixAsyncmqConnector } from 'connectors/asyncmq.ts'
+import type { Lifetime } from 'typings/program.ts'
 
 /**
  * Default port for SOCKET server
@@ -45,13 +40,18 @@ export const LIFETIME_MODE: Record<Lifetime, Lifetime> = {
   TRANSIENT: 'TRANSIENT',
 }
 
-export const CORE_CONNECTORS: Record<
-  CoreConnectors,
-  // deno-lint-ignore ban-types
-  { key: CoreConnectors; Target: Function }
-> = {
-  cache: { key: 'cache', Target: ZanixCacheConnector },
-  worker: { key: 'worker', Target: ZanixWorkerConnector },
-  asyncmq: { key: 'asyncmq', Target: ZanixAsyncmqConnector },
-  database: { key: 'database', Target: ZanixDatabaseConnector },
-}
+export const PROTOCOL_REGEX = /^([a-zA-Z][a-zA-Z\d+\-.]*):\/\//
+
+export const ALLOWED_PROTOCOLS = [
+  'http',
+  'https',
+  'ftp',
+  'mailto',
+  'zanix',
+  'mongodb+srv',
+  'mongodb',
+  'amqp',
+  'redis',
+]
+
+export const DEFAULT_URI_CONNECTOR = 'zanix-connector'

@@ -5,7 +5,7 @@ import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import type { BaseRTO } from '@zanix/validator'
 import type { RtoTypes } from '@zanix/types'
 import type { HandlerFunction } from './router.ts'
-import type { BaseContext, HandlerContext } from './context.ts'
+import type { HandlerContext } from './context.ts'
 
 export type ClassConstructor<T extends TargetBaseClass = TargetBaseClass> = {
   new (...args: any[]): T
@@ -48,11 +48,15 @@ export type ZanixInteractorClass<T extends ZanixInteractorGeneric = ZanixInterac
 ) => T
 
 export type ZanixConnectorClass<T extends ZanixConnector = ZanixConnector> = new (
-  context: BaseContext,
+  contextId: string,
 ) => T
 
 export type ZanixConnectors<T extends ZanixConnector = ZanixConnector> = ZanixConnectorClass<T>
 
 export type ZanixInteractorsGetter = {
   get: <T extends ZanixInteractorGeneric>(Interactor: ZanixInteractorClass<T>) => T
+}
+
+export type ZanixConnectorsGetter = {
+  get: <T extends ZanixConnector>(Connector: ZanixConnectorClass<T>) => T
 }

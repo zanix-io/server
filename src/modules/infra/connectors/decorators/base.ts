@@ -10,6 +10,8 @@ import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
  * the interactor with that core connector type.
  *
  * @param {ConnectorTypes} type - The type of the interactor connector.
+ *
+ * Defaults: `type`='custom', `startMode`='postBoot', `lifetime`='SINGLETON, `autoConnectOnLazy`=true
  * @returns {ZanixClassDecorator} The class decorator function.
  */
 export function Connector(type?: ConnectorTypes): ZanixClassDecorator
@@ -25,12 +27,17 @@ export function Connector(type?: ConnectorTypes): ZanixClassDecorator
  *                                                Determines when the connector instance is started.
  * @param {Lifetime} [options.lifetime='SINGLETON'] - The connector's lifetime scope,
  *                                                    specifying the dependency injection strategy.
+ * @param {boolean} [options.autoConnectOnLazy=true] - If set to `true`, the connector will automatically call `startConnection`
+ *                                                     when it is instantiated lazily.
+ *                                                     Useful for enabling immediate connection in lazy-loading scenarios.
+ *
  * @returns {ZanixClassDecorator} The class decorator function.
  */
 export function Connector(options: {
   type?: GenericConnectors
   startMode?: StartMode
   lifetime?: Lifetime
+  autoConnectOnLazy?: boolean
 }): ZanixClassDecorator
 export function Connector(options?: ConnectorDecoratorOptions): ZanixClassDecorator {
   return defineConnectorDecorator(options)

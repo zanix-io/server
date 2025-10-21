@@ -50,6 +50,7 @@ export type ConnectorDecoratorOptions = ConnectorTypes | {
   type?: ConnectorTypes
   startMode?: StartMode
   lifetime?: Lifetime
+  autoConnectOnLazy?: boolean
 }
 
 export type HandlerDecoratorMethodOptions = {

@@ -1,5 +1,6 @@
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 import type { MetadataInstances, ModuleTypes } from 'typings/program.ts'
+import type { BaseContext } from 'typings/context.ts'
 
 import { BaseContainer } from './main.ts'
 import { HttpError } from '@zanix/errors'
@@ -24,8 +25,7 @@ export abstract class BaseInstancesContainer extends BaseContainer {
       data: dataProps || {},
     }
 
-    // TODO: use Target.length to transient parameter constructor validation
-    // if (Target.length > 1) throw new Deno.errors.Interrupted('')
+    // TODO: check if is needed to use Target.length to avlidate constructor parameters
 
     const key = `${type}:${baseKey}`
 
@@ -44,18 +44,18 @@ export abstract class BaseInstancesContainer extends BaseContainer {
   public getInstance<T extends TargetBaseClass>(
     baseKey: string,
     type: ModuleTypes,
-    options?: { ctx?: string | { id: string } },
+    options?: { ctx?: string | BaseContext },
   ): T
   public getInstance<T extends TargetBaseClass>(
     baseKey: string,
     type: ModuleTypes,
-    options?: { ctx?: string | { id: string }; useExistingInstance: true },
+    options?: { ctx?: string | BaseContext; useExistingInstance: true },
   ): T | undefined
   public getInstance<T extends TargetBaseClass>(
     baseKey: string,
     type: ModuleTypes,
     { ctx = 'instance', useExistingInstance }: {
-      ctx?: string | { id: string }
+      ctx?: string | BaseContext
       useExistingInstance?: boolean
     } = {},
   ): T | undefined {

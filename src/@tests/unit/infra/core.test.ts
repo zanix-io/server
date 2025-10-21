@@ -1,5 +1,5 @@
-import { assertEquals } from '@std/assert'
-import { CORE_CONNECTORS } from 'utils/constants.ts'
+import { assert, assertEquals } from '@std/assert'
+import ConnectorCoreModules from 'connectors/core.ts'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 
 // Mock de Program.targets
@@ -19,13 +19,13 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors', 
 
   const getInstanceSpy = spy((_key: string, _type: string) => {
     switch (_key) {
-      case CORE_CONNECTORS.worker.key:
+      case ConnectorCoreModules.worker.key:
         return fakeConnectors.worker
-      case CORE_CONNECTORS.asyncmq.key:
+      case ConnectorCoreModules.asyncmq.key:
         return fakeConnectors.asyncmq
-      case CORE_CONNECTORS.cache.key:
+      case ConnectorCoreModules.cache.key:
         return fakeConnectors.cache
-      case CORE_CONNECTORS.database.key:
+      case ConnectorCoreModules.database.key:
         return fakeConnectors.database
       default:
         return null
@@ -37,6 +37,9 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors', 
 
   const testInstance = new TestCore('context-id')
 
+  assert(testInstance['config'])
+  assert(testInstance['context'])
+
   // Force calls
   assertEquals(testInstance['worker'], fakeConnectors.worker as never)
   assertEquals(testInstance['asyncmq'], fakeConnectors.asyncmq as never)
@@ -46,9 +49,24 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors', 
   // Validate 4 times caller
   assertSpyCalls(getInstanceSpy, 4)
 
+  const context = {
+    ctx: 'context-id',
+  }
   // Validate args
-  assertEquals(getInstanceSpy.calls[0].args, [CORE_CONNECTORS.worker.key, 'connector'])
-  assertEquals(getInstanceSpy.calls[1].args, [CORE_CONNECTORS.asyncmq.key, 'connector'])
-  assertEquals(getInstanceSpy.calls[2].args, [CORE_CONNECTORS.cache.key, 'connector'])
-  assertEquals(getInstanceSpy.calls[3].args, [CORE_CONNECTORS.database.key, 'connector'])
+  assertEquals(getInstanceSpy.calls[0].args, [
+    ConnectorCoreModules.worker.key,
+    'connector',
+    context,
+  ])
+  assertEquals(getInstanceSpy.calls[1].args, [
+    ConnectorCoreModules.asyncmq.key,
+    'connector',
+    context,
+  ])
+  assertEquals(getInstanceSpy.calls[2].args, [ConnectorCoreModules.cache.key, 'connector', context])
+  assertEquals(getInstanceSpy.calls[3].args, [
+    ConnectorCoreModules.database.key,
+    'connector',
+    context,
+  ])
 })

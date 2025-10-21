@@ -3,7 +3,7 @@ import type { Lifetime } from 'typings/program.ts'
 import type { ZanixConnectors } from 'typings/targets.ts'
 
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
-import { CORE_CONNECTORS } from 'utils/constants.ts'
+import ConnectorCoreModules from 'connectors/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import Program from 'modules/program/main.ts'
 
@@ -18,7 +18,7 @@ export function defineInteractorDecorator<C extends ZanixConnectors>(
     connector = getTargetKey(options.Connector)
   }
 
-  const coreConnectors = Object.values(CORE_CONNECTORS)
+  const coreConnectors = Object.values(ConnectorCoreModules)
 
   return function (Target) {
     if (!(Target.prototype instanceof ZanixInteractor)) {

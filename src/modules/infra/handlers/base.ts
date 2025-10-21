@@ -16,8 +16,8 @@ export abstract class HandlerBaseClass<
   Interactor extends ZanixInteractorGeneric = never,
   Extensions = never,
 > extends TargetBaseClass {
-  #interactor: string
-  #contextId: string
+  #interactor
+  #contextId
   constructor(contextId: string) {
     super()
     this.#interactor = this['_znxProps'].data.interactor as string

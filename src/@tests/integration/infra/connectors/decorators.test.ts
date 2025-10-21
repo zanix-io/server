@@ -2,23 +2,23 @@
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
 import Program from 'modules/program/main.ts'
-import { CORE_CONNECTORS } from 'utils/constants.ts'
 import { defineConnectorDecorator } from 'modules/infra/connectors/decorators/assembly.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
+import ConnectorCoreModules from 'modules/infra/connectors/core.ts'
 
 class CacheConnector extends ZanixConnector {
-  public override startConnection(): Promise<void> | void {
+  public override startConnection(): Promise<boolean> | boolean {
     throw new Error('Method not implemented.')
   }
-  public override stopConnection(): Promise<void> | void {
+  public override stopConnection(): Promise<boolean> | boolean {
     throw new Error('Method not implemented.')
   }
 }
 class DbConnector extends ZanixConnector {
-  public override startConnection(): Promise<void> | void {
+  public override startConnection(): Promise<boolean> | boolean {
     throw new Error('Method not implemented.')
   }
-  public override stopConnection(): Promise<void> | void {
+  public override stopConnection(): Promise<boolean> | boolean {
     throw new Error('Method not implemented.')
   }
 }
@@ -44,18 +44,18 @@ const mockCORE_CONNECTORS = {
 
 // Inject into global (mocking actual imports)
 Program.targets.toBeInstanced = mockToBeInstanced.toBeInstanced.bind(mockToBeInstanced)
-CORE_CONNECTORS['cache'] = mockCORE_CONNECTORS.cache as any
-CORE_CONNECTORS['database'] = mockCORE_CONNECTORS.database as any // Override imported `getTargetKey` (simulate the import)
+ConnectorCoreModules['cache'] = mockCORE_CONNECTORS.cache as any
+ConnectorCoreModules['database'] = mockCORE_CONNECTORS.database as any // Override imported `getTargetKey` (simulate the import)
 ;(globalThis as any).getTargetKey = mockGetTargetKey
 
 Deno.test('defineConnectorDecorator: registers non-core connector with default settings', () => {
   mockToBeInstanced.reset()
 
   class CustomConnector extends ZanixConnector {
-    public override startConnection(): Promise<void> | void {
+    public override startConnection(): Promise<boolean> | boolean {
       throw new Error('Method not implemented.')
     }
-    public override stopConnection(): Promise<void> | void {
+    public override stopConnection(): Promise<boolean> | boolean {
       throw new Error('Method not implemented.')
     }
   }
@@ -96,10 +96,10 @@ Deno.test("defineConnectorDecorator: throws if class doesn't extend ZanixConnect
 
 Deno.test("defineConnectorDecorator: throws if core connector doesn't extend required base", () => {
   class WrongHttpBase extends ZanixConnector {
-    public override startConnection(): Promise<void> | void {
+    public override startConnection(): Promise<boolean> | boolean {
       throw new Error('Method not implemented.')
     }
-    public override stopConnection(): Promise<void> | void {
+    public override stopConnection(): Promise<boolean> | boolean {
       throw new Error('Method not implemented.')
     }
   }

@@ -1,4 +1,10 @@
-import { TargetBaseClass } from 'modules/infra/base/target.ts'
+import type { ZanixConnectorClass, ZanixConnectorsGetter } from 'typings/targets.ts'
+
+import Program from '../../program/main.ts'
+import { getTargetKey } from 'utils/targets.ts'
+import { CoreBaseClass } from '../base/core.ts'
+import { validateURI } from 'utils/uri.ts'
+import { DEFAULT_URI_CONNECTOR } from 'utils/constants.ts'
 
 /**
  * Abstract base class for implementing service connectors in the Zanix framework.
@@ -11,12 +17,18 @@ import { TargetBaseClass } from 'modules/infra/base/target.ts'
  * This class is intended to be extended by concrete connector implementations.
  *
  * @abstract
- * @extends TargetBaseClass
+ * @extends CoreBaseClass
  */
-export abstract class ZanixConnector extends TargetBaseClass {
-  #connected: boolean = false
-  #startCalled: boolean = false
-  #stopCalled: boolean = false
+export abstract class ZanixConnector extends CoreBaseClass {
+  #connected = false
+  #key
+  #contextId
+  private accessor startCalled: boolean = false
+  private accessor stopCalled: boolean = false
+  /**
+   * Partial URL without sensible data.
+   */
+  protected url: URL = new URL('znx://' + DEFAULT_URI_CONNECTOR)
 
   /**
    * Indicates whether the connector is currently connected.
@@ -31,45 +43,49 @@ export abstract class ZanixConnector extends TargetBaseClass {
     this.#connected = value
   }
 
-  private get startCalled() {
-    return this.#startCalled
-  }
-
-  private set startCalled(value: boolean) {
-    this.#startCalled = value
-  }
-
-  private get stopCalled() {
-    return this.#stopCalled
-  }
-
-  private set stopCalled(value: boolean) {
-    this.#stopCalled = value
-  }
-
   /**
    * Constructor that wraps the `startConnection` and `stopConnection` methods
    * to add automatic connection lifecycle handling.
    *
    * If the connector's `startMode` is set to `'lazy'`, the connection is started automatically on instantiation.
    */
-  constructor() {
-    super()
+  constructor(contextId: string, uri: string = DEFAULT_URI_CONNECTOR) {
+    super(contextId)
+
+    const { key, data, startMode } = this['_znxProps']
+    this.#contextId = contextId
+    this.#key = key
 
     const originalStartConnection = this.startConnection.bind(this)
-    this.startConnection = function () {
-      if (this.connected || this.startCalled) return
+    this.startConnection = function (_uri: string = uri) {
+      if (this.connected || this.startCalled) return true
+
+      //TODO: validate protocol, only for zanix cloud projects
+      const url = validateURI(_uri)
+      if (!url) {
+        throw new Deno.errors.InvalidData(
+          `The URI provided for the connector '${this.constructor.name}' not a valid or supported`,
+        )
+      }
+
+      const validURI = url.toString()
+
+      //assign and remove sensible data
+      this.url = url
+      this.url.password = ''
+      this.url.username = ''
+
       this.startCalled = true
-      const connection = originalStartConnection()
+      const connection = originalStartConnection(validURI)
 
       if (connection instanceof Promise) {
-        connection.then(() => {
-          this.connected = true
+        connection.then((result: boolean) => {
+          this.connected = result
         }).finally(() => {
           this.startCalled = false
         })
       } else {
-        this.connected = true
+        this.connected = connection
         this.startCalled = false
       }
 
@@ -78,25 +94,25 @@ export abstract class ZanixConnector extends TargetBaseClass {
 
     const originalStopConnection = this.stopConnection.bind(this)
     this.stopConnection = function () {
-      if (!this.connected || this.stopCalled) return
+      if (!this.connected || this.stopCalled) return true
       this.stopCalled = true
       const connection = originalStopConnection()
       if (connection instanceof Promise) {
-        connection.then(() => {
-          this.connected = false
+        connection.then((result) => {
+          this.connected = !result
         }).finally(() => {
           this.stopCalled = false
         })
       } else {
-        this.connected = false
+        this.connected = !connection
         this.stopCalled = false
       }
 
       return connection
     }
 
-    // Starting connection on lazy instanciation
-    if (this['_znxProps'].startMode === 'lazy') this.startConnection()
+    // Starting connection on lazy instances
+    if (startMode === 'lazy' && data?.autoConnectOnLazy !== false) this.startConnection(uri)
   }
 
   /**
@@ -107,10 +123,11 @@ export abstract class ZanixConnector extends TargetBaseClass {
    *
    * If the original implementation returns a `Promise`, connection state is updated once it resolves.
    *
+   * @param {unknown[]} uri - URI needed for connection
    * @abstract
-   * @returns {Promise<void> | void} A promise or void, depending on the implementation.
+   * @returns {Promise<boolean> | boolean} A boolean that indicates whether the connection was successful.
    */
-  public abstract startConnection(): Promise<void> | void
+  public abstract startConnection(uri?: string): Promise<boolean> | boolean
 
   /**
    * Stops the connection to the external service.
@@ -119,7 +136,29 @@ export abstract class ZanixConnector extends TargetBaseClass {
    * preventing duplicate stop attempts. If the connector is already disconnected or stopping, it exits early.
    *
    * @abstract
-   * @returns {Promise<void> | void} A promise or void, depending on the implementation.
+   * @returns {Promise<boolean> | boolean} A boolean that indicates whether the disconnection was successful.
    */
-  public abstract stopConnection(): Promise<void> | void
+  public abstract stopConnection(): Promise<boolean> | boolean
+
+  /**
+   * Provides access to other connectors registered within the system.
+   *
+   * This getter exposes a dynamic utility that allows the current connector to retrieve and
+   * communicate with other connectors, supporting modular and reusable business logic.
+   *
+   * @protected
+   * @returns {ZanixConnectorsGetter} A utility for retrieving other connectors.
+   */
+  protected get connectors(): ZanixConnectorsGetter {
+    return {
+      get: <T extends ZanixConnector>(
+        Connector: ZanixConnectorClass<T>,
+      ): T => {
+        const key = getTargetKey(Connector)
+        // Check if the connector is not circular, in which case return the same instance
+        if (this.#key === key) return this as unknown as T
+        return Program.targets.getInstance<T>(key, 'connector', { ctx: this.#contextId })
+      },
+    }
+  }
 }

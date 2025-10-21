@@ -15,9 +15,9 @@ export type Payload = {
 }
 
 /** Zanix base context for all target types*/
-export type BaseContext = {
-  readonly id: string
-}
+export type BaseContext = Readonly<{
+  id: string
+}>
 
 /** Interface context for general scoped target */
 export interface ScopedContext extends BaseContext {

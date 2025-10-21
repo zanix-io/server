@@ -4,7 +4,7 @@ import type { ConnectorTypes, CoreConnectors, Lifetime, StartMode } from 'typing
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import Program from 'modules/program/main.ts'
-import { CORE_CONNECTORS } from 'utils/constants.ts'
+import ConnectorCoreModules from 'connectors/core.ts'
 
 /** Define decorator to register a connector */
 export function defineConnectorDecorator(
@@ -14,6 +14,7 @@ export function defineConnectorDecorator(
   let type: ConnectorTypes = 'custom'
   let startMode: StartMode = 'postBoot'
   let lifetime: Lifetime = 'SINGLETON'
+  let autoConnectOnLazy = true
 
   if (typeof options === 'string') {
     type = options
@@ -21,9 +22,10 @@ export function defineConnectorDecorator(
     type = options.type || type
     startMode = options.startMode || startMode
     lifetime = options.lifetime || lifetime
+    autoConnectOnLazy = options.autoConnectOnLazy ?? autoConnectOnLazy
   }
 
-  const coreConnectors = Object.keys(CORE_CONNECTORS)
+  const coreConnectors = Object.keys(ConnectorCoreModules)
 
   return function (Target) {
     if (!(Target.prototype instanceof ZanixConnector)) {
@@ -34,7 +36,7 @@ export function defineConnectorDecorator(
 
     if (coreConnectors.includes(type)) {
       key = type
-      const BaseTarget = CORE_CONNECTORS[type as CoreConnectors].Target
+      const BaseTarget = ConnectorCoreModules[type as CoreConnectors].Target
       if (!(Target.prototype instanceof BaseTarget)) {
         throw new Deno.errors.Interrupted(
           `'${Target.name}' is not a valid '${type}' Connector. Please extend '${BaseTarget.name}'`,
@@ -49,7 +51,7 @@ export function defineConnectorDecorator(
       lifetime,
       startMode,
       type: 'connector',
-      dataProps: { type },
+      dataProps: { type, autoConnectOnLazy },
     })
   }
 }

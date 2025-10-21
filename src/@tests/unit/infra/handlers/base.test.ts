@@ -15,14 +15,14 @@ Deno.test('HandlerBaseClass returns interactor from Program.targets', () => {
   Program.targets.getInstance = getInstanceSpy
 
   // Step 2: Subclass HandlerBaseClass to expose interactor getter
-  class TestHandler extends HandlerBaseClass<DummyInteractor> {
+  class TestHandlerBase extends HandlerBaseClass<DummyInteractor> {
     public getExposedInteractor() {
       return this.interactor as never
     }
   }
 
   // @ts-ignore: manually inject _znxProps to mock what TargetBaseClass would normally handle
-  TestHandler.prototype._znxProps = {
+  TestHandlerBase.prototype._znxProps = {
     data: { interactor: 'MyInteractorKey' },
     startMode: 'lazy',
     lifetime: 'TRANSIENT',
@@ -31,7 +31,7 @@ Deno.test('HandlerBaseClass returns interactor from Program.targets', () => {
   }
 
   // Initialize the instance
-  const instance = new TestHandler('ctx-999')
+  const instance = new TestHandlerBase('ctx-999')
 
   // Step 4: Call the interactor getter and assert behavior
   const interactor = instance.getExposedInteractor()

@@ -39,7 +39,7 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
         (Program.targets.getInstance(
           key,
           type,
-          { ctx: ctx.id },
+          { ctx },
         )[handler.propertyKey as never] as HandlerFunction)(
           ctx,
         )

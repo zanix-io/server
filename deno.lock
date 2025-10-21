@@ -21,8 +21,8 @@
     "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@std/testing@1.0.9": "1.0.9",
     "jsr:@std/uuid@0.224": "0.224.3",
-    "jsr:@zanix/utils@*": "2.1.4",
-    "jsr:@zanix/utils@2": "2.1.4",
+    "jsr:@zanix/utils@*": "2.1.5",
+    "jsr:@zanix/utils@2": "2.1.5",
     "npm:esbuild@0.20.2": "0.20.2",
     "npm:graphql-jit@0.1.0": "0.1.0_graphql@16.10.0",
     "npm:graphql@16": "16.10.0",
@@ -158,6 +158,9 @@
         "npm:esbuild",
         "npm:javascript-obfuscator"
       ]
+    },
+    "@zanix/utils@2.1.5": {
+      "integrity": "4389b52b74b2f23c9e838d1b218792940cf755608269fc71eb33926fcd23d99e"
     }
   },
   "npm": {

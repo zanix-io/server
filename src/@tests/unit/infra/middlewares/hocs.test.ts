@@ -7,7 +7,7 @@ import Program from 'modules/program/main.ts'
 import {
   defineGlobalInterceptorHOC,
   defineGlobalPipeHOC,
-} from 'modules/infra/middlewares/hocs/global.ts'
+} from 'modules/infra/middlewares/hocs/base.ts'
 
 Deno.test('defineGlobalPipeHOC should register global pipe with interactors', () => {
   const mockAddGlobalPipe = spy((_pipe, _server) => {})
