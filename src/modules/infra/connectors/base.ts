@@ -28,7 +28,7 @@ export abstract class ZanixConnector extends CoreBaseClass {
   /**
    * Partial URL without sensible data.
    */
-  protected url: URL = new URL('znx://' + DEFAULT_URI_CONNECTOR)
+  protected accessor url: URL = new URL('znx://' + DEFAULT_URI_CONNECTOR)
 
   /**
    * Indicates whether the connector is currently connected.
