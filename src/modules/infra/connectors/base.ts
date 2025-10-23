@@ -29,7 +29,7 @@ import { DEFAULT_URI_CONNECTOR } from 'utils/constants.ts'
 export abstract class ZanixConnector<
   T extends CoreConnectorTemplates = object,
 > extends CoreBaseClass<T> {
-  #connected = false
+  #connected: boolean = false
   #key
   #contextId
   private accessor startCalled: boolean = false
@@ -48,7 +48,7 @@ export abstract class ZanixConnector<
     return this.#connected
   }
 
-  private set connected(value: boolean) {
+  protected set connected(value: boolean) {
     this.#connected = value
   }
 
