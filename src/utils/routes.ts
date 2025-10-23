@@ -1,9 +1,9 @@
-import type { Program } from 'modules/program/main.ts'
 import type { ScopedContext } from 'typings/context.ts'
 import type { ProcessedRouteDefinition } from 'typings/router.ts'
 
 import { HttpError } from '@zanix/errors'
 import { processScopedPayload } from 'utils/context.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 /**
  * Function to clean routes
@@ -63,11 +63,9 @@ export const bodyPayloadProperty = async (
 }
 
 /** A function that executes the first process, such as setting a context */
-export const routeOnStart: (
-  program: Program,
-) => ProcessedRouteDefinition['start'] = (program) => {
+export const routeOnStart: () => ProcessedRouteDefinition['start'] = () => {
   return (context) => {
-    program.context.addContext<ScopedContext>({
+    ProgramModule.context.addContext<ScopedContext>({
       id: context.id,
       payload: processScopedPayload(context.payload),
     })
@@ -75,13 +73,11 @@ export const routeOnStart: (
 }
 
 /** A function that executes a final process, such as cleaning up or deleting scoped instances. */
-export const routeOnEnd: (
-  program: Program,
-) => ProcessedRouteDefinition['end'] = (program) => {
+export const routeOnEnd: () => ProcessedRouteDefinition['end'] = () => {
   return (context) => {
     Promise.resolve((() => {
-      program.context.deleteContext(context.id)
-      program.targets.resetScopedInstances(context.id)
+      ProgramModule.context.deleteContext(context.id)
+      ProgramModule.targets.resetScopedInstances(context.id)
     })())
   }
 }

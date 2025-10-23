@@ -4,7 +4,6 @@ import type { HandlerFunction } from 'typings/router.ts'
 
 import { baseErrorResponses } from 'modules/webserver/helpers/errors.ts'
 import { routeOnEnd, routeOnStart } from 'utils/routes.ts'
-import Program from 'modules/program/main.ts'
 import { HttpError } from '@zanix/errors'
 import logger from '@zanix/logger'
 
@@ -31,7 +30,7 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
       this.socket = socket
 
       socket.onopen = (event) => {
-        routeOnStart(Program)(ctx)
+        routeOnStart()(ctx)
         return catcher(socket, () => this['onopen'](event))
       }
 
@@ -57,7 +56,7 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
       }
 
       socket.onclose = (event) => {
-        routeOnEnd(Program)(ctx)
+        routeOnEnd()(ctx)
         return catcher(socket, () => this['onclose'](event))
       }
 

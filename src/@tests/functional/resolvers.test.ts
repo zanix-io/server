@@ -1,8 +1,9 @@
 // deno-lint-ignore-file no-explicit-any
-import './setup.ts'
+import './setup/mod.ts'
 
 import { assert, assertEquals } from '@std/assert'
-import { GQL_PORT } from './setup.ts'
+import { GQL_PORT } from './setup/mod.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 const gqlUrl = `http://0.0.0.0:${GQL_PORT}/gql`
 
@@ -63,6 +64,32 @@ Deno.test('Verifying resolver gql Hello and Hello3 query', async () => {
       },
     },
   })
+
+  const query3 = await fetch(gqlUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: `
+      query Hello3 {
+        hello3 {
+          searchParam
+        }
+      }
+    `,
+    }),
+  })
+
+  const response3 = await query3.json()
+
+  assertEquals(response3, {
+    data: {
+      hello3: {
+        searchParam: 'GQL Pipe search param',
+      },
+    },
+  })
 })
 
 Deno.test('Verifying bad request on resolver gql Hello query', async () => {
@@ -109,6 +136,12 @@ Deno.test('Verifying resolver gql Hello2, Hello4 and 5 query', async () => {
     }),
   })
   const response = await query.json()
+
+  const contextId = response.data.welcomeHello2.currentMessage.contextId
+  delete response.data.welcomeHello2.currentMessage.contextId
+
+  assert(contextId)
+  assert(!ProgramModule.context.getContext(contextId).id) // context should be deleted
 
   assertEquals(response, {
     data: {

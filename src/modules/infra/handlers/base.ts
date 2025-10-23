@@ -1,7 +1,7 @@
 import type { HandlerPrototype, ZanixInteractorGeneric } from 'typings/targets.ts'
 
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
-import Program from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 /**
  * Abstract base class for handling routes in server services.
@@ -31,7 +31,7 @@ export abstract class HandlerBaseClass<
    * and interactions between the user layer, data layer, and connectors.
    */
   protected get interactor(): Interactor {
-    return Program.targets.getInstance<Interactor>(this.#interactor, 'interactor', {
+    return ProgramModule.targets.getInstance<Interactor>(this.#interactor, 'interactor', {
       ctx: this.#contextId,
     })
   }

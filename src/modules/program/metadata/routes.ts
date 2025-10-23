@@ -1,6 +1,6 @@
 import type { MiddlewaresContainer } from './middlewares.ts'
 import type { TargetContainer } from './targets.ts'
-import type { MetadataProps } from 'typings/program.ts'
+import type { MetadataTargetSymbols } from 'typings/program.ts'
 import type { HttpMethods, RouteDefinitionProps, RoutesObject } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { ClassConstructor } from 'typings/targets.ts'
@@ -54,12 +54,12 @@ export class RouteContainer extends BaseContainer {
    */
   public defineRoute(
     type: WebServerTypes,
-    definition: RouteDefinitionProps | MetadataProps['Target'],
+    definition: RouteDefinitionProps | MetadataTargetSymbols['Target'],
   ) {
     const { path, handler, methods = [], pipes = [], interceptors = [], Target } =
       typeof definition === 'function'
         ? { Target: definition }
-        : definition as RouteDefinitionProps & { Target: MetadataProps['Target'] }
+        : definition as RouteDefinitionProps & { Target: MetadataTargetSymbols['Target'] }
 
     const routes = this.getData<RoutesObject>(this.#routesKey) || []
 
@@ -90,7 +90,9 @@ export class RouteContainer extends BaseContainer {
   /**
    *  Function to set an endpoint to a specified target or property
    */
-  public setEndpoint({ Target, propertyKey, endpoint }: MetadataProps & { endpoint?: string }) {
+  public setEndpoint(
+    { Target, propertyKey, endpoint }: MetadataTargetSymbols & { endpoint?: string },
+  ) {
     const data = endpoint || propertyKey
     if (!data) return
     this.setData<string>(this.#endpointsKey(propertyKey), data, Target)
@@ -99,14 +101,14 @@ export class RouteContainer extends BaseContainer {
   /**
    * Retrieves an endpoint associated with a specific target or property
    */
-  public getEndpoint({ Target, propertyKey }: MetadataProps): string {
+  public getEndpoint({ Target, propertyKey }: MetadataTargetSymbols): string {
     return this.getData<string | undefined>(this.#endpointsKey(propertyKey), Target) || ''
   }
 
   /**
    * Function to add an HTTP method to a specified target or property
    */
-  public addHttpMethod(method: HttpMethods, { Target, propertyKey }: MetadataProps) {
+  public addHttpMethod(method: HttpMethods, { Target, propertyKey }: MetadataTargetSymbols) {
     const methods = this.getHttpMethods({ Target, propertyKey })
     const methodsSet = new Set<HttpMethods>(methods)
 
@@ -118,7 +120,7 @@ export class RouteContainer extends BaseContainer {
   /**
    * Retrieves all HTTP methods associated with a specific target or property
    */
-  public getHttpMethods({ Target, propertyKey }: MetadataProps): HttpMethods[] {
+  public getHttpMethods({ Target, propertyKey }: MetadataTargetSymbols): HttpMethods[] {
     return this.getData<HttpMethods[] | undefined>(this.#methodsKey(propertyKey), Target) || []
   }
 }

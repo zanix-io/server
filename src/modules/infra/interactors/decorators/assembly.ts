@@ -1,14 +1,14 @@
 import type { InteractorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
 import type { Lifetime } from 'typings/program.ts'
-import type { ZanixConnectors } from 'typings/targets.ts'
+import type { ZanixConnector } from 'connectors/base.ts'
 
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import ConnectorCoreModules from 'connectors/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
-import Program from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 /** Define decorator to register an interactor */
-export function defineInteractorDecorator<C extends ZanixConnectors>(
+export function defineInteractorDecorator<C extends typeof ZanixConnector>(
   options?: InteractorDecoratorOptions<C>,
 ): ZanixClassDecorator {
   let connector: string | undefined
@@ -30,7 +30,7 @@ export function defineInteractorDecorator<C extends ZanixConnectors>(
     // Core connector validation use
     const Connector = options?.Connector
     if (Connector) {
-      const connectorType = Program.targets['getTarget']('connector:' + connector)
+      const connectorType = ProgramModule.targets['getTarget']('connector:' + connector)
         ?.prototype['_znxProps'].type // Asume that exists if is not core
 
       const connectorTarget = coreConnectors.find(({ Target: ConnectorTarget }) =>
@@ -45,7 +45,7 @@ export function defineInteractorDecorator<C extends ZanixConnectors>(
 
     const key = getTargetKey(Target)
 
-    Program.targets.toBeInstanced(key, {
+    ProgramModule.targets.toBeInstanced(key, {
       Target,
       lifetime: lifetime || 'SCOPED',
       type: 'interactor',

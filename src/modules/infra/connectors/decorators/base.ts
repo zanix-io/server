@@ -22,7 +22,7 @@ export function Connector(type?: ConnectorTypes): ZanixClassDecorator
  * allowing customization of lifecycle and initialization behavior.
  *
  * @param {Object} options - Configuration options for the connector.
- * @param {GenericConnectors} options.type - The generic connector type (e.g., 'custom').
+ * @param {GenericConnectors} options.type - The generic connector type (e.g., 'custom'). Defaults to 'custom'
  * @param {StartMode} [options.startMode='postBoot'] - The instance initialization mode.
  *                                                Determines when the connector instance is started.
  * @param {Lifetime} [options.lifetime='SINGLETON'] - The connector's lifetime scope,

@@ -2,13 +2,13 @@ import type { HandlerFunction, ProcessedRoutes } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 
 import { cleanRoute, getParamNames, pathToRegex, routeOnEnd, routeOnStart } from 'utils/routes.ts'
-import Program from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import { capitalize } from '@zanix/helpers'
 import logger from '@zanix/logger'
 
 /** Function to process routes */
 export const routeProcessor = (server: WebServerTypes, globalPrefix: string = '') => {
-  const routes = Program.routes.getRoutes(server)
+  const routes = ProgramModule.routes.getRoutes(server)
   const serverName = capitalize(server)
 
   if (!routes || !Object.keys(routes).length) {
@@ -36,7 +36,7 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
       const { key, type } = handler.Target.prototype['_znxProps']
 
       processedHandler = (ctx) =>
-        (Program.targets.getInstance(
+        (ProgramModule.targets.getInstance(
           key,
           type,
           { ctx },
@@ -51,8 +51,8 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
       handler: processedHandler,
       methods: methods.length === 0 ? ['GET', 'POST'] : methods,
       interceptors,
-      start: routeOnStart(Program),
-      end: routeOnEnd(Program),
+      start: routeOnStart(),
+      end: routeOnEnd(),
       pipes,
     }
     return acc

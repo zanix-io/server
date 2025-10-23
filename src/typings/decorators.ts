@@ -1,9 +1,10 @@
 // deno-lint-ignore-file ban-types
 import type { RtoTypes } from '@zanix/types'
+import type { ClassConstructor, ZanixInteractorClass } from './targets.ts'
+import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import type { MiddlewareInterceptor, MiddlewarePipe, MiddlewareTypes } from './middlewares.ts'
 import type { ConnectorTypes, HandlerTypes, Lifetime, StartMode } from './program.ts'
 import type { HttpMethods } from './router.ts'
-import type { ClassConstructor, ZanixConnectors, ZanixInteractorClass } from './targets.ts'
 
 export type ZanixClassDecorator = (
   Target: ClassConstructor,
@@ -41,7 +42,7 @@ export type SocketDecoratorOptions =
     Interactor?: ZanixInteractorClass
   }
 
-export type InteractorDecoratorOptions<C extends ZanixConnectors> = {
+export type InteractorDecoratorOptions<C extends typeof ZanixConnector> = {
   Connector?: C
   lifetime?: Exclude<Lifetime, 'SINGLETON'>
 }

@@ -7,31 +7,10 @@
  * \_____/ \__,_||_| |_||_|/_/\_\
  */
 
-import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
-
 import { WebServerManager } from 'modules/webserver/manager.ts'
-import ProgramModule, { Program } from 'modules/program/main.ts'
-import logger from '@zanix/logger'
+import ProgramModule from 'modules/program/public.ts'
 
-/** Catch all module errors */
-self.addEventListener('unhandledrejection', (event) => {
-  event.preventDefault()
-  logger.error(event.reason.message || 'Uncaught (in promise) Error', event.reason)
-})
-
-/** Disconnect all current connectors */
-self.addEventListener('unload', async () => {
-  await Promise.all(
-    ProgramModule.targets.getTargetsByType('connector').map((key) => {
-      ProgramModule.targets.getInstance<ZanixConnector>(key, 'connector', {
-        useExistingInstance: true,
-      })
-        ?.stopConnection()
-    }),
-  )
-})
-
-export { Program, ProgramModule }
+export { ProgramModule }
 export { BaseContainer as ProgramContainer } from 'modules/program/metadata/abstracts/main.ts'
 
 // Handlers
@@ -87,9 +66,14 @@ export {
 } from 'utils/constants.ts'
 
 // Types
-export type { ModuleTypes } from 'typings/program.ts'
+export type { GeneralTargetTypes, ModuleTypes, StartMode } from 'typings/program.ts'
 export type { Seeders } from 'typings/general.ts'
-export type { ServerID, ServerManagerOptions, WebServerTypes } from 'typings/server.ts'
+export type {
+  BootstrapServerOptions,
+  ServerID,
+  ServerManagerOptions,
+  WebServerTypes,
+} from 'typings/server.ts'
 export type {
   MiddlewareGlobalInterceptor,
   MiddlewareGlobalPipe,
@@ -98,40 +82,9 @@ export type {
   MiddlewarePipe,
 } from 'typings/middlewares.ts'
 export type { HandlerContext } from 'typings/context.ts'
+export type { CoreConnectorTemplates } from 'typings/targets.ts'
+export type { HttpMethods } from 'typings/router.ts'
 
 // Main
 export { WebServerManager }
-
-/**
- * An instance of the `WebServerManager` class responsible for managing multiple web servers.
- * The `webServerManager` object provides an interface to create, start, stop, and delete web servers,
- * as well as retrieve information about them.
- *
- * You can use this instance to manage different types of servers (e.g., HTTP, HTTPS) in your application.
- * The class allows you to specify custom handlers for each server and configure SSL certificates for secure connections.
- *
- * Example usage:
- *
- * ```typescript
- * // Create a server with custom handler
- * const server = webServerManager.create('rest', { handler: () => {
- *   return new Response('Hello World');
- * }});
- *
- * // Start the server
- * webServerManager.start('rest');
- *
- * // Retrieve server info
- * const serverInfo = webServerManager.info('rest');
- * console.log(serverInfo);  // { addr: 'localhost:8000', protocol: 'http' }
- *
- * // Stop and delete the server
- * webServerManager.stop('rest');
- * webServerManager.delete('rest');
- * ```
- *
- * The instance provides an easy-to-use API to handle different types of web servers dynamically and interactively.
- *
- * @type {WebServerManager}
- */
-export const webServerManager: Readonly<WebServerManager> = Object.freeze(new WebServerManager())
+export { bootstrapServers, webServerManager } from 'webserver/mod.ts'

@@ -3,7 +3,7 @@ import { assertEquals } from '@std/assert'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 
 // Mocks
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 import {
   defineGlobalInterceptorHOC,
   defineGlobalPipeHOC,

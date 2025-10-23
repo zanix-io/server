@@ -9,7 +9,7 @@ import { searchParamsPropertyDescriptor } from '@zanix/helpers'
 import { HttpError } from '@zanix/errors'
 import { contextId } from 'utils/uuid.ts'
 
-import Program from '../../program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import { routeProcessor } from './routes.ts'
 
 /**
@@ -24,7 +24,7 @@ export const getMainHandler = (
   globalPrefix: string = '',
 ): ServerHandler => {
   if (type === 'graphql') {
-    Program.routes.defineRoute('graphql', {
+    ProgramModule.routes.defineRoute('graphql', {
       path: globalPrefix || 'graphql',
       handler: getGraphqlHandler(),
       methods: ['POST'],

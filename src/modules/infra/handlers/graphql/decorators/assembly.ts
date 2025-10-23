@@ -10,11 +10,11 @@ import { applyMiddlewaresToTarget } from 'middlewares/decorators/assembly.ts'
 import { buildGqlInput, scalarTypes } from 'handlers/graphql/types.ts'
 import { gqlSchemaDefinitions } from '../schema.ts'
 import { getTargetKey } from 'utils/targets.ts'
-import Program from 'modules/program/main.ts'
 import { ZanixResolver } from '../base.ts'
 import { capitalize } from '@zanix/helpers'
 import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
 import { rootValue } from '../handler.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 /** Define decorator to register a route for handler gql */
 export function defineResolverDecorator(
@@ -38,7 +38,7 @@ export function defineResolverDecorator(
 
     applyMiddlewaresToTarget(Target)
 
-    const methodDecorators = Program.decorators.getDecoratorsData('resolver')
+    const methodDecorators = ProgramModule.decorators.getDecoratorsData('resolver')
 
     methodDecorators.forEach((decorator) => {
       const { name, handler, input, output, request, description } = decorator
@@ -48,7 +48,7 @@ export function defineResolverDecorator(
         buildGqlInput(input)
       }: ${output}\n`
 
-      const middlewares = Program.middlewares.getMiddlewares('graphql', {
+      const middlewares = ProgramModule.middlewares.getMiddlewares('graphql', {
         Target,
         propertyKey: name,
       })
@@ -61,7 +61,7 @@ export function defineResolverDecorator(
 
         delete this._context.payload.body
         const { key, type } = Target.prototype['_znxProps']
-        const instance: ZanixResolver = Program.targets.getInstance(key, type, {
+        const instance: ZanixResolver = ProgramModule.targets.getInstance(key, type, {
           ctx: this._context,
         })
 
@@ -87,9 +87,9 @@ export function defineResolverDecorator(
       }
     })
 
-    Program.decorators.deleteDecorators('resolver')
+    ProgramModule.decorators.deleteDecorators('resolver')
 
-    Program.targets.toBeInstanced(getTargetKey(Target), {
+    ProgramModule.targets.toBeInstanced(getTargetKey(Target), {
       type: 'resolver',
       Target,
       dataProps: { interactor },
@@ -106,7 +106,7 @@ export function defineResolverRequestDecorator(
   return function (method) {
     const name = options.name || method.name.toString()
     const { input, output = scalarTypes.unknown.name, description = `${name} ${request}` } = options
-    Program.decorators.addDecoratorData({
+    ProgramModule.decorators.addDecoratorData({
       name,
       handler: method,
       request,

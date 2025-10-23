@@ -1,5 +1,5 @@
 import { assertSpyCalls, spy } from '@std/testing/mock'
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import { defineInteractorDecorator } from 'modules/infra/interactors/decorators/assembly.ts'
 import { assertEquals } from '@std/assert/assert-equals'

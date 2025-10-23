@@ -8,9 +8,9 @@ import type { HttpMethods } from 'typings/router.ts'
 
 import { applyMiddlewaresToTarget, definePipeDecorator } from 'middlewares/decorators/assembly.ts'
 import { requestValidationPipe } from 'middlewares/validation.pipe.ts'
-import Program from 'modules/program/main.ts'
 import { ZanixController } from '../base.ts'
 import { getTargetKey } from 'utils/targets.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 /** Define decorator to register a route for handler controller */
 export function defineControllerDecorator(
@@ -34,25 +34,25 @@ export function defineControllerDecorator(
 
     applyMiddlewaresToTarget(Target)
 
-    Program.routes.setEndpoint({ Target, endpoint: prefix })
-    const methodDecorators = Program.decorators.getDecoratorsData('controller')
+    ProgramModule.routes.setEndpoint({ Target, endpoint: prefix })
+    const methodDecorators = ProgramModule.decorators.getDecoratorsData('controller')
 
     methodDecorators.forEach((decorator) => {
       const { handler, endpoint, httpMethod } = decorator
-      Program.routes.setEndpoint({ Target, propertyKey: handler, endpoint })
-      Program.routes.addHttpMethod(httpMethod, { Target, propertyKey: handler })
-      Program.targets.addProperty({ Target, propertyKey: handler })
+      ProgramModule.routes.setEndpoint({ Target, propertyKey: handler, endpoint })
+      ProgramModule.routes.addHttpMethod(httpMethod, { Target, propertyKey: handler })
+      ProgramModule.targets.addProperty({ Target, propertyKey: handler })
     })
-    Program.decorators.deleteDecorators('controller')
+    ProgramModule.decorators.deleteDecorators('controller')
 
-    Program.targets.toBeInstanced(getTargetKey(Target), {
+    ProgramModule.targets.toBeInstanced(getTargetKey(Target), {
       type: 'controller',
       Target,
       dataProps: { interactor },
       lifetime: 'TRANSIENT',
     })
 
-    Program.routes.defineRoute('rest', Target)
+    ProgramModule.routes.defineRoute('rest', Target)
   }
 }
 
@@ -72,7 +72,7 @@ export function defineControllerMethodDecorator(
 
   return function (method) {
     const handler = method.name.toString()
-    Program.decorators.addDecoratorData(
+    ProgramModule.decorators.addDecoratorData(
       { handler, endpoint: endpoint || handler, httpMethod },
       'controller',
     )

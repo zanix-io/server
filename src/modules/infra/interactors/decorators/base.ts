@@ -1,7 +1,7 @@
 import type { InteractorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
-import type { ZanixConnectors } from 'typings/targets.ts'
 
 import { defineInteractorDecorator } from './assembly.ts'
+import type { ZanixConnector } from 'connectors/base.ts'
 
 /**
  * Class decorator for `interactors` that depend on connectors (e.g., clients or service providers).
@@ -19,7 +19,7 @@ import { defineInteractorDecorator } from './assembly.ts'
  *
  * @returns {ZanixClassDecorator} The class decorator function.
  */
-export function Interactor<C extends ZanixConnectors>(
+export function Interactor<C extends typeof ZanixConnector>(
   options?: InteractorDecoratorOptions<C>,
 ): ZanixClassDecorator {
   return defineInteractorDecorator(options)

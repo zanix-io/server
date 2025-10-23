@@ -1,6 +1,6 @@
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { assert, assertEquals, assertThrows } from '@std/assert'
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 
 function wait(ms: number): Promise<boolean> {
@@ -27,10 +27,10 @@ Deno.test('ZanixConnector: should initialize with connected = false and autoconn
   }
 
   const conn = new TestConnector('ctx-check')
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
 
   await wait(100)
-  assertEquals(conn.connected, true)
+  assertEquals(conn['connected'], true)
 })
 
 Deno.test('ZanixConnector: should avoid autoconnect', async () => {
@@ -42,10 +42,10 @@ Deno.test('ZanixConnector: should avoid autoconnect', async () => {
 
   const conn = new TestConnector('ctx-check')
   delete TestConnector.prototype['_znxProps'].data.autoConnectOnLazy
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
 
   await wait(10)
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
 })
 
 Deno.test('ZanixConnector: should not start connection if is not lazy', async () => {
@@ -54,10 +54,10 @@ Deno.test('ZanixConnector: should not start connection if is not lazy', async ()
     startMode: 'onBoot',
   }
   const conn = new TestConnector('ctx-check')
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
 
   await wait(10)
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
 })
 
 Deno.test('ZanixConnector: should stop connection', async () => {
@@ -68,12 +68,12 @@ Deno.test('ZanixConnector: should stop connection', async () => {
   const conn = new TestConnector('ctx-check')
 
   await wait(10)
-  assertEquals(conn.connected, true)
+  assertEquals(conn['connected'], true)
 
   const promise = conn.stopConnection()
   assert(promise instanceof Promise)
   await promise
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
 })
 
 Deno.test('ZanixConnector: should not stop connection if is already disconnected', async () => {
@@ -103,13 +103,13 @@ Deno.test('ZanixConnector: should not start connection if is already connected',
   const conn = new TestConnector('ctx-check')
   assertEquals(conn['startCalled'], false)
   conn.startConnection()
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
   assertEquals(conn['startCalled'], true)
   assert(!(conn.startConnection() instanceof Promise))
 
   await wait(10)
   assertEquals(conn['startCalled'], false)
-  assertEquals(conn.connected, true)
+  assertEquals(conn['connected'], true)
   assert(!(conn.startConnection() instanceof Promise))
 })
 
@@ -125,12 +125,12 @@ Deno.test('ZanixConnector: should initialize connection sync', () => {
 
   const conn = new TestConnector('ctx-check')
 
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
   assert(!(conn.startConnection() instanceof Promise))
-  assertEquals(conn.connected, true)
+  assertEquals(conn['connected'], true)
 
   assert(!(conn.stopConnection() instanceof Promise))
-  assertEquals(conn.connected, false)
+  assertEquals(conn['connected'], false)
 
   TestConnector.prototype.startConnection = originalStart
   TestConnector.prototype.stopConnection = originalStop

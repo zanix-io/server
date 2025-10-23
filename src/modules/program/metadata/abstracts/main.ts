@@ -89,12 +89,14 @@ export abstract class BaseContainer {
     key: string,
     startMode: StartMode,
     container: object = this,
-  ) {
+  ): void {
+    if (startMode === 'lazy') return // exclude, it is not necessary to save
+
     this.registerMetadataContainer(container)
     const targets = this.getTargetsByStartMode(startMode)
 
     if (!targets.includes(key)) targets.push(key)
-    Reflect.set(container, this.key(startMode, 'data'), targets)
+    Reflect.set(container, this.key(`startMode:${startMode}`, 'data'), targets)
   }
 
   /**
@@ -109,11 +111,13 @@ export abstract class BaseContainer {
     type: ModuleTypes,
     container: object = this,
   ) {
+    if (!(type === 'connector' || type === 'resolver')) return // is not neccesary (yet) to save other types
+
     this.registerMetadataContainer(container)
     const targets = this.getTargetsByType(type)
 
     if (!targets.includes(key)) targets.push(key)
-    Reflect.set(container, this.key(type, 'data'), targets)
+    Reflect.set(container, this.key(`type:${type}`, 'data'), targets)
   }
 
   /**
@@ -134,9 +138,12 @@ export abstract class BaseContainer {
    * @param container Optional container object (defaults to `this`).
    * @returns An array of registered keys.
    */
-  public getTargetsByStartMode(startMode: StartMode, container: object = this): string[] {
+  public getTargetsByStartMode(
+    startMode: Exclude<StartMode, 'lazy'>,
+    container: object = this,
+  ): string[] {
     this.registerMetadataContainer(container)
-    return Reflect.get(container, this.key(startMode, 'data')) || []
+    return Reflect.get(container, this.key(`startMode:${startMode}`, 'data')) || []
   }
 
   /**
@@ -145,9 +152,12 @@ export abstract class BaseContainer {
    * @param container Optional container object (defaults to `this`).
    * @returns An array of registered keys.
    */
-  public getTargetsByType(type: ModuleTypes, container: object = this): string[] {
+  public getTargetsByType(
+    type: Extract<ModuleTypes, 'connector' | 'resolver'>,
+    container: object = this,
+  ): string[] {
     this.registerMetadataContainer(container)
-    return Reflect.get(container, this.key(type, 'data')) || []
+    return Reflect.get(container, this.key(`type:${type}`, 'data')) || []
   }
 
   /**

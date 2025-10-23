@@ -8,7 +8,7 @@ import type {
 import { capitalize, fileExists, generateBasicUUID } from '@zanix/helpers'
 import { getMainHandler } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
-import Program from '../program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import logger from '@zanix/logger'
 
 /**
@@ -172,7 +172,7 @@ export class WebServerManager {
     const processor = (callback: () => void) => {
       callback() // main function to execute
       // Delete unused references once the server has started
-      Program.cleanupMetadata()
+      ProgramModule.cleanupMetadata()
     }
 
     if (typeof id === 'string') return processor(() => this.#start(id))

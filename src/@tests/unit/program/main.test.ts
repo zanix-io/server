@@ -1,7 +1,8 @@
 // deno-lint-ignore-file no-explicit-any
-import { assert } from '@std/assert'
+import { assert, assertEquals } from '@std/assert'
 import { assertSpyCalls, stub } from '@std/testing/mock'
-import { Program as ProgramClass } from 'modules/program/main.ts'
+import { InternalProgram as ProgramClass } from 'modules/program/mod.ts'
+import { HANDLER_METADATA_PROPERTY_KEY } from 'utils/constants.ts'
 
 Deno.test('Program class initializes all containers', () => {
   const program = new ProgramClass()
@@ -33,9 +34,44 @@ Deno.test('cleanupMetadata calls resetContainer on all containers', () => {
 
   // Assert resetTargets called with argument ['properties']
   const calledWith = resetTargetsStub.calls[0].args[0] as any
-  assert(calledWith.length === 1 && calledWith[0] === 'properties')
 
-  // Restore stubs (optional but good practice)
+  assertEquals(calledWith, [HANDLER_METADATA_PROPERTY_KEY, 'startMode:onSetup', 'startMode:onBoot'])
+
+  // Restore stubs
+  resetRoutesStub.restore()
+  resetMiddlewaresStub.restore()
+  resetDecoratorsStub.restore()
+  resetTargetsStub.restore()
+})
+
+Deno.test('cleanupMetadata calls resetContainer on post boot', () => {
+  const program = new ProgramClass()
+
+  // Stub the resetContainer methods
+  const resetRoutesStub = stub(program.routes, 'resetContainer')
+  const resetMiddlewaresStub = stub(program.middlewares, 'resetContainer')
+  const resetDecoratorsStub = stub(program.decorators, 'resetContainer')
+  const resetTargetsStub = stub(program.targets, 'resetContainer')
+
+  // Call cleanupMetadata
+  program.cleanupMetadata('postBoot')
+
+  // Assert all resetContainer methods were called once
+  assertSpyCalls(resetRoutesStub, 0)
+  assertSpyCalls(resetMiddlewaresStub, 0)
+  assertSpyCalls(resetDecoratorsStub, 0)
+  assertSpyCalls(resetTargetsStub, 1)
+
+  // Assert resetTargets called with argument ['properties']
+  const calledWithPostBoot = resetTargetsStub.calls[0].args[0] as any
+
+  assertEquals(calledWithPostBoot, [
+    'type:connector',
+    'type:resolver',
+    'startMode:postBoot',
+  ])
+
+  // Restore stubs
   resetRoutesStub.restore()
   resetMiddlewaresStub.restore()
   resetDecoratorsStub.restore()

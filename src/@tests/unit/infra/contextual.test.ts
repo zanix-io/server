@@ -2,7 +2,7 @@ import { ContextualBaseClass } from 'modules/infra/base/contextual.ts'
 import { assertEquals, assertThrows } from '@std/assert'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 import { HttpError } from '@zanix/errors'
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 
 // Create a minimal mock subclass since ContextualBaseClass is abstract
 class TestContextual extends ContextualBaseClass {

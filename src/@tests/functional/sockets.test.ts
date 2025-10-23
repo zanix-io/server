@@ -1,7 +1,9 @@
-import './setup.ts'
+// deno-lint-ignore-file no-explicit-any
+import './setup/mod.ts'
 
-import { assertEquals } from '@std/assert'
-import { SOCKET_PORT } from './setup.ts'
+import { assert, assertEquals } from '@std/assert'
+import { SOCKET_PORT } from './setup/mod.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 const sockerUrl = `ws://0.0.0.0:${SOCKET_PORT}/mysock`
 
@@ -13,20 +15,37 @@ Deno.test('connects to WebSocket server', async () => {
 
   ws.send(JSON.stringify({ email: 'iscam2216@gmail.com' }))
 
-  const message = await new Promise((resolve) => {
+  const message: any = await new Promise((resolve) => {
     ws.onmessage = (event) => resolve(event.data)
   })
 
+  const data = JSON.parse(message)
+
+  const contextId = data.contextId
+  delete data.contextId
+
+  assert(contextId)
+  assert(ProgramModule.context.getContext(contextId).id)
+
   assertEquals(
-    message,
-    JSON.stringify({
+    data,
+    {
       'message': 'interactor D message',
       'socket': 1,
       'data': { 'email': 'iscam2216@gmail.com' },
-    }),
+    },
   )
 
+  const oncloseEvent = new Promise((resolve) => {
+    ws.addEventListener('close', () => {
+      assert(!ProgramModule.context.getContext(contextId).id) // context should be deleted
+      resolve('OK')
+    })
+  })
+
   ws.close()
+
+  assert((await oncloseEvent) === 'OK')
 })
 
 Deno.test('should return error message on data validation', async () => {

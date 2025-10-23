@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertSpyCalls, spy } from '@std/testing/mock'
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 import {
   applyMiddlewaresToTarget,
   defineInterceptorDecorator,

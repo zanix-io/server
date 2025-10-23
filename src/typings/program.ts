@@ -17,14 +17,10 @@ export type HandlerTypes =
  *
  * - `'connector'`: Used for external service or database integrations.
  * - `'interactor'`: Contains business logic, often called use-cases.
- * - `'subscriber'`: Reacts to events/messages in an event-driven system.
- * - `'job'`: Performs background tasks or cron jobs.
  */
 export type GeneralTargetTypes =
   | 'connector'
   | 'interactor'
-  | 'subscriber'
-  | 'job'
 
 /**
  * Union type of all module types in the system, including both handler-specific
@@ -71,7 +67,11 @@ export type MetadataTypesKey = `${MetadataTypes}:${string}`
 
 export type MetadataObjects = object | string | number | boolean
 
-export type MetadataProps = { Target?: ClassConstructor; propertyKey?: string }
+export type MetadataTargetSymbols = {
+  Target?: ClassConstructor
+  propertyKey?: string // property or class symbol
+  type?: 'handler' | 'general'
+}
 
 export type MetadataInstances<
   T extends ClassConstructor = ClassConstructor,

@@ -3,7 +3,7 @@ import { assertEquals, assertInstanceOf, assertStrictEquals } from '@std/assert'
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { stub } from '@std/testing/mock'
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 
 // Mock ZanixConnector
 class MockConnector extends ZanixConnector {

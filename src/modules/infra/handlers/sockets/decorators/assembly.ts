@@ -1,7 +1,7 @@
 import type { RtoTypes } from '@zanix/types'
 import type { SocketDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
 
-import Program from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import { ZanixWebSocket } from '../base.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { socketHandler } from '../handler.ts'
@@ -35,18 +35,18 @@ export function defineSocketDecorator(
 
     Target.prototype[processorKey] = socketHandler(rto)
 
-    Program.routes.setEndpoint({ Target, endpoint: route })
-    Program.targets.addProperty({ Target, propertyKey: processorKey })
+    ProgramModule.routes.setEndpoint({ Target, endpoint: route })
+    ProgramModule.targets.addProperty({ Target, propertyKey: processorKey })
 
-    Program.decorators.deleteDecorators('socket')
+    ProgramModule.decorators.deleteDecorators('socket')
 
-    Program.targets.toBeInstanced(getTargetKey(Target), {
+    ProgramModule.targets.toBeInstanced(getTargetKey(Target), {
       type: 'socket',
       Target,
       dataProps: { interactor },
       lifetime: 'TRANSIENT',
     })
 
-    Program.routes.defineRoute('socket', Target)
+    ProgramModule.routes.defineRoute('socket', Target)
   }
 }

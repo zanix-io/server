@@ -7,19 +7,30 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [1.0.9] - 2025-10-20
+## [1.0.10] - 2025-10-22
 
 ## Fixed
+
+- Connector core templates
+- Program module privacity
+- Metadata cleanup
+
+### Added
+
+- Server bootstrap
+- Additional exported modules
+
+## [1.0.9] - 2025-10-20
+
+### Fixed
 
 - Exporting additional classes
 
 ## [1.0.8] - 2025-10-20
 
-## Fixed
+### Fixed
 
 - Connector and database connector structure
-
-### Fixed
 
 ## [1.0.7] - 2025-10-17
 

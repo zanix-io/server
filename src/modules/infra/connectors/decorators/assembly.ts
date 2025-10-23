@@ -3,7 +3,7 @@ import type { ConnectorTypes, CoreConnectors, Lifetime, StartMode } from 'typing
 
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { getTargetKey } from 'utils/targets.ts'
-import Program from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import ConnectorCoreModules from 'connectors/core.ts'
 
 /** Define decorator to register a connector */
@@ -46,7 +46,7 @@ export function defineConnectorDecorator(
       key = getTargetKey(Target)
     }
 
-    Program.targets.toBeInstanced(key, {
+    ProgramModule.targets.toBeInstanced(key, {
       Target,
       lifetime,
       startMode,

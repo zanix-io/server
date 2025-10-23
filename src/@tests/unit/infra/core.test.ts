@@ -3,7 +3,7 @@ import ConnectorCoreModules from 'connectors/core.ts'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 
 // Mock de Program.targets
-import ProgramModule from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import { CoreBaseClass } from 'modules/infra/base/core.ts'
 
 Deno.test('CoreBaseClass should call getInstance correctly for all connectors', () => {

@@ -1,7 +1,7 @@
 import { assert, assertEquals, assertExists, assertThrows } from '@std/assert'
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import { routeProcessor } from 'modules/webserver/helpers/routes.ts'
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 
 //Mocks
 console.info = () => {}
@@ -34,7 +34,7 @@ Deno.test('routeProcessor should return default adapted routes', () => {
   assert(typeof routes[path].handler === 'function')
 
   // References should be deleted
-  Program.cleanupMetadata()
+  Program.routes.resetContainer()
 
   assertThrows(
     () => routeProcessor('rest'),

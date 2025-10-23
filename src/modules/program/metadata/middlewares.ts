@@ -1,5 +1,5 @@
 import type { MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
-import type { MetadataProps } from 'typings/program.ts'
+import type { MetadataTargetSymbols } from 'typings/program.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 
 import { BaseContainer } from './abstracts/main.ts'
@@ -11,7 +11,10 @@ export class MiddlewaresContainer extends BaseContainer {
   /**
    * Function to add a pipe to a specified target or property.
    */
-  public addPipe(pipe: MiddlewarePipe, { Target, propertyKey = 'local' }: MetadataProps = {}) {
+  public addPipe(
+    pipe: MiddlewarePipe,
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
+  ) {
     const pipes = this.getPipes({ Target, propertyKey })
     const pipesSet = new Set<MiddlewarePipe>(pipes)
 
@@ -32,7 +35,7 @@ export class MiddlewaresContainer extends BaseContainer {
   /**
    * Retrieves all Pipes associated with a specific target or property
    */
-  public getPipes({ Target, propertyKey = 'local' }: MetadataProps = {}): MiddlewarePipe[] {
+  public getPipes({ Target, propertyKey = 'local' }: MetadataTargetSymbols = {}): MiddlewarePipe[] {
     return this.getData<MiddlewarePipe[] | undefined>(this.#pipesKey(propertyKey), Target) || []
   }
 
@@ -41,7 +44,7 @@ export class MiddlewaresContainer extends BaseContainer {
    */
   public addInterceptor(
     interceptor: MiddlewareInterceptor,
-    { Target, propertyKey = 'local' }: MetadataProps = {},
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ) {
     const interceptors = this.getInterceptors({ Target, propertyKey })
     const interceptorsSet = new Set<MiddlewareInterceptor>(interceptors)
@@ -68,7 +71,7 @@ export class MiddlewaresContainer extends BaseContainer {
    * Retrieves all interceptors associated with a specific target
    */
   public getInterceptors(
-    { Target, propertyKey = 'local' }: MetadataProps = {},
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ): MiddlewareInterceptor[] {
     return this.getData<MiddlewareInterceptor[] | undefined>(
       this.#interceptorsKey(propertyKey),
@@ -80,7 +83,7 @@ export class MiddlewaresContainer extends BaseContainer {
    * Retrieves target interceptors
    */
   public getTargetInterceptors(
-    { Target, propertyKey = 'local' }: MetadataProps = {},
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ): MiddlewareInterceptor[] {
     return [
       ...this.getInterceptors({ Target }), // Target level interceptors
@@ -91,7 +94,9 @@ export class MiddlewaresContainer extends BaseContainer {
   /**
    * Retrieves target pipes
    */
-  public getTargetPipes({ Target, propertyKey = 'local' }: MetadataProps = {}): MiddlewarePipe[] {
+  public getTargetPipes(
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
+  ): MiddlewarePipe[] {
     return [
       ...this.getPipes({ Target }), // Target level pipes
       ...this.getPipes({ Target, propertyKey }), // Property level pipes
@@ -103,7 +108,7 @@ export class MiddlewaresContainer extends BaseContainer {
    */
   public getMiddlewares(
     type: WebServerTypes,
-    { Target, propertyKey = 'local' }: MetadataProps = {},
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ): { interceptors: Set<MiddlewareInterceptor>; pipes: Set<MiddlewarePipe> } {
     const interceptors = new Set([
       ...this.getInterceptors({ propertyKey: type }), // Global level interceptors

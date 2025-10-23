@@ -1,7 +1,7 @@
 import type { ScopedContext } from 'typings/context.ts'
 
 import { HttpError } from '@zanix/errors'
-import Program from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import { TargetBaseClass } from './target.ts'
 
 export abstract class ContextualBaseClass extends TargetBaseClass {
@@ -25,6 +25,6 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
       })
     }
 
-    return Program.context.getContext<ScopedContext>(this.#contextId)
+    return ProgramModule.context.getContext<ScopedContext>(this.#contextId)
   }
 }

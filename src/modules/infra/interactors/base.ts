@@ -1,13 +1,14 @@
-import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import type {
+  CoreConnectorTemplates,
+  ZanixConnectorGeneric,
   ZanixInteractorClass,
   ZanixInteractorGeneric,
   ZanixInteractorsGetter,
 } from 'typings/targets.ts'
 
-import { ContextualBaseClass } from '../base/contextual.ts'
 import { getTargetKey } from 'utils/targets.ts'
-import Program from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
+import { CoreBaseClass } from '../base/core.ts'
 
 /**
  * Abstract class that extends `CoreBaseClass` and acts as an interactor for implementing the business logic of the application.
@@ -19,12 +20,17 @@ import Program from 'modules/program/main.ts'
  *
  * Interactors can also interact with other interactors, allowing for a modular and decoupled system architecture.
  *
+ * @abstract
  * @extends CoreBaseClass
  * @template Connector - A generic type representing the type of connector used by the interactor.
  *                       By default, it is set to `never`, meaning no connector is provided unless explicitly specified.
+ * @template T - A generic type representing the type of core connectors used by the interactor.
+ *                       By default, it is set to `object`, meaning the base core connector types are provided unless explicitly specified.
  */
-export abstract class ZanixInteractor<Connector extends ZanixConnector = never>
-  extends ContextualBaseClass {
+export abstract class ZanixInteractor<
+  Connector extends ZanixConnectorGeneric = never,
+  T extends CoreConnectorTemplates = object,
+> extends CoreBaseClass<T> {
   #connector
   #contextId
   #key
@@ -47,7 +53,7 @@ export abstract class ZanixInteractor<Connector extends ZanixConnector = never>
    * @returns {Connector} The resolved connector instance.
    */
   protected get connector(): Connector {
-    return Program.targets.getInstance<Connector>(this.#connector, 'connector', {
+    return ProgramModule.targets.getInstance<Connector>(this.#connector, 'connector', {
       ctx: this.#contextId,
     })
   }
@@ -69,7 +75,7 @@ export abstract class ZanixInteractor<Connector extends ZanixConnector = never>
         const key = getTargetKey(Interactor)
         // Check if the interactor is not circular, in which case return the same instance
         if (this.#key === key) return this as unknown as T
-        return Program.targets.getInstance<T>(key, 'interactor', { ctx: this.#contextId })
+        return ProgramModule.targets.getInstance<T>(key, 'interactor', { ctx: this.#contextId })
       },
     }
   }

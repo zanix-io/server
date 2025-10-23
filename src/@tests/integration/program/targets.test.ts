@@ -20,14 +20,13 @@ Deno.test('TargetContainer: defineTarget stores target class and options', () =>
   const opts: MetadataTargetsProps<typeof TestClass> = {
     Target: TestClass,
     dataProps: { foo: 'bar' },
-    type: 'interactor',
+    type: 'connector',
   }
 
   container.defineTarget('serviceA', opts as never)
-
-  assert(container.getTargetsByType('interactor').includes('serviceA'))
-  assertEquals(container.getInstance('serviceA', 'interactor'), new TestClass())
-  assertEquals(container.getInstance('serviceA', 'interactor')['_znxProps'].data, { foo: 'bar' })
+  assert(container.getTargetsByType('connector').includes('serviceA'))
+  assertEquals(container.getInstance('serviceA', 'connector'), new TestClass())
+  assertEquals(container.getInstance('serviceA', 'connector')['_znxProps'].data, { foo: 'bar' })
 })
 
 Deno.test('TargetContainer: addProperty adds single property', () => {

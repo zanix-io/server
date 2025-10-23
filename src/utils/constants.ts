@@ -55,3 +55,5 @@ export const ALLOWED_PROTOCOLS = [
 ]
 
 export const DEFAULT_URI_CONNECTOR = 'zanix-connector'
+
+export const HANDLER_METADATA_PROPERTY_KEY = 'handler_properties'

@@ -3,7 +3,7 @@ import type { ZanixInteractorGeneric } from 'typings/targets.ts'
 import { assertEquals } from '@std/assert'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 import { HandlerBaseClass } from 'modules/infra/handlers/base.ts'
 
 type DummyInteractor = { type: 'DummyInteractor' } & ZanixInteractorGeneric

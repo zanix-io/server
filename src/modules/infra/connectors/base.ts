@@ -1,6 +1,10 @@
-import type { ZanixConnectorClass, ZanixConnectorsGetter } from 'typings/targets.ts'
+import type {
+  CoreConnectorTemplates,
+  ZanixConnectorClass,
+  ZanixConnectorsGetter,
+} from 'typings/targets.ts'
 
-import Program from '../../program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { CoreBaseClass } from '../base/core.ts'
 import { validateURI } from 'utils/uri.ts'
@@ -18,8 +22,13 @@ import { DEFAULT_URI_CONNECTOR } from 'utils/constants.ts'
  *
  * @abstract
  * @extends CoreBaseClass
+ *
+ * @template T - A generic type representing the type of core connectors used by the current connector.
+ *               By default, it is set to `object`, meaning the base core connector types are provided unless explicitly specified.
  */
-export abstract class ZanixConnector extends CoreBaseClass {
+export abstract class ZanixConnector<
+  T extends CoreConnectorTemplates = object,
+> extends CoreBaseClass<T> {
   #connected = false
   #key
   #contextId
@@ -35,11 +44,11 @@ export abstract class ZanixConnector extends CoreBaseClass {
    * @type {boolean}
    * @readonly
    */
-  public get connected(): boolean {
+  protected get connected(): boolean {
     return this.#connected
   }
 
-  protected set connected(value: boolean) {
+  private set connected(value: boolean) {
     this.#connected = value
   }
 
@@ -127,7 +136,7 @@ export abstract class ZanixConnector extends CoreBaseClass {
    * @abstract
    * @returns {Promise<boolean> | boolean} A boolean that indicates whether the connection was successful.
    */
-  public abstract startConnection(uri?: string): Promise<boolean> | boolean
+  protected abstract startConnection(uri?: string): Promise<boolean> | boolean
 
   /**
    * Stops the connection to the external service.
@@ -138,7 +147,7 @@ export abstract class ZanixConnector extends CoreBaseClass {
    * @abstract
    * @returns {Promise<boolean> | boolean} A boolean that indicates whether the disconnection was successful.
    */
-  public abstract stopConnection(): Promise<boolean> | boolean
+  protected abstract stopConnection(): Promise<boolean> | boolean
 
   /**
    * Provides access to other connectors registered within the system.
@@ -151,13 +160,13 @@ export abstract class ZanixConnector extends CoreBaseClass {
    */
   protected get connectors(): ZanixConnectorsGetter {
     return {
-      get: <T extends ZanixConnector>(
-        Connector: ZanixConnectorClass<T>,
-      ): T => {
+      get: <D extends ZanixConnector<T>>(
+        Connector: ZanixConnectorClass<D>,
+      ): D => {
         const key = getTargetKey(Connector)
         // Check if the connector is not circular, in which case return the same instance
-        if (this.#key === key) return this as unknown as T
-        return Program.targets.getInstance<T>(key, 'connector', { ctx: this.#contextId })
+        if (this.#key === key) return this as unknown as D
+        return ProgramModule.targets.getInstance<D>(key, 'connector', { ctx: this.#contextId })
       },
     }
   }

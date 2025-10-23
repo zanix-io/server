@@ -1,3 +1,4 @@
+import type { CoreConnectorTemplates } from 'typings/targets.ts'
 import type { Seeders } from 'typings/general.ts'
 
 import { readConfig } from '@zanix/helpers'
@@ -17,23 +18,23 @@ import { ZanixConnector } from './base.ts'
  *
  * @abstract
  * @extends ZanixConnector
+ *
+ * @template T - A generic type representing the type of core connectors used by the current connector.
+ *               By default, it is set to `object`, meaning the base core connector types are provided unless explicitly specified.
  */
-export abstract class ZanixDatabaseConnector extends ZanixConnector {
+export abstract class ZanixDatabaseConnector<T extends CoreConnectorTemplates = object>
+  extends ZanixConnector<T> {
   /**
    * Retrieves the database name based on zanix project info
    */
-  protected readonly databaseName: string
+  protected readonly defaultDbName: string
 
   constructor(contextId: string, uri?: string) {
     super(contextId, uri)
-    this.databaseName = this.getDefaultDatabaseName()
+    this.defaultDbName = this.getDefaultDatabaseName()
   }
 
   private getDefaultDatabaseName() {
-    const projectDBName = this.context['project' as never] // TODO: initialize this value for zanix cloud projects, with project info
-
-    if (projectDBName) return projectDBName
-
     const projectName = readConfig().name
 
     if (!projectName) return 'zanix_system'
@@ -57,7 +58,7 @@ export abstract class ZanixDatabaseConnector extends ZanixConnector {
    *
    * @returns {Promise<void>} A promise that resolves when all seeders have been processed.
    */
-  public async runSeeders(seeders: Seeders): Promise<void> {
+  protected async runSeeders(seeders: Seeders): Promise<void> {
     await Promise.all(seeders.map(async (seed) => {
       const modelInstance = this.getModel(seed.model)
 

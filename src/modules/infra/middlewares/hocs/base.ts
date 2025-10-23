@@ -11,12 +11,13 @@ import type {
 } from 'typings/targets.ts'
 
 import { getTargetKey } from 'utils/targets.ts'
-import Program from 'modules/program/main.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 const interactors: (ctxId: string) => ZanixInteractorsGetter = (ctxId) => ({
   get: <T extends ZanixInteractorGeneric>(
     Interactor: ZanixInteractorClass<T>,
-  ): T => Program.targets.getInstance<T>(getTargetKey(Interactor), 'interactor', { ctx: ctxId }),
+  ): T =>
+    ProgramModule.targets.getInstance<T>(getTargetKey(Interactor), 'interactor', { ctx: ctxId }),
 })
 
 /**
@@ -44,7 +45,7 @@ export function defineGlobalPipeHOC(
   const pipe: MiddlewarePipe = (ctx) => {
     target({ ...ctx, interactors: interactors(ctx.id) })
   }
-  Program.middlewares.addGlobalPipe(pipe, server)
+  ProgramModule.middlewares.addGlobalPipe(pipe, server)
 }
 
 /**
@@ -71,5 +72,5 @@ export function defineGlobalInterceptorHOC(
   const interceptor: MiddlewareInterceptor = (ctx, response) => {
     return target({ ...ctx, interactors: interactors(ctx.id) }, response)
   }
-  Program.middlewares.addGlobalInterceptor(interceptor, server)
+  ProgramModule.middlewares.addGlobalInterceptor(interceptor, server)
 }

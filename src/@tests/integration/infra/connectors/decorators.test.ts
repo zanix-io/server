@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
-import Program from 'modules/program/main.ts'
+import Program from 'modules/program/mod.ts'
 import { defineConnectorDecorator } from 'modules/infra/connectors/decorators/assembly.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import ConnectorCoreModules from 'modules/infra/connectors/core.ts'
