@@ -17,12 +17,14 @@ class DBConnector extends ZanixDatabaseConnector {
 
 Deno.test('ZanixDatabaseConnector: should define a database name', () => {
   const conn = new DBConnector('uri')
+
   const dbName = conn['defaultDbName']
   assertEquals(dbName, 'zanix_server')
 })
 
 Deno.test('ZanixDatabaseConnector: should run seeders', async () => {
   const conn = new DBConnector('uri')
+  await conn.connectorReady
 
   assertEquals(conn['connected'], true)
   let seedExecution = 0

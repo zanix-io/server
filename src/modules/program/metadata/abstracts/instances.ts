@@ -1,6 +1,7 @@
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 import type { MetadataInstances, ModuleTypes } from 'typings/program.ts'
 import type { BaseContext } from 'typings/context.ts'
+import type { ZanixConnector } from 'connectors/base.ts'
 
 import { BaseContainer } from './main.ts'
 import { HttpError } from '@zanix/errors'
@@ -70,7 +71,8 @@ export abstract class BaseInstancesContainer extends BaseContainer {
       const currentInstance = this.getData<T>(instanceKey)
       if (currentInstance || useExistingInstance) return currentInstance
 
-      const instance = Object.freeze(new Target(ctx)) as T
+      const instance = new Target(ctx) as T
+      this.instanceFreeze(instance)
 
       if (lifetime === 'TRANSIENT') return instance
       else {
@@ -89,6 +91,18 @@ export abstract class BaseInstancesContainer extends BaseContainer {
         cause: e,
       })
     }
+  }
+
+  /**
+   * Freeze instance object
+   */
+  private instanceFreeze<T>(instance: T) {
+    const connector = instance as typeof ZanixConnector['prototype']
+    if (connector.connectorReady) {
+      connector.connectorReady.then(() => {
+        Object.freeze(instance)
+      })
+    } else Object.freeze(instance)
   }
 
   /**

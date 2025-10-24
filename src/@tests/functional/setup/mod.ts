@@ -24,10 +24,11 @@ try {
     server: { port: GQL_PORT, globalPrefix: '/gql//' },
   })
 
-  const startConnection = (key: string) => {
+  const startConnection = async (key: string) => {
     const [type, id] = key.split(':') as [ModuleTypes, string]
     const instance = Program.targets.getInstance<ZanixConnector>(id, type)
     if (type !== 'connector') return
+    await instance.connectorReady
     return instance['startConnection']()
   }
 

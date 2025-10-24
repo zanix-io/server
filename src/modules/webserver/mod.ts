@@ -11,7 +11,7 @@ const targetModuleInit = (key: string) => {
   const [type, id] = key.split(':') as [ModuleTypes, string]
   const instance = ProgramModule.targets.getInstance<ZanixConnector>(id, type)
   if (type !== 'connector') return
-  return instance['startConnection']()
+  return instance.connectorReady.then(() => instance['startConnection']())
 }
 
 /** Catch all module errors */

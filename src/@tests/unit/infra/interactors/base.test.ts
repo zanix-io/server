@@ -19,6 +19,7 @@ class MockConnector extends ZanixConnector {
 // Mock Interactor to extend the abstract class
 class MockInteractor extends ZanixInteractor<MockConnector> {
 }
+
 // Needed to simulate access to _znxProps
 MockInteractor.prototype['_znxProps'] = {
   ...MockInteractor.prototype['_znxProps'],
@@ -28,6 +29,7 @@ MockInteractor.prototype['_znxProps'] = {
 
 // Another interactor to simulate "other" class
 class OtherInteractor extends ZanixInteractor<MockConnector> {
+  public v = 3
 }
 // Needed to simulate access to _znxProps
 OtherInteractor.prototype['_znxProps'] = {
