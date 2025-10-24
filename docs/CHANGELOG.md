@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.12] - 2025-10-23
+
+## Added
+
+- Connector general options
+
 ## [1.0.11] - 2025-10-23
 
 ## Fixed

@@ -67,7 +67,7 @@ export {
 
 // Types
 export type { GeneralTargetTypes, ModuleTypes, StartMode } from 'typings/program.ts'
-export type { Seeders } from 'typings/general.ts'
+export type { ConnectionStatusHandler, Seeders } from 'typings/general.ts'
 export type {
   BootstrapServerOptions,
   ServerID,
@@ -82,7 +82,7 @@ export type {
   MiddlewarePipe,
 } from 'typings/middlewares.ts'
 export type { HandlerContext } from 'typings/context.ts'
-export type { CoreConnectorTemplates } from 'typings/targets.ts'
+export type { ConnectorOptions, CoreConnectorTemplates } from 'typings/targets.ts'
 export type { HttpMethods } from 'typings/router.ts'
 
 // Main

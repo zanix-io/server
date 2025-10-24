@@ -10,3 +10,19 @@ export type Seeders = Array<{
     // deno-lint-ignore no-explicit-any
     Array<(model: any, context: typeof ZanixDatabaseConnector['prototype']) => Promise<void> | void>
 }>
+
+/**
+ * A callback function that handles connector connection status events.
+ *
+ * This function is invoked whenever the connector's connection state changes —
+ * for example, when a connection is established successfully, fails with an error,
+ * or enters an unknown state.
+ *
+ * @callback ConnectionStatusHandler
+ * @param {Error | 'OK' | 'unknownError'} status - Represents the current connection status:
+ * - `'OK'` → Connection established successfully.
+ * - `'unknownError'` → A non-specific or unexpected error occurred.
+ * - `Error` → The actual error instance that caused the failure.
+ * @returns {void}
+ */
+export type ConnectionStatusHandler = <T extends Error | 'OK' | 'unknownError'>(status: T) => void

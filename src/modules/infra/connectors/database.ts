@@ -1,4 +1,4 @@
-import type { CoreConnectorTemplates } from 'typings/targets.ts'
+import type { ConnectorOptions, CoreConnectorTemplates } from 'typings/targets.ts'
 import type { Seeders } from 'typings/general.ts'
 
 import { readConfig } from '@zanix/helpers'
@@ -29,8 +29,8 @@ export abstract class ZanixDatabaseConnector<T extends CoreConnectorTemplates = 
    */
   protected readonly defaultDbName: string
 
-  constructor(contextId: string, uri?: string) {
-    super(contextId, uri)
+  constructor(contextId: string, options: ConnectorOptions = {}) {
+    super(contextId, options)
     this.defaultDbName = this.getDefaultDatabaseName()
   }
 

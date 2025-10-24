@@ -10,6 +10,7 @@ import type { BaseRTO } from '@zanix/validator'
 import type { RtoTypes } from '@zanix/types'
 import type { HandlerFunction } from './router.ts'
 import type { HandlerContext } from './context.ts'
+import type { ConnectionStatusHandler } from './general.ts'
 export type ClassConstructor<T extends TargetBaseClass = TargetBaseClass> = {
   new (...args: any[]): T
   prototype: T
@@ -80,3 +81,29 @@ export type CoreConnectorTemplates = {
   cache?: ZanixCacheConnector
   database?: ZanixDatabaseConnector
 }
+
+/**
+ * Configuration options for general connector lifecycle event handlers.
+ *
+ * These callbacks allow consumers to respond to connection and disconnection events,
+ * providing a consistent way to track the connector’s lifecycle.
+ */
+export type ConnectorGeneralOptions = {
+  /**
+   * The URI used to establish the external connection.
+   */
+  uri: string
+  /**
+   * Called when the connector successfully establishes a connection or encounters an error during the connection attempt.
+   */
+  onConnected?: ConnectionStatusHandler
+  /**
+   * Called when the connector disconnects, either normally or due to an unexpected error.
+   */
+  onDisconnected?: ConnectionStatusHandler
+}
+/**
+ * Configuration options for general connector.
+ * Partial options of {@link ConnectorGeneralOptions}
+ */
+export type ConnectorOptions = Partial<ConnectorGeneralOptions>

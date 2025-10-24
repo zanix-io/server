@@ -213,7 +213,7 @@ Deno.test('ZanixConnector: should validate uri', async () => {
     ...TestConnector.prototype['_znxProps'],
     startMode: 'onBoot',
   }
-  const conn = new TestConnector('ctx-check', 'iscam:2216@test.com')
+  const conn = new TestConnector('ctx-check', { uri: 'iscam:2216@test.com' })
   await conn.connectorReady
   await conn.startConnection().then(() => assert(true)) // wait to the promise
 
@@ -221,7 +221,7 @@ Deno.test('ZanixConnector: should validate uri', async () => {
   assertEquals(conn['url'].password, '')
   assertEquals(conn['url'].username, '')
 
-  const conn2 = new TestConnector('ctx-check', 'i}~+´test.com')
+  const conn2 = new TestConnector('ctx-check', { uri: 'i}~+´test.com' })
   await wait(waiting) // wait because of queueMicrotask
   await assertThrows(() => conn2.startConnection())
 })

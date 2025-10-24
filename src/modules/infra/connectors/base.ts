@@ -1,4 +1,5 @@
 import type {
+  ConnectorOptions,
   CoreConnectorTemplates,
   ZanixConnectorClass,
   ZanixConnectorsGetter,
@@ -37,8 +38,11 @@ export abstract class ZanixConnector<
    *
    * If the connector's `startMode` is set to `'lazy'`, the connection is started automatically on instantiation.
    */
-  constructor(contextId: string, uri: string = DEFAULT_URI_CONNECTOR) {
-    super(contextId, uri)
+  constructor(
+    contextId: string,
+    { uri = DEFAULT_URI_CONNECTOR, ...opts }: ConnectorOptions = {},
+  ) {
+    super(contextId, { uri, ...opts })
 
     const { key, data, startMode } = this['_znxProps']
     this.#contextId = contextId

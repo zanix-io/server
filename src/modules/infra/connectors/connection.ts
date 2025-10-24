@@ -1,8 +1,10 @@
-import type { CoreConnectorTemplates } from 'typings/targets.ts'
+import type { ConnectorGeneralOptions, CoreConnectorTemplates } from 'typings/targets.ts'
+import type { ConnectionStatusHandler } from 'typings/general.ts'
 
 import { CoreBaseClass } from '../base/core.ts'
 import { validateURI } from 'utils/uri.ts'
 import { DEFAULT_URI_CONNECTOR } from 'utils/constants.ts'
+import logger from '@zanix/logger'
 
 /**
  * Abstract base class for implementing and manage connector connections.
@@ -36,7 +38,7 @@ export abstract class BaseConnectionClass<
    *
    * @type {Promise<boolean>}
    */
-  public connectorReady: Promise<boolean> = Promise.resolve(false)
+  public connectorReady: Promise<boolean>
 
   /**
    * Partial URL without sensible data.
@@ -49,26 +51,28 @@ export abstract class BaseConnectionClass<
    *
    * If the connector's `startMode` is set to `'lazy'`, the connection is started automatically on instantiation.
    */
-  constructor(contextId: string, uri: string) {
+  constructor(contextId: string, options: ConnectorGeneralOptions) {
     super(contextId)
     // (queueMicrotask ensures private fields are ready before execution)
     this.connectorReady = new Promise<boolean>((resolve) => {
       queueMicrotask(() => {
         // Wrapper startConnection method
         const originalStartConnection = this.startConnection.bind(this)
-        this.startConnection = (_uri: string = uri) => {
+
+        this.startConnection = (_uri: string = options.uri) => {
           if (this.connected || this.startCalled) return true
           const validURI = this.preStartConnection(_uri)
-          const connection = originalStartConnection(validURI)
-          return this.postStartStopConnection(connection, 'startCalled')
+          const connection = () => originalStartConnection(validURI)
+
+          return this.postStartStopConnection(connection, 'startCalled', options.onConnected)
         }
         // Wrapper stopConnection method
         const originalStopConnection = this.stopConnection.bind(this)
         this.stopConnection = () => {
           if (!this.connected || this.stopCalled) return true
           this.stopCalled = true
-          const connection = originalStopConnection()
-          return this.postStartStopConnection(connection, 'stopCalled')
+          const connection = () => originalStopConnection()
+          return this.postStartStopConnection(connection, 'stopCalled', options.onDisconnected)
         }
 
         resolve(true)
@@ -76,6 +80,11 @@ export abstract class BaseConnectionClass<
     })
   }
 
+  /**
+   * Pre start connection method
+   * @param uri
+   * @returns
+   */
   private preStartConnection(uri: string) {
     //TODO: validate protocol, only for zanix cloud projects
     const url = validateURI(uri)
@@ -97,25 +106,51 @@ export abstract class BaseConnectionClass<
     return validURI
   }
 
+  /**
+   * Post start or stop connection method
+   *
+   * @param connection
+   * @param type
+   * @param resolveConnection
+   * @returns
+   */
   private postStartStopConnection(
-    connection: Promise<boolean> | boolean,
+    callback: () => Promise<boolean> | boolean,
     type: 'startCalled' | 'stopCalled',
+    resolveConnection?: ConnectionStatusHandler,
   ) {
     const setConnectionStatus = (result: boolean) => {
       this.connected = type === 'startCalled' ? result : !result
+      resolveConnection?.(result ? 'OK' : 'unknownError')
     }
 
-    if (connection instanceof Promise) {
-      connection.then((result: boolean) => {
-        setConnectionStatus(result)
+    const errorMessage = `An error occurred on connector '${this.constructor.name}'`
+    try {
+      const connection = callback()
+
+      if (connection instanceof Promise) {
+        connection.then((result: boolean) => {
+          this[type] = false
+          setConnectionStatus(result)
+        }).catch((e) => {
+          this[type] = false
+          resolveConnection?.(e)
+
+          logger.error(errorMessage, e)
+          return this.connected
+        })
+      } else {
         this[type] = false
-      })
-    } else {
-      setConnectionStatus(connection)
-      this[type] = false
-    }
+        setConnectionStatus(connection)
+      }
 
-    return connection
+      return connection
+    } catch (e) {
+      resolveConnection?.(e as Error)
+      this[type] = false
+      logger.error(errorMessage, e)
+      return this.connected
+    }
   }
 
   /**
