@@ -19,7 +19,9 @@ export const GQL_PORT = 9333
 
 try {
   const id1 = webServerManager.create('rest', { server: { globalPrefix: '/api//' } })
-  const id2 = webServerManager.create('socket', { server: { port: SOCKET_PORT } })
+  const id2 = webServerManager.create('socket', {
+    server: { port: SOCKET_PORT, globalPrefix: 'sock' },
+  })
   const id3 = webServerManager.create('graphql', {
     server: { port: GQL_PORT, globalPrefix: '/gql//' },
   })

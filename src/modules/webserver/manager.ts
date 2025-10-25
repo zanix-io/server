@@ -72,20 +72,16 @@ export class WebServerManager {
    */
   public create<T extends WebServerTypes>(
     type: T,
-    options: ServerManagerOptions<T> = {},
+    options: ServerManagerOptions = {},
   ): ServerID {
     const serverID = `${new TextEncoder().encode(type).toHex()}${generateBasicUUID()}` as ServerID
 
     if (this.#servers[serverID]) return serverID
 
-    const globalPrefix = (options as ServerManagerOptions<'graphql' | 'rest'>).server
-      ?.globalPrefix
-
-    const isAdmin = globalPrefix === '{{zanix-admin-server-id}}'
-
     const {
-      server: { onceStop, ssl, ...opts } = {},
-      handler = getMainHandler(type, isAdmin ? serverID : globalPrefix),
+      isInternal,
+      server: { onceStop, globalPrefix, ssl, ...opts } = {},
+      handler = getMainHandler(type, isInternal ? serverID : globalPrefix),
     } = options
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
@@ -127,8 +123,8 @@ export class WebServerManager {
 
           if (serverInUse?.[1]) {
             const addInUseType = serverInUse[1].type.toUpperCase()
-            ;(error as Error).message += isAdmin
-              ? ` by an admin ${addInUseType} server.`
+            ;(error as Error).message += isInternal
+              ? ` by an internal ${addInUseType} server.`
               : ` by ${addInUseType} server with ID ${serverInUse[0]}.`
             throw new Deno.errors.Interrupted(
               `Port ${opts.port} is already in use and cannot be assigned to the ${this.type.toUpperCase()} server with ID ${serverID}. Please choose a different port.`,

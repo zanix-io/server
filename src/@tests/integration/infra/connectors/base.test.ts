@@ -71,8 +71,7 @@ Deno.test('ZanixConnector: should wait onConnected and onDisconnected OK', async
 })
 
 Deno.test('ZanixConnector: should wait onConnected and onDisconnected Error', async () => {
-  // deno-lint-ignore no-explicit-any
-  let connected: any
+  let connected: unknown
 
   await new Promise((resolve) => {
     new ConnectorErrorOne('id', {
@@ -84,8 +83,7 @@ Deno.test('ZanixConnector: should wait onConnected and onDisconnected Error', as
   })
 
   assert(connected instanceof Error)
-  // deno-lint-ignore no-explicit-any
-  let disconnected: any
+  let disconnected: unknown
 
   await new Promise((resolve) => {
     const _connector = new ConnectorErrorTwo('id', {

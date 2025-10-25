@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.13] - 2025-10-23
+
+## Fixed
+
+- getTargetKey for different classes with the same name
+
 ## [1.0.12] - 2025-10-23
 
 ## Added

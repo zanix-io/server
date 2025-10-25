@@ -31,7 +31,7 @@ Deno.test('should register a valid interactor', () => {
   Decorator(MyInteractor)
 
   assertSpyCalls(toBeInstancedSpy, 1)
-  assertEquals(toBeInstancedSpy.calls[0].args[0], 'MyInteractor')
+  assertEquals(toBeInstancedSpy.calls[0].args[0], 'Z$MyInteractor$1')
   assertEquals(toBeInstancedSpy.calls[0].args[1].Target, MyInteractor)
 
   toBeInstancedSpy.restore()

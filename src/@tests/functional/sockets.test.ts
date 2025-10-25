@@ -5,7 +5,7 @@ import { assert, assertEquals } from '@std/assert'
 import { SOCKET_PORT } from './setup/mod.ts'
 import ProgramModule from 'modules/program/mod.ts'
 
-const sockerUrl = `ws://0.0.0.0:${SOCKET_PORT}/mysock`
+const sockerUrl = `ws://0.0.0.0:${SOCKET_PORT}/sock/mysock`
 
 Deno.test('connects to WebSocket server', async () => {
   const ws = new WebSocket(`${sockerUrl}/1`)

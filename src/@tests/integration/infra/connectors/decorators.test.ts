@@ -64,7 +64,7 @@ Deno.test('defineConnectorDecorator: registers non-core connector with default s
   decorator(CustomConnector)
 
   const call = mockToBeInstanced.calls[0] as any
-  assertEquals(call.key, 'CustomConnector')
+  assertEquals(call.key, 'Z$CustomConnector$1')
   assertEquals(call.opts.Target, CustomConnector)
   assertEquals(call.opts.type, 'connector')
   assertEquals(call.opts.dataProps.type, 'custom')

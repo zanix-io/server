@@ -86,7 +86,7 @@ export abstract class BaseConnectionClass<
    * @returns
    */
   private preStartConnection(uri: string) {
-    //TODO: validate protocol, only for zanix cloud projects
+    //TODO: validate protocol, only for zanix cloud projects. For these projects is not allowed DEFAULT_URI_CONNECTOR
     const url = validateURI(uri)
 
     if (!url) {

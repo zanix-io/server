@@ -203,7 +203,7 @@ Deno.test('ZanixConnector: should interact with context and other conectors', as
 
   // props validations
   assert(result['context'].id === undefined)
-  assertEquals(result['_znxProps'].key, 'OtherConnector')
+  assertEquals(result['_znxProps'].key, 'Z$OtherConnector$1')
 
   await wait(waiting)
 })

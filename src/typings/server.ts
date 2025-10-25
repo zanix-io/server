@@ -44,31 +44,31 @@ export type ServerHandler = Deno.ServeHandler<Deno.NetAddr>
  *
  * Additional Options:
  * - `onceStop` (optional): A callback function that is called once when the server stops.
- * - `ssl`(optional): SSL certificate
+ * - `ssl` (optional): SSL certificate
+ * - `globalPrefix` (optional): A global route prefix for the API.
  */
 export type ServerOptions =
   & (Deno.ServeTcpOptions | (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem))
   & {
     onceStop?: () => void
     ssl?: { key: string; cert: string }
+    globalPrefix?: string
   }
 
 /**
  * Options for configuring a server manager instance.
  *
- * @template T The type of server being managed (e.g., 'graphql', 'rest', etc.)
- *
  * Properties:
  * - `handler` (optional): A function or object responsible for handling incoming server requests.
- * - `server` (optional): Server configuration. If `T` is `'graphql'` or `'rest'`, this includes:
- *   - `globalPrefix` (optional): A global route prefix for the API.
- *   - Inherits all `ServerOptions`.
- *   Otherwise, it only includes `ServerOptions`.
+ * - `server` (optional): Server options configuration.
+ * - `isInternal` (optional):  When `true`, this server is considered internal and will be assigned its own
+ *        dynamically generated UUID as the global prefix. This helps distinguish and isolate
+ *        internal server instances from public ones.
  */
-export type ServerManagerOptions<T extends WebServerTypes> = {
+export type ServerManagerOptions = {
   handler?: ServerHandler
-  server?: T extends Exclude<WebServerTypes, 'socket'> ? { globalPrefix?: string } & ServerOptions
-    : ServerOptions
+  server?: ServerOptions
+  isInternal?: boolean
 }
 
 /**
@@ -99,8 +99,18 @@ export type ServerManagerOptions<T extends WebServerTypes> = {
  */
 export type BootstrapServerOptions = Partial<
   {
-    [K in WebServerTypes]: ServerManagerOptions<K>['server'] & {
+    [K in WebServerTypes]: ServerManagerOptions['server'] & {
+      /**
+       * Callback, which is invoked with the server `id` when the server is created.
+       */
       onCreate?: (id: ServerID) => void
+      /**
+       * When `true`, all servers created by this
+       * function are considered internal. Each internal server will be assigned its own
+       * dynamically generated UUID as the global prefix. This helps distinguish and isolate
+       * internal server instances from public ones.
+       */
+      isInternal?: boolean
     }
   }
 >

@@ -78,6 +78,11 @@ export const webServerManager: Readonly<WebServerManager> = Object.freeze(new We
  * options for that server. Each configuration may also include an optional `onCreate` callback, which
  * is invoked with the server `id` when the server is created.
  *
+ * @param {boolean} [server.isInternal=false] - When `true`, all servers created by this
+ * function are considered internal. Each internal server will be assigned its own
+ * dynamically generated UUID as the global prefix. This helps distinguish and isolate
+ * internal server instances from public ones.
+ *
  * Example:
  * ```ts
  * const servers = await startServers({
@@ -105,33 +110,39 @@ export const bootstrapServers = async (
   const serveGraphql = ProgramModule.targets.getTargetsByType('resolver').length
 
   if (!(serveRest || serveSocket || serveGraphql)) {
-    logger.warn('No server was started because the corresponding handlers were not found.')
     return servers
   }
 
   await Promise.all(ProgramModule.targets.getTargetsByStartMode('onSetup').map(targetModuleInit))
 
   if (serveRest) {
-    const { onCreate, ...opts } = { ...server.rest } as Required<typeof server>['rest']
+    const { onCreate, isInternal, ...opts } = { ...server.rest } as Required<typeof server>['rest']
     const id = webServerManager.create('rest', {
       server: { ...opts, globalPrefix: opts.globalPrefix || 'api' },
+      isInternal,
     })
     onCreate?.(id)
     servers.push(id)
   }
   if (serveSocket) {
-    const { onCreate, port, ...opts } = { ...server.socket } as Required<typeof server>['socket']
+    const { onCreate, isInternal, port, ...opts } = { ...server.socket } as Required<
+      typeof server
+    >['socket']
     const id = webServerManager.create('socket', {
       server: { ...opts, port: port || SOCKET_PORT },
+      isInternal,
     })
     onCreate?.(id)
     servers.push(id)
   }
 
   if (serveGraphql) {
-    const { onCreate, port, ...opts } = { ...server.graphql } as Required<typeof server>['graphql']
+    const { onCreate, isInternal, port, ...opts } = { ...server.graphql } as Required<
+      typeof server
+    >['graphql']
     const id = webServerManager.create('graphql', {
       server: { ...opts, port: port || GRAPHQL_PORT, globalPrefix: opts.globalPrefix || 'graphql' },
+      isInternal,
     })
     onCreate?.(id)
     servers.push(id)

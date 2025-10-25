@@ -81,5 +81,30 @@ Deno.test('processUrlParams should decode mixed nested arrays and objects', () =
 Deno.test('getTargetKey for reserved classes', () => {
   class _ZanixClass {}
 
-  assertThrows(() => getTargetKey(_ZanixClass as never), Deno.errors.Interrupted)
+  assertThrows(() => getTargetKey(_ZanixClass), Deno.errors.Interrupted)
+})
+
+Deno.test('getTargetKey for different classes with the same name', () => {
+  class ZanixClass {
+    #v = 0
+  }
+
+  assertEquals(getTargetKey(ZanixClass), 'Z$ZanixClass$1')
+  assertEquals(
+    getTargetKey(
+      class ZanixClass {
+        #v = 0
+      },
+    ),
+    'Z$ZanixClass$2',
+  )
+  assertEquals(
+    getTargetKey(
+      class ZanixClass {
+        #v = 0
+      },
+    ),
+    'Z$ZanixClass$3',
+  )
+  assertEquals(getTargetKey(ZanixClass), 'Z$ZanixClass$1')
 })

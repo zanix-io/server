@@ -23,8 +23,8 @@ class MockInteractor extends ZanixInteractor<MockConnector> {
 // Needed to simulate access to _znxProps
 MockInteractor.prototype['_znxProps'] = {
   ...MockInteractor.prototype['_znxProps'],
-  data: { connector: 'MockConnector' },
-  key: 'MockInteractor',
+  data: { connector: 'Z$MockConnector$1' },
+  key: 'Z$MockInteractor$1',
 }
 
 // Another interactor to simulate "other" class
@@ -34,8 +34,8 @@ class OtherInteractor extends ZanixInteractor<MockConnector> {
 // Needed to simulate access to _znxProps
 OtherInteractor.prototype['_znxProps'] = {
   ...OtherInteractor.prototype['_znxProps'],
-  data: { connector: 'MockConnector' },
-  key: 'OtherInteractor',
+  data: { connector: 'Z$MockConnector$1' },
+  key: 'Z$OtherInteractor$1',
 }
 
 // Set up spies/stubs
@@ -65,11 +65,14 @@ Deno.test('ZanixInteractor.interactors returns the same instance for circular de
   assertStrictEquals(result, instance)
 })
 
-Deno.test('ZanixInteractor.interactors returns other interactor instance when not circular', () => {
-  const instance = new MockInteractor('ctx-other')
-  const result = instance['interactors'].get(OtherInteractor)
-  assertInstanceOf(result, OtherInteractor)
-})
+Deno.test(
+  'ZanixInteractor.interactors returns other interactor instance when not circular',
+  () => {
+    const instance = new MockInteractor('ctx-other')
+    const result = instance['interactors'].get(OtherInteractor)
+    assertInstanceOf(result, OtherInteractor)
+  },
+)
 
 Deno.test('ZanixInteractor.interactors.get passes correct context', () => {
   Program.context.addContext({ id: 'ctx-check' })
