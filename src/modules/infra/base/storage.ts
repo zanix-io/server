@@ -1,6 +1,6 @@
 import type { BaseContext } from 'typings/context.ts'
 
-import { AsyncLocalStorage } from 'async_hooks'
+import { AsyncLocalStorage, type AsyncLocalStorageOptions } from 'async_hooks'
 
 /**
  * A class that extends `AsyncLocalStorage` to manage the context of a request asynchronously.
@@ -11,6 +11,10 @@ import { AsyncLocalStorage } from 'async_hooks'
  */
 // deno-lint-ignore no-explicit-any
 export class AsyncContext extends AsyncLocalStorage<BaseContext & Record<string, any>> {
+  constructor(options?: AsyncLocalStorageOptions) {
+    super({ name: 'zanix-async-context', ...options })
+  }
+
   /**
    * Retrieves the ID of the current context stored in the async storage.
    *
@@ -36,22 +40,3 @@ export class AsyncContext extends AsyncLocalStorage<BaseContext & Record<string,
     return this.run<R>({ id: contextId }, callback)
   }
 }
-
-/**
- * AsyncLocalStorage instance that manages a context shared across
- * asynchronous operations within the same request or logical scope.
- *
- * This allows you to store and retrieve contextual information
- * (such as request IDs, tenant info, or user session data)
- * without explicitly passing it through function parameters.
- *
- * @example
- * // Initialize context at the start of a request
- * asyncContext.run({ id: 'abc123' }, async () => {
- *   // Later, anywhere in async code:
- *   console.log(asyncContext.getStore()?.id); // 'abc123'
- * });
- *
- * @type {AsyncContext}
- */
-export const asyncContext: AsyncContext = new AsyncContext()

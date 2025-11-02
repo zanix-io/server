@@ -1,12 +1,11 @@
 import type { Lifetime, MetadataObjects, ModuleTypes, StartMode } from 'typings/program.ts'
-import { ZANIX_PROPS } from 'utils/constants.ts'
 
 export abstract class TargetBaseClass {
   constructor() {
     Object.assign(this, this.constructor.prototype)
   }
   /** Stores injected data props for internal Zanix operations */
-  private [ZANIX_PROPS]: {
+  private _znx_props_: {
     /** general data */
     data: Record<string, MetadataObjects | undefined>
     /** Defines the startup mode for the internal Zanix module */

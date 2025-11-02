@@ -8,11 +8,11 @@ import { bodyPayloadProperty, cleanRoute, findMatchingRoute } from 'utils/routes
 import { getGraphqlHandler } from 'handlers/graphql/handler.ts'
 import { searchParamsPropertyDescriptor } from '@zanix/helpers'
 import { contextId, payloadAccessorDefinition } from 'utils/context.ts'
-import { HttpError } from '@zanix/errors'
-import ProgramModule from 'modules/program/mod.ts'
-import { routeProcessor } from './routes.ts'
 import { corsValidation } from 'middlewares/defaults/cors.ts'
-import { asyncContext } from '../../infra/base/storage.ts'
+import { HttpError } from '@zanix/errors'
+import { asyncContext } from 'modules/program/public.ts'
+import { routeProcessor } from './routes.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 /**
  * Main  process execution

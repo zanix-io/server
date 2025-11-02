@@ -10,7 +10,7 @@
 import ProgramModule from 'modules/program/public.ts'
 
 export { ProgramModule }
-export { AsyncContext, asyncContext } from 'modules/infra/base/storage.ts'
+export { AsyncContext } from 'modules/infra/base/storage.ts'
 export { BaseContainer as ProgramContainer } from 'modules/program/metadata/base.ts'
 export { TargetContainer } from 'modules/program/metadata/targets/main.ts'
 

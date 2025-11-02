@@ -14,7 +14,7 @@ import type {
 } from 'typings/program.ts'
 
 import { HANDLER_METADATA_PROPERTY_KEY } from 'utils/constants.ts'
-import { asyncContext } from 'modules/infra/base/storage.ts'
+import { asyncContext } from 'modules/program/public.ts'
 import { BaseInstancesContainer } from './instances.ts'
 
 /**

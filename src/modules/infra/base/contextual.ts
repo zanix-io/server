@@ -1,10 +1,10 @@
 import type { ScopedContext } from 'typings/context.ts'
 
-import ProgramModule from 'modules/program/mod.ts'
 import { DEFAULT_CONTEXT_ID, ZANIX_PROPS } from 'utils/constants.ts'
+import { asyncContext } from 'modules/program/public.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import { TargetBaseClass } from './target.ts'
 import { TargetError } from 'utils/errors.ts'
-import { asyncContext } from './storage.ts'
 
 export abstract class ContextualBaseClass extends TargetBaseClass {
   #contextId
