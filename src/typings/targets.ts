@@ -6,6 +6,7 @@ import type { ZanixWorkerConnector } from 'modules/infra/connectors/worker.ts'
 import type { ZanixAsyncmqConnector } from 'modules/infra/connectors/asyncmq.ts'
 import type { ZanixCacheConnector } from 'modules/infra/connectors/cache.ts'
 import type { ZanixDatabaseConnector } from 'modules/infra/connectors/database.ts'
+import type { HandlerBaseClass } from 'modules/infra/handlers/base.ts'
 import type { BaseRTO } from '@zanix/validator'
 import type { RtoTypes } from '@zanix/types'
 import type { HandlerFunction } from './router.ts'
@@ -23,7 +24,7 @@ export type CallerArguments<Type extends ClassConstructor = ClassConstructor> =
 
 export type HandlerPrototype<Interactor extends ZanixInteractorGeneric, Extensions = never> =
   | never
-  | TargetBaseClass['_znxProps']
+  | TargetBaseClass['_znx_props_']
   | HandlerFunction
   | Interactor
   | (<
@@ -44,6 +45,8 @@ export type SocketPrototype =
   | Partial<WebSocket>
 
 export type GQLPrototype = (payload: any, ctx: HandlerContext) => unknown
+
+export type ZanixHandlerGeneric = HandlerBaseClass<any, any>
 
 export type ZanixInteractorGeneric = ZanixInteractor<any, any>
 
@@ -88,11 +91,15 @@ export type CoreConnectorTemplates = {
  * These callbacks allow consumers to respond to connection and disconnection events,
  * providing a consistent way to track the connector’s lifecycle.
  */
-export type ConnectorGeneralOptions = {
+export type ConnectorOptions = {
+  /**
+   * The optional contextId if ALS is not used
+   */
+  contextId?: string
   /**
    * The URI used to establish the external connection.
    */
-  uri: string
+  uri?: string
   /**
    * Called when the connector successfully establishes a connection or encounters an error during the connection attempt.
    */
@@ -102,8 +109,3 @@ export type ConnectorGeneralOptions = {
    */
   onDisconnected?: ConnectionStatusHandler
 }
-/**
- * Configuration options for general connector.
- * Partial options of {@link ConnectorGeneralOptions}
- */
-export type ConnectorOptions = Partial<ConnectorGeneralOptions>

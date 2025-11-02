@@ -2,8 +2,8 @@ import type { ZanixWebSocket } from './base.ts'
 import type { RtoTypes } from '@zanix/types'
 import type { HandlerFunction } from 'typings/router.ts'
 
+import { cleanUpPipe, contextSettingPipe } from 'middlewares/defaults/context.pipe.ts'
 import { baseErrorResponses } from 'modules/webserver/helpers/errors.ts'
-import { routeOnEnd, routeOnStart } from 'utils/routes.ts'
 import { HttpError } from '@zanix/errors'
 import logger from '@zanix/logger'
 
@@ -30,7 +30,7 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
       this.socket = socket
 
       socket.onopen = (event) => {
-        routeOnStart()(ctx)
+        contextSettingPipe(ctx)
         return catcher(socket, () => this['onopen'](event))
       }
 
@@ -56,7 +56,7 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
       }
 
       socket.onclose = (event) => {
-        routeOnEnd()(ctx)
+        cleanUpPipe(ctx)
         return catcher(socket, () => this['onclose'](event))
       }
 

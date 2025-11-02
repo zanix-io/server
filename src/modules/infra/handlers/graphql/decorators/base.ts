@@ -25,6 +25,12 @@ export function Resolver(prefix?: string): ZanixClassDecorator
 export function Resolver(options: {
   /** Resolver prefix for requests */
   prefix?: string
+  /**
+   * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
+   * This ensures each request gets its own context, preventing shared state in singleton scenarios.
+   * Defaults to `false`
+   */
+  enableALS?: boolean
   /** Interactor for injection */
   Interactor: ZanixInteractorClass
 }): ZanixClassDecorator

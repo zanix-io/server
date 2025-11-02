@@ -23,12 +23,15 @@ export type HttpMethods = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS
 
 export type HandlerFunction = (
   ctx: HandlerContext,
+  // deno-lint-ignore no-explicit-any
+  args?: any,
 ) => Promise<HandlerResponse> | HandlerResponse
 
 export type RouteDefinition = {
   handler:
     | HandlerFunction
     | Required<Omit<MetadataTargetSymbols, 'type'>> & { type?: MetadataTargetSymbols['type'] }
+  enableALS?: boolean
   methods?: HttpMethods[]
   pipes?: MiddlewarePipe[]
   interceptors?: MiddlewareInterceptor[]
@@ -48,21 +51,13 @@ export type ProcessedRouteDefinition =
      * A function that processes or handles route logic.
      */
     handler: HandlerFunction
-    /**
-     * A function that executes the first process, such as setting a context
-     */
-    start: (ctx: HandlerContext) => void
-    /**
-     * A function that executes a final process, such as cleaning up or deleting scoped instances.
-     */
-    end: (ctx: HandlerContext) => void
   }
   & Omit<Required<RouteDefinition>, 'handler'>
 
 export type ProcessedRoutes = Record<string, ProcessedRouteDefinition>
 
 export type RoutesObject = Partial<
-  Record<WebServerTypes, Record<string, Required<RouteDefinition>>>
+  Record<WebServerTypes, Record<string, Required<Omit<RouteDefinition, 'enableALS'>>>>
 >
 
 export type RouteDefinitionProps = RouteDefinition & { path?: string }

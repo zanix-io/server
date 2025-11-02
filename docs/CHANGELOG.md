@@ -7,29 +7,39 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.14] - 2025-11-01
+
+### Added
+
+- `AsyncLocalStorage` support for handlers, using `enableALS` flag decorator.
+- `CORS` validation middleware.
+
+### Changed
+
+- contextId as optional on constructor
+
 ## [1.0.13] - 2025-10-23
 
-## Fixed
+### Fixed
 
 - getTargetKey for different classes with the same name
 
 ## [1.0.12] - 2025-10-23
 
-## Added
+### Added
 
 - Connector general options
 
 ## [1.0.11] - 2025-10-23
 
-## Fixed
+### Fixed
 
 - Connector start and stop methods wrapper
-
 - Freeze instances
 
 ## [1.0.10] - 2025-10-22
 
-## Fixed
+### Fixed
 
 - Connector core templates
 - Program module privacity

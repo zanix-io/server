@@ -5,12 +5,13 @@ import { defineInteractorDecorator } from 'modules/infra/interactors/decorators/
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
 import ConnectorCoreModules from 'modules/infra/connectors/core.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
-const originalToBeInstanced = Program.targets.toBeInstanced
+const originalDefineTarget = Program.targets.defineTarget
 
-const mockToBeInstanced = {
+const mockDefineTarget = {
   calls: [] as unknown[],
-  toBeInstanced(key: string, opts: Record<string, unknown>) {
+  defineTarget(key: string, opts: Record<string, unknown>) {
     this.calls.push({ key, opts })
   },
   reset() {
@@ -19,25 +20,25 @@ const mockToBeInstanced = {
 }
 
 // Inject into global (mocking actual imports)
-Program.targets.toBeInstanced = mockToBeInstanced.toBeInstanced.bind(mockToBeInstanced)
+Program.targets.defineTarget = mockDefineTarget.defineTarget.bind(mockDefineTarget)
 
 Deno.test('should register a valid interactor', () => {
-  // Mock Program.targets.toBeInstanced
-  const toBeInstancedSpy = spy(Program.targets, 'toBeInstanced')
+  // Mock Program.targets.defineTarget
+  const defineTargetSpy = spy(Program.targets, 'defineTarget')
 
   class MyInteractor extends ZanixInteractor {}
 
   const Decorator = defineInteractorDecorator()
   Decorator(MyInteractor)
 
-  assertSpyCalls(toBeInstancedSpy, 1)
-  assertEquals(toBeInstancedSpy.calls[0].args[0], 'Z$MyInteractor$1')
-  assertEquals(toBeInstancedSpy.calls[0].args[1].Target, MyInteractor)
+  assertSpyCalls(defineTargetSpy, 1)
+  assertEquals(defineTargetSpy.calls[0].args[0], 'Z$MyInteractor$1')
+  assertEquals(defineTargetSpy.calls[0].args[1].Target, MyInteractor)
 
-  toBeInstancedSpy.restore()
+  defineTargetSpy.restore()
 
   // Restore Program.targets
-  Program.targets.toBeInstanced = originalToBeInstanced
+  Program.targets.defineTarget = originalDefineTarget
 })
 
 Deno.test('should throw error if class is not an interactor', () => {
@@ -66,11 +67,11 @@ Deno.test('should throw error if using core connector directly', () => {
   class MyInteractor extends ZanixInteractor {}
   class BadConnector extends CoreConnector {}
 
-  // Mock getTarget and toBeInstanced
+  // Mock getTarget and defineTarget
   Program.targets['getTarget'] = () =>
     ({
       prototype: {
-        _znxProps: {
+        [ZANIX_PROPS]: {
           type: undefined, // Simulates no custom type
         },
       },
@@ -81,7 +82,7 @@ Deno.test('should throw error if using core connector directly', () => {
   assertThrows(
     () => Decorator(MyInteractor),
     Deno.errors.Interrupted,
-    `'BadConnector' cannot be used directly by 'MyInteractor'. Instead, you should use 'this.coreKey' and remove it from the Interactor decorator.`,
+    `Invalid dependency injection: 'BadConnector' is a core connector and cannot be injected into 'MyInteractor'. Access it through 'this.coreKey' inside your class, and remove it from the Interactor decorator configuration.`,
   )
 
   // Restore Program.targets

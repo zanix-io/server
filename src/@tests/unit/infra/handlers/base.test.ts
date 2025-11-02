@@ -5,14 +5,15 @@ import { assertSpyCalls, spy } from '@std/testing/mock'
 
 import Program from 'modules/program/mod.ts'
 import { HandlerBaseClass } from 'modules/infra/handlers/base.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 type DummyInteractor = { type: 'DummyInteractor' } & ZanixInteractorGeneric
 const mockInteractorInstance = { type: 'DummyInteractor' } as DummyInteractor
 
 Deno.test('HandlerBaseClass returns interactor from Program.targets', () => {
   // Step 1: Mock Program.targets.getInstance
-  const getInstanceSpy = spy((_key, _type, _opts) => mockInteractorInstance)
-  Program.targets.getInstance = getInstanceSpy
+  const getInteractorSpy = spy((_key, _opts) => mockInteractorInstance)
+  Program.targets.getInteractor = getInteractorSpy as never
 
   // Step 2: Subclass HandlerBaseClass to expose interactor getter
   class TestHandlerBase extends HandlerBaseClass<DummyInteractor> {
@@ -21,8 +22,8 @@ Deno.test('HandlerBaseClass returns interactor from Program.targets', () => {
     }
   }
 
-  // @ts-ignore: manually inject _znxProps to mock what TargetBaseClass would normally handle
-  TestHandlerBase.prototype._znxProps = {
+  // @ts-ignore: manually inject Zanix Props to mock what TargetBaseClass would normally handle
+  TestHandlerBase.prototype[ZANIX_PROPS] = {
     data: { interactor: 'MyInteractorKey' },
     startMode: 'lazy',
     lifetime: 'TRANSIENT',
@@ -37,10 +38,9 @@ Deno.test('HandlerBaseClass returns interactor from Program.targets', () => {
   const interactor = instance.getExposedInteractor()
 
   assertEquals(interactor, mockInteractorInstance)
-  assertSpyCalls(getInstanceSpy, 1)
-  assertEquals(getInstanceSpy.calls[0].args, [
+  assertSpyCalls(getInteractorSpy, 1)
+  assertEquals(getInteractorSpy.calls[0].args, [
     'MyInteractorKey',
-    'interactor',
-    { ctx: 'ctx-999' },
+    { contextId: 'ctx-999' },
   ])
 })

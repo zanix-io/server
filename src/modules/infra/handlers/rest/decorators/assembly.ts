@@ -7,10 +7,11 @@ import type {
 import type { HttpMethods } from 'typings/router.ts'
 
 import { applyMiddlewaresToTarget, definePipeDecorator } from 'middlewares/decorators/assembly.ts'
-import { requestValidationPipe } from 'middlewares/validation.pipe.ts'
-import { ZanixController } from '../base.ts'
+import { requestValidationPipe } from 'middlewares/defaults/validation.pipe.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { ZanixController } from '../base.ts'
+import { InternalError } from '@zanix/errors'
 
 /** Define decorator to register a route for handler controller */
 export function defineControllerDecorator(
@@ -18,17 +19,20 @@ export function defineControllerDecorator(
 ): ZanixClassDecorator {
   let prefix: string | undefined
   let interactor: string | undefined
+  let enableALS = false
   if (typeof options === 'string') {
     prefix = options
   } else if (options) {
     interactor = getTargetKey(options.Interactor)
     prefix = options.prefix
+    enableALS = options.enableALS || enableALS
   }
 
   return function (Target) {
-    if (!(Target.prototype instanceof ZanixController)) {
-      throw new Deno.errors.Interrupted(
-        `'${Target.name}' is not a valid Controller. Please extend ${ZanixController.name}`,
+    const targetInstance = Target.prototype instanceof ZanixController
+    if (!targetInstance) {
+      throw new InternalError(
+        `The class '${Target.name}' is not a valid Controller. Please extend ${ZanixController.name}`,
       )
     }
 
@@ -45,10 +49,10 @@ export function defineControllerDecorator(
     })
     ProgramModule.decorators.deleteDecorators('controller')
 
-    ProgramModule.targets.toBeInstanced(getTargetKey(Target), {
+    ProgramModule.targets.defineTarget(getTargetKey(Target), {
       type: 'controller',
       Target,
-      dataProps: { interactor },
+      dataProps: { interactor, enableALS },
       lifetime: 'TRANSIENT',
     })
 

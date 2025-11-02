@@ -26,9 +26,9 @@ class InvalidConnector {} // Doesn't extend ZanixConnector
 
 const mockGetTargetKey = (_Target: any) => 'CustomConnector'
 
-const mockToBeInstanced = {
+const mockDefineTarget = {
   calls: [] as unknown[],
-  toBeInstanced(key: string, opts: Record<string, unknown>) {
+  defineTarget(key: string, opts: Record<string, unknown>) {
     this.calls.push({ key, opts })
   },
   reset() {
@@ -43,13 +43,13 @@ const mockCORE_CONNECTORS = {
 }
 
 // Inject into global (mocking actual imports)
-Program.targets.toBeInstanced = mockToBeInstanced.toBeInstanced.bind(mockToBeInstanced)
+Program.targets.defineTarget = mockDefineTarget.defineTarget.bind(mockDefineTarget)
 ConnectorCoreModules['cache'] = mockCORE_CONNECTORS.cache as any
 ConnectorCoreModules['database'] = mockCORE_CONNECTORS.database as any // Override imported `getTargetKey` (simulate the import)
 ;(globalThis as any).getTargetKey = mockGetTargetKey
 
 Deno.test('defineConnectorDecorator: registers non-core connector with default settings', () => {
-  mockToBeInstanced.reset()
+  mockDefineTarget.reset()
 
   class CustomConnector extends ZanixConnector {
     public override startConnection(): Promise<boolean> | boolean {
@@ -63,7 +63,7 @@ Deno.test('defineConnectorDecorator: registers non-core connector with default s
   const decorator = defineConnectorDecorator({ type: 'custom' })
   decorator(CustomConnector)
 
-  const call = mockToBeInstanced.calls[0] as any
+  const call = mockDefineTarget.calls[0] as any
   assertEquals(call.key, 'Z$CustomConnector$1')
   assertEquals(call.opts.Target, CustomConnector)
   assertEquals(call.opts.type, 'connector')
@@ -73,14 +73,14 @@ Deno.test('defineConnectorDecorator: registers non-core connector with default s
 })
 
 Deno.test('defineConnectorDecorator: registers core connector with correct base', () => {
-  mockToBeInstanced.reset()
+  mockDefineTarget.reset()
 
   class CacheImpl extends CacheConnector {}
 
   const decorator = defineConnectorDecorator({ type: 'cache' })
   decorator(CacheImpl as never)
 
-  const call = mockToBeInstanced.calls[0] as any
+  const call = mockDefineTarget.calls[0] as any
   assertEquals(call.key, 'cache')
   assertEquals(call.opts.Target, CacheImpl)
   assertEquals(call.opts.dataProps.type, 'cache')
@@ -112,14 +112,14 @@ Deno.test("defineConnectorDecorator: throws if core connector doesn't extend req
 })
 
 Deno.test('defineConnectorDecorator: supports short string syntax', () => {
-  mockToBeInstanced.reset()
+  mockDefineTarget.reset()
 
   class DbImpl extends DbConnector {}
 
   const decorator = defineConnectorDecorator('database')
   decorator(DbImpl as never)
 
-  const call = mockToBeInstanced.calls[0] as any
+  const call = mockDefineTarget.calls[0] as any
   assertEquals(call.key, 'database')
   assertEquals(call.opts.Target, DbImpl)
 })

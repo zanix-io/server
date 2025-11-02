@@ -1,10 +1,13 @@
 import type { HandlerFunction, ProcessedRoutes } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
+import type { HandlerTypes } from 'typings/program.ts'
 
-import { cleanRoute, getParamNames, pathToRegex, routeOnEnd, routeOnStart } from 'utils/routes.ts'
+import { cleanRoute, getParamNames, pathToRegex } from 'utils/routes.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { capitalize } from '@zanix/helpers'
+import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 /** Function to process routes */
 export const routeProcessor = (server: WebServerTypes, globalPrefix: string = '') => {
@@ -12,7 +15,7 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
   const serverName = capitalize(server)
 
   if (!routes || !Object.keys(routes).length) {
-    throw new Deno.errors.Interrupted(`Not routes defined for ${serverName} sever`)
+    throw new InternalError(`Not routes defined for ${serverName} sever`)
   }
 
   globalPrefix = cleanRoute(globalPrefix).replace(/\/$/g, '').replace(/^\//g, '')
@@ -30,19 +33,21 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
 
     let processedHandler: HandlerFunction
 
+    let enableALS = false
+
     if (typeof handler === 'function') {
       processedHandler = handler
     } else {
-      const { key, type } = handler.Target.prototype['_znxProps']
+      const { key, type, data } = handler.Target.prototype[ZANIX_PROPS]
 
-      processedHandler = (ctx) =>
-        (ProgramModule.targets.getInstance(
-          key,
-          type,
-          { ctx },
-        )[handler.propertyKey as never] as HandlerFunction)(
-          ctx,
-        )
+      enableALS = data.enableALS as boolean
+
+      processedHandler = (ctx) => {
+        const Target = ProgramModule.targets.getHandler(key, type as HandlerTypes, ctx)
+        const method: HandlerFunction = Target[handler.propertyKey].bind(Target)
+
+        return method(ctx)
+      }
     }
 
     acc[route as keyof typeof acc] = {
@@ -51,8 +56,7 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
       handler: processedHandler,
       methods: methods.length === 0 ? ['GET', 'POST'] : methods,
       interceptors,
-      start: routeOnStart(),
-      end: routeOnEnd(),
+      enableALS,
       pipes,
     }
     return acc

@@ -69,7 +69,7 @@ Deno.test('routeProcessor should return adapted routes for external definitions'
 
   Program.routes.defineRoute('rest', Target)
 
-  Program.targets.toBeInstanced(Target.name, { type: 'controller', Target })
+  Program.targets.defineTarget(Target.name, { type: 'controller', Target, lifetime: 'TRANSIENT' })
 
   const routes = routeProcessor('rest')
 

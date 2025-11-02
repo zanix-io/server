@@ -17,7 +17,7 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors', 
     database: { name: 'db-mock' },
   }
 
-  const getInstanceSpy = spy((_key: string, _type: string) => {
+  const getCoreSpy = spy((_key: string, _options: unknown) => {
     switch (_key) {
       case ConnectorCoreModules.worker.key:
         return fakeConnectors.worker
@@ -33,7 +33,7 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors', 
   })
 
   // Program mock
-  ProgramModule.targets.getInstance = getInstanceSpy
+  ProgramModule.targets.getConnector = getCoreSpy as never
 
   const testInstance = new TestCore('context-id')
 
@@ -47,26 +47,23 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors', 
   assertEquals(testInstance['database'], fakeConnectors.database as never)
 
   // Validate 4 times caller
-  assertSpyCalls(getInstanceSpy, 4)
+  assertSpyCalls(getCoreSpy, 4)
 
-  const context = {
-    ctx: 'context-id',
+  const ctx = {
+    contextId: 'context-id',
   }
   // Validate args
-  assertEquals(getInstanceSpy.calls[0].args, [
+  assertEquals(getCoreSpy.calls[0].args, [
     ConnectorCoreModules.worker.key,
-    'connector',
-    context,
+    ctx,
   ])
-  assertEquals(getInstanceSpy.calls[1].args, [
+  assertEquals(getCoreSpy.calls[1].args, [
     ConnectorCoreModules.asyncmq.key,
-    'connector',
-    context,
+    ctx,
   ])
-  assertEquals(getInstanceSpy.calls[2].args, [ConnectorCoreModules.cache.key, 'connector', context])
-  assertEquals(getInstanceSpy.calls[3].args, [
+  assertEquals(getCoreSpy.calls[2].args, [ConnectorCoreModules.cache.key, ctx])
+  assertEquals(getCoreSpy.calls[3].args, [
     ConnectorCoreModules.database.key,
-    'connector',
-    context,
+    ctx,
   ])
 })

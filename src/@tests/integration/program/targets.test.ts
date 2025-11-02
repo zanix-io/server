@@ -2,7 +2,8 @@
 import { assert } from '@std/assert/assert'
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertArrayIncludes } from '@std/assert/assert-array-includes'
-import { TargetContainer } from 'modules/program/metadata/targets.ts'
+import { TargetContainer } from 'modules/program/metadata/targets/main.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 // Type mocks
 type ClassConstructor = new (...args: unknown[]) => unknown
@@ -25,8 +26,8 @@ Deno.test('TargetContainer: defineTarget stores target class and options', () =>
 
   container.defineTarget('serviceA', opts as never)
   assert(container.getTargetsByType('connector').includes('serviceA'))
-  assertEquals(container.getInstance('serviceA', 'connector'), new TestClass())
-  assertEquals(container.getInstance('serviceA', 'connector')['_znxProps'].data, { foo: 'bar' })
+  assertEquals(container['getInstance']('serviceA', 'connector'), new TestClass())
+  assertEquals(container.getConnector('serviceA')[ZANIX_PROPS].data, { foo: 'bar' })
 })
 
 Deno.test('TargetContainer: addProperty adds single property', () => {

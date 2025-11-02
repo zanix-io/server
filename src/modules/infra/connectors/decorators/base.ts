@@ -1,5 +1,5 @@
 import type { ConnectorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
-import type { ConnectorTypes, GenericConnectors, Lifetime, StartMode } from 'typings/program.ts'
+import type { ConnectorTypes, Lifetime } from 'typings/program.ts'
 
 import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
 
@@ -12,6 +12,13 @@ import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
  * @param {ConnectorTypes} type - The type of the interactor connector.
  *
  * Defaults: `type`='custom', `startMode`='postBoot', `lifetime`='SINGLETON, `autoConnectOnLazy`=true
+ *
+ * ℹ️ The **connector** with a `TRANSIENT` lifetime should be used **only** during configuration or setup.
+ * It is **not supported** when using StarMode with lazy initialization, as it has no practical effect.
+ *
+ * ⚠️ Be cautious when using a **transient connector** as a dependency of any other class,
+ * since its reference will be discarded immediately after use.
+ *
  * @returns {ZanixClassDecorator} The class decorator function.
  */
 export function Connector(type?: ConnectorTypes): ZanixClassDecorator
@@ -31,14 +38,19 @@ export function Connector(type?: ConnectorTypes): ZanixClassDecorator
  *                                                     when it is instantiated lazily.
  *                                                     Useful for enabling immediate connection in lazy-loading scenarios.
  *
+ * ℹ️ The **connector** with a `TRANSIENT` lifetime should be used **only** during configuration or setup.
+ * It is **not supported** when using StarMode with lazy initialization, as it has no practical effect.
+ *
+ * ⚠️ Be cautious when using a **transient connector** as a dependency of any other class,
+ * since its reference will be discarded immediately after use.
+ *
  * @returns {ZanixClassDecorator} The class decorator function.
  */
-export function Connector(options: {
-  type?: GenericConnectors
-  startMode?: StartMode
-  lifetime?: Lifetime
-  autoConnectOnLazy?: boolean
-}): ZanixClassDecorator
-export function Connector(options?: ConnectorDecoratorOptions): ZanixClassDecorator {
+export function Connector<L extends Lifetime>(
+  options: ConnectorDecoratorOptions<L>,
+): ZanixClassDecorator
+export function Connector<L extends Lifetime>(
+  options?: ConnectorTypes | ConnectorDecoratorOptions<L>,
+): ZanixClassDecorator {
   return defineConnectorDecorator(options)
 }

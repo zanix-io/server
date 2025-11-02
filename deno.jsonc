@@ -1,6 +1,6 @@
 {
   "name": "@zanix/server",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true,
@@ -58,6 +58,7 @@
     "@zanix/errors": "jsr:@zanix/utils@2.*/errors",
     "@zanix/types": "jsr:@zanix/utils@2.*/types",
     "@std/uuid": "jsr:@std/uuid@0.224",
+    "async_hooks": "node:async_hooks",
     "shared/": "./src/shared/",
     "typings/": "./src/typings/",
     "utils/": "./src/utils/",

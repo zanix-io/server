@@ -3,7 +3,7 @@ import type { ModuleTypes, StartMode } from 'typings/program.ts'
 import { MiddlewaresContainer } from './metadata/middlewares.ts'
 import { DecoratorsContainer } from './metadata/decorators.ts'
 import { RouteContainer } from './metadata/routes.ts'
-import { TargetContainer } from './metadata/targets.ts'
+import { TargetContainer } from './metadata/targets/main.ts'
 import { ContextContainer } from 'modules/program/metadata/context.ts'
 import { HANDLER_METADATA_PROPERTY_KEY } from 'utils/constants.ts'
 

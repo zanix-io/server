@@ -5,10 +5,11 @@ import type {
   WebServerTypes,
 } from 'typings/server.ts'
 
-import { capitalize, fileExists, generateBasicUUID } from '@zanix/helpers'
+import { capitalize, fileExists, generateUUID } from '@zanix/helpers'
 import { getMainHandler } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
 
 /**
@@ -72,16 +73,16 @@ export class WebServerManager {
    */
   public create<T extends WebServerTypes>(
     type: T,
-    options: ServerManagerOptions = {},
+    options: ServerManagerOptions<T> = {},
   ): ServerID {
-    const serverID = `${new TextEncoder().encode(type).toHex()}${generateBasicUUID()}` as ServerID
+    const serverID = `${new TextEncoder().encode(type).toHex()}${generateUUID()}` as ServerID
 
     if (this.#servers[serverID]) return serverID
 
     const {
       isInternal,
-      server: { onceStop, globalPrefix, ssl, ...opts } = {},
-      handler = getMainHandler(type, isInternal ? serverID : globalPrefix),
+      server: { onceStop, globalPrefix, ssl, cors, ...opts } = {},
+      handler = getMainHandler(type, cors, isInternal ? serverID : globalPrefix),
     } = options
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
@@ -126,13 +127,13 @@ export class WebServerManager {
             ;(error as Error).message += isInternal
               ? ` by an internal ${addInUseType} server.`
               : ` by ${addInUseType} server with ID ${serverInUse[0]}.`
-            throw new Deno.errors.Interrupted(
+            throw new InternalError(
               `Port ${opts.port} is already in use and cannot be assigned to the ${this.type.toUpperCase()} server with ID ${serverID}. Please choose a different port.`,
               { cause: error },
             )
           }
 
-          throw new Deno.errors.Interrupted(`An error ocurred on ${serverName} server`, {
+          throw new InternalError(`An error ocurred on starting ${serverName} server`, {
             cause: error,
           })
         }

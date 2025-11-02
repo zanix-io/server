@@ -1,5 +1,6 @@
 import type { HandlerContext } from './context.ts'
 import type { ZanixGlobalExports } from './program.ts'
+import type { HttpMethods } from './router.ts'
 import type { WebServerTypes } from './server.ts'
 import type { ZanixInteractorsGetter } from './targets.ts'
 
@@ -70,3 +71,19 @@ export type MiddlewareInternalInterceptor = (
 ) => Response | Promise<Response>
 
 export type MiddlewareTypes = 'pipe' | 'interceptor'
+
+export type CorsOrigin<Credential extends boolean> = true extends Credential
+  ? { origins: (string | RegExp)[] | ((origin: string) => boolean) }
+  // deno-lint-ignore ban-types
+  : {}
+
+export type CorsOptions<Credential extends boolean = true> = CorsOrigin<Credential> & {
+  credentials?: Credential
+  exposedHeaders?: string[]
+  allowedHeaders?: string[]
+  allowedMethods?: Exclude<HttpMethods, 'OPTIONS'>[]
+  preflight?: {
+    maxAge: 600 | 3600 | 86400
+    optionsSuccessStatus: 200 | 204
+  }
+}

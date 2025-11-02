@@ -1,26 +1,46 @@
-import type { HandlerContext } from 'typings/context.ts'
 import type { ServerHandler, WebServerTypes } from 'typings/server.ts'
+import type { ProcessedRouteDefinition } from 'typings/router.ts'
+import type { HandlerContext } from 'typings/context.ts'
+import type { CorsOptions } from 'typings/middlewares.ts'
 
-import { getDefaultGlobalPipe, getResponseInterceptor } from './middlewares.ts'
-
-import { bodyPayloadProperty, cleanRoute } from 'utils/routes.ts'
+import { getDefaultGlobalInterceptors, getDefaultGlobalPipes } from 'middlewares/defaults/mod.ts'
+import { bodyPayloadProperty, cleanRoute, findMatchingRoute } from 'utils/routes.ts'
 import { getGraphqlHandler } from 'handlers/graphql/handler.ts'
 import { searchParamsPropertyDescriptor } from '@zanix/helpers'
+import { contextId, payloadAccessorDefinition } from 'utils/context.ts'
 import { HttpError } from '@zanix/errors'
-import { contextId } from 'utils/uuid.ts'
-
 import ProgramModule from 'modules/program/mod.ts'
 import { routeProcessor } from './routes.ts'
+import { corsValidation } from 'middlewares/defaults/cors.ts'
+import { asyncContext } from '../../infra/base/storage.ts'
+
+/**
+ * Main  process execution
+ */
+const mainProcess = async (
+  route: ProcessedRouteDefinition,
+  context: HandlerContext,
+  headers: Record<string, string> = {},
+) => {
+  if (!route.enableALS) {
+    await getDefaultGlobalPipes(route)(context)
+    return getDefaultGlobalInterceptors(route, headers)(context)
+  }
+
+  return asyncContext.runWith(context.id, async () => {
+    await getDefaultGlobalPipes(route)(context)
+    return getDefaultGlobalInterceptors(route, headers)(context)
+  })
+}
 
 /**
  * Default routes handler
  * @param {WebServerTypes} type
- * @param {ServerOptions} server
- *
  * @returns {ServerHandler}
  */
 export const getMainHandler = (
   type: WebServerTypes,
+  corsOptions?: CorsOptions,
   globalPrefix: string = '',
 ): ServerHandler => {
   if (type === 'graphql') {
@@ -33,12 +53,18 @@ export const getMainHandler = (
 
   const processedRoutes = routeProcessor(type, globalPrefix)
 
+  const cors = corsValidation(corsOptions, type)
+
   return (async (req: Request): Promise<Response> => {
     const url = new URL(req.url)
     const path = cleanRoute(url.pathname)
 
     // Context definition
-    const context = { id: await contextId(), payload: {}, req, url } as HandlerContext
+    const context = { id: contextId(), payload: {}, req, url } as HandlerContext
+
+    const { response, headers } = cors(context)
+
+    if (response) return response
 
     Object.assign(context.payload, { body: await bodyPayloadProperty(req) })
 
@@ -53,44 +79,17 @@ export const getMainHandler = (
     const absoluteRoute = processedRoutes[path]
 
     if (absoluteRoute) {
-      getDefaultGlobalPipe(absoluteRoute)(context)
-      return getResponseInterceptor(absoluteRoute)(context)
+      return mainProcess(absoluteRoute, context, headers)
     }
 
-    // Check for no absolute paths
-    for (const route in processedRoutes) {
-      const processedRoute = processedRoutes[route]
-      const { regex, params } = processedRoute
+    const processedRoute = findMatchingRoute(processedRoutes, path)
+    if (!processedRoute) throw new HttpError('NOT_FOUND', { id: context.id })
 
-      const match = path.match(regex)
+    const { route, match } = processedRoute
 
-      if (!match) continue
+    // Define a lazy-loaded getter to improve efficiency by computing values only when accessed
+    Object.defineProperty(context.payload, 'params', payloadAccessorDefinition(match, route.params))
 
-      getDefaultGlobalPipe(processedRoute)(context)
-
-      // Define a lazy-loaded getter to improve efficiency by computing values only when accessed
-      Object.defineProperty(context.payload, 'params', {
-        set(value) {
-          this._computedParams = value
-        },
-        get() {
-          if (this._computedParams) return this._computedParams
-
-          const matchParts = match.slice(1)
-          this._computedParams = {}
-
-          for (let i = 0; i < params.length; i++) {
-            const value = matchParts[i]
-            this._computedParams[params[i]] = value?.slice(1)
-          }
-
-          return this._computedParams
-        },
-      })
-
-      return getResponseInterceptor(processedRoute)(context)
-    }
-
-    throw new HttpError('NOT_FOUND', { id: context.id })
+    return mainProcess(route, context, headers)
   })
 }

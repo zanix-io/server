@@ -2,11 +2,15 @@ import type { HandlerPrototype, ZanixInteractorGeneric } from 'typings/targets.t
 
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 /**
  * Abstract base class for handling routes in server services.
  * This class is designed to be extended and used for specific route handling logic
  * within a Deno server application.
+ * All **handler** instances are expected to have a **transient** lifetime,
+ * meaning a new instance should be created for each incoming request or
+ * operation, rather than being reused across multiple requests.
  *
  * @template Interactor - The type of the interactor that will be used by the handler.
  *
@@ -20,7 +24,7 @@ export abstract class HandlerBaseClass<
   #contextId
   constructor(contextId: string) {
     super()
-    this.#interactor = this['_znxProps'].data.interactor as string
+    this.#interactor = this[ZANIX_PROPS].data.interactor as string
     this.#contextId = contextId
   }
 
@@ -31,8 +35,8 @@ export abstract class HandlerBaseClass<
    * and interactions between the user layer, data layer, and connectors.
    */
   protected get interactor(): Interactor {
-    return ProgramModule.targets.getInstance<Interactor>(this.#interactor, 'interactor', {
-      ctx: this.#contextId,
+    return ProgramModule.targets.getInteractor<Interactor>(this.#interactor, {
+      contextId: this.#contextId,
     })
   }
 }

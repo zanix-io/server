@@ -2,6 +2,7 @@ import type { ClassConstructor } from './targets.ts'
 
 /**
  * Represents the types of request or event handlers in the system.
+ * ℹ️ These are **instantiated** modules
  *
  * - `'controller'`: Handles HTTP requests in a typical MVC pattern.
  * - `'socket'`: Handles WebSocket events or messages.
@@ -14,6 +15,7 @@ export type HandlerTypes =
 
 /**
  * Represents general module target types that are part of backend architecture.
+ * ℹ️ These are **instantiated** modules
  *
  * - `'connector'`: Used for external service or database integrations.
  * - `'interactor'`: Contains business logic, often called use-cases.
@@ -25,6 +27,7 @@ export type GeneralTargetTypes =
 /**
  * Union type of all module types in the system, including both handler-specific
  * and general backend roles.
+ * ℹ️ These are **instantiated** modules
  *
  * Can be any of:
  * - `HandlerTypes`: `'controller'`, `'socket'`, `'resolver'`
@@ -79,24 +82,13 @@ export type MetadataInstances<
   /** The class that will be instantiated */
   Target: T
   /** Defines the lifetime strategy for the instance (e.g., SINGLETON, TRANSIENT, SCOPED) */
-  lifetime?: Lifetime
+  lifetime: Lifetime
   /** Specifies how the instance should be initialized at startup */
-  startMode?: StartMode
+  startMode: StartMode
   /** The classification or category of the target class within the module */
   type: ModuleTypes
   /** The data to be injected to the target prototype */
   dataProps?: Record<string, MetadataObjects | undefined>
-}
-
-export interface MetadataTargetsProps<T extends ClassConstructor = ClassConstructor>
-  extends MetadataInstances<T> {
-  type: GeneralTargetTypes
-}
-
-export interface MetadataHandlerProps<T extends ClassConstructor = ClassConstructor>
-  extends MetadataInstances<T> {
-  interactor?: string
-  type: HandlerTypes
 }
 
 export type ZanixGlobalExports<T> = { exports: T }

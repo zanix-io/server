@@ -12,9 +12,13 @@ Deno.test('Start module should init some servers', async () => {
   }
   await bootstrapServers(
     {
-      rest: { onCreate },
-      graphql: { onCreate },
-      socket: { onCreate },
+      rest: {
+        onCreate,
+        cors: { origins: ['*'], allowedMethods: ['GET', 'POST', 'PUT'] },
+      },
+      graphql: { onCreate, cors: { origins: ['*'], allowedMethods: ['GET'] } },
+      ssr: { onCreate, cors: { origins: ['*'] } },
+      socket: { onCreate, cors: { origins: ['*'] } },
     },
   )
 

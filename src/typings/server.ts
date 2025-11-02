@@ -1,11 +1,15 @@
+import type { HttpMethods } from '@zanix/server'
+import type { CorsOptions } from './middlewares.ts'
+
 /**
  * Represents the various types of web servers that can be managed by the system.
  *
  * - `'graphql'`: Handles GraphQL API requests.
  * - `'rest'`: Handles RESTful API requests.
  * - `'socket'`: Handles WebSocket connections.
+ * - `'ssr'`: Handles SSR server.
  */
-export type WebServerTypes = 'graphql' | 'rest' | 'socket'
+export type WebServerTypes = 'graphql' | 'rest' | 'socket' | 'ssr'
 
 /**
  * Represents the server identificator
@@ -35,6 +39,13 @@ export type ServerManagerData = Record<
 
 export type ServerHandler = Deno.ServeHandler<Deno.NetAddr>
 
+type CorsAllowedMethods<Methods extends HttpMethods> =
+  & CorsOptions
+  & Omit<CorsOptions, 'allowedMethods'>
+  & {
+    allowedMethods?: Extract<HttpMethods, Methods>[]
+  }
+
 /**
  * Configuration options for the server.
  *
@@ -44,14 +55,18 @@ export type ServerHandler = Deno.ServeHandler<Deno.NetAddr>
  *
  * Additional Options:
  * - `onceStop` (optional): A callback function that is called once when the server stops.
- * - `ssl` (optional): SSL certificate
+ * - `ssl` (optional): SSL certificate keyPair values
  * - `globalPrefix` (optional): A global route prefix for the API.
  */
-export type ServerOptions =
+export type ServerOptions<K extends WebServerTypes = never> =
   & (Deno.ServeTcpOptions | (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem))
   & {
     onceStop?: () => void
     ssl?: { key: string; cert: string }
+    cors?: 'socket' extends K ? Pick<CorsOptions, 'origins'>
+      : 'graphql' extends K ? CorsAllowedMethods<'GET' | 'POST'>
+      : 'ssr' extends K ? Omit<CorsOptions, 'allowedMethods'>
+      : CorsOptions
     globalPrefix?: string
   }
 
@@ -65,9 +80,9 @@ export type ServerOptions =
  *        dynamically generated UUID as the global prefix. This helps distinguish and isolate
  *        internal server instances from public ones.
  */
-export type ServerManagerOptions = {
+export type ServerManagerOptions<K extends WebServerTypes> = {
   handler?: ServerHandler
-  server?: ServerOptions
+  server?: ServerOptions<K>
   isInternal?: boolean
 }
 
@@ -99,7 +114,7 @@ export type ServerManagerOptions = {
  */
 export type BootstrapServerOptions = Partial<
   {
-    [K in WebServerTypes]: ServerManagerOptions['server'] & {
+    [K in WebServerTypes]: Required<ServerManagerOptions<K>>['server'] & {
       /**
        * Callback, which is invoked with the server `id` when the server is created.
        */

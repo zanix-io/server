@@ -1,9 +1,9 @@
 import { assertEquals, assertMatch, assertThrows } from '@std/assert'
 import { uuidRegex } from '@zanix/regex'
-import { contextId } from 'utils/uuid.ts'
 import { cleanRoute, pathToRegex } from 'utils/routes.ts'
 import { processUrlParams } from 'utils/params.ts'
 import { getTargetKey } from 'utils/targets.ts'
+import { contextId } from 'utils/context.ts'
 
 Deno.test('contextId should return a correct uuid', async () => {
   assertMatch(await contextId(), uuidRegex)

@@ -1,9 +1,7 @@
-import type { ConnectorGeneralOptions, CoreConnectorTemplates } from 'typings/targets.ts'
+import type { ConnectorOptions, CoreConnectorTemplates } from 'typings/targets.ts'
 import type { ConnectionStatusHandler } from 'typings/general.ts'
 
 import { CoreBaseClass } from '../base/core.ts'
-import { validateURI } from 'utils/uri.ts'
-import { DEFAULT_URI_CONNECTOR } from 'utils/constants.ts'
 import logger from '@zanix/logger'
 
 /**
@@ -41,28 +39,24 @@ export abstract class BaseConnectionClass<
   public connectorReady: Promise<boolean>
 
   /**
-   * Partial URL without sensible data.
-   */
-  protected accessor url: URL = new URL('znx://' + DEFAULT_URI_CONNECTOR)
-
-  /**
    * Constructor that wraps the `startConnection` and `stopConnection` methods
    * to add automatic connection lifecycle handling.
    *
    * If the connector's `startMode` is set to `'lazy'`, the connection is started automatically on instantiation.
    */
-  constructor(contextId: string, options: ConnectorGeneralOptions) {
-    super(contextId)
+  constructor(options: ConnectorOptions) {
+    super(options.contextId)
     // (queueMicrotask ensures private fields are ready before execution)
     this.connectorReady = new Promise<boolean>((resolve) => {
       queueMicrotask(() => {
         // Wrapper startConnection method
         const originalStartConnection = this.startConnection.bind(this)
 
-        this.startConnection = (_uri: string = options.uri) => {
+        this.startConnection = (uri?: string) => {
           if (this.connected || this.startCalled) return true
-          const validURI = this.preStartConnection(_uri)
-          const connection = () => originalStartConnection(validURI)
+          this.startCalled = true
+          const url = uri || options.uri // ℹ️ Restrict network access to specific URIs by using Deno's --allow-net flag
+          const connection = () => originalStartConnection(url)
 
           return this.postStartStopConnection(connection, 'startCalled', options.onConnected)
         }
@@ -78,32 +72,6 @@ export abstract class BaseConnectionClass<
         resolve(true)
       })
     })
-  }
-
-  /**
-   * Pre start connection method
-   * @param uri
-   * @returns
-   */
-  private preStartConnection(uri: string) {
-    //TODO: validate protocol, only for zanix cloud projects. For these projects is not allowed DEFAULT_URI_CONNECTOR
-    const url = validateURI(uri)
-
-    if (!url) {
-      throw new Deno.errors.InvalidData(
-        `The URI provided for the connector '${this.constructor.name}' not a valid or supported`,
-      )
-    }
-
-    const validURI = url.toString()
-
-    //assign and remove sensible data
-    this.url = url
-    this.url.password = ''
-    this.url.username = ''
-    this.startCalled = true
-
-    return validURI
   }
 
   /**

@@ -9,7 +9,7 @@ import logger from '@zanix/logger'
 
 const targetModuleInit = (key: string) => {
   const [type, id] = key.split(':') as [ModuleTypes, string]
-  const instance = ProgramModule.targets.getInstance<ZanixConnector>(id, type)
+  const instance = ProgramModule.targets['getInstance']<ZanixConnector>(id, type)
   if (type !== 'connector') return
   return instance.connectorReady.then(() => instance['startConnection']())
 }
@@ -24,9 +24,7 @@ self.addEventListener('unhandledrejection', (event) => {
 self.addEventListener('unload', async () => {
   await Promise.all(
     ProgramModule.targets.getTargetsByType('connector').map((key) => {
-      ProgramModule.targets.getInstance<ZanixConnector>(key, 'connector', {
-        useExistingInstance: true,
-      })
+      ProgramModule.targets.getConnector<ZanixConnector>(key, { useExistingInstance: true })
         ?.['stopConnection']()
     }),
   )

@@ -4,6 +4,7 @@ import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { stub } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 // Mock ZanixConnector
 class MockConnector extends ZanixConnector {
@@ -20,9 +21,9 @@ class MockConnector extends ZanixConnector {
 class MockInteractor extends ZanixInteractor<MockConnector> {
 }
 
-// Needed to simulate access to _znxProps
-MockInteractor.prototype['_znxProps'] = {
-  ...MockInteractor.prototype['_znxProps'],
+// Needed to simulate access to zanix props
+MockInteractor.prototype[ZANIX_PROPS] = {
+  ...MockInteractor.prototype[ZANIX_PROPS],
   data: { connector: 'Z$MockConnector$1' },
   key: 'Z$MockInteractor$1',
 }
@@ -31,25 +32,27 @@ MockInteractor.prototype['_znxProps'] = {
 class OtherInteractor extends ZanixInteractor<MockConnector> {
   public v = 3
 }
-// Needed to simulate access to _znxProps
-OtherInteractor.prototype['_znxProps'] = {
-  ...OtherInteractor.prototype['_znxProps'],
+// Needed to simulate access to zanix props
+OtherInteractor.prototype[ZANIX_PROPS] = {
+  ...OtherInteractor.prototype[ZANIX_PROPS],
   data: { connector: 'Z$MockConnector$1' },
   key: 'Z$OtherInteractor$1',
 }
 
 // Set up spies/stubs
-const getInstanceStub = stub(
+const getConnectorStub = stub(
   Program.targets,
-  'getInstance',
-  (_key: string, type: string, options?: unknown) => {
-    if (type === 'connector') {
-      return new MockConnector('ctx-check')
-    }
-    if (type === 'interactor') {
-      return new OtherInteractor((options as { ctx: string })?.ctx ?? 'ctx-missing')
-    }
-    throw new Error('Unexpected type')
+  'getConnector',
+  (_key: string) => {
+    return new MockConnector()
+  },
+)
+const getInteractorsStub = stub(
+  Program.targets,
+  'getInteractor',
+  // deno-lint-ignore no-explicit-any
+  (_key: string, { contextId = 'ctx-missing' }: any = {}) => {
+    return new OtherInteractor(contextId)
   },
 )
 
@@ -83,5 +86,6 @@ Deno.test('ZanixInteractor.interactors.get passes correct context', () => {
 
 // Cleanup
 Deno.test('Cleanup stubs', () => {
-  getInstanceStub.restore()
+  getInteractorsStub.restore()
+  getConnectorStub.restore()
 })

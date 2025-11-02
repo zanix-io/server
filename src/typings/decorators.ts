@@ -30,6 +30,12 @@ export type HandlerDecoratorOptions =
   | string
   | {
     prefix?: string
+    /**
+     * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
+     * This ensures each request gets its own context, preventing shared state in singleton scenarios.
+     * Defaults to `false`
+     */
+    enableALS?: boolean
     Interactor?: ZanixInteractorClass
   }
 
@@ -39,20 +45,32 @@ export type SocketDecoratorOptions =
     route: string
     /** Rto to validate socket event data on message (Body) and request search or params */
     rto?: RtoTypes | RtoTypes['Body']
+    /**
+     * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
+     * This ensures each request gets its own context, preventing shared state in singleton scenarios.
+     * Defaults to `false`
+     */
+    enableALS?: boolean
     Interactor?: ZanixInteractorClass
   }
 
-export type InteractorDecoratorOptions<C extends typeof ZanixConnector> = {
-  Connector?: C
-  lifetime?: Exclude<Lifetime, 'SINGLETON'>
-}
+type StartModeOnTransient<L extends Lifetime> = L extends 'TRANSIENT'
+  ? { startMode: Exclude<StartMode, 'lazy'> }
+  : { startMode?: StartMode }
 
-export type ConnectorDecoratorOptions = ConnectorTypes | {
+export type InteractorDecoratorOptions<
+  C extends typeof ZanixConnector,
+  L extends Lifetime,
+> = {
+  Connector?: C
+  lifetime?: L
+} & StartModeOnTransient<L>
+
+export type ConnectorDecoratorOptions<L extends Lifetime> = {
   type?: ConnectorTypes
-  startMode?: StartMode
-  lifetime?: Lifetime
+  lifetime?: L
   autoConnectOnLazy?: boolean
-}
+} & StartModeOnTransient<L>
 
 export type HandlerDecoratorMethodOptions = {
   pathOrRTO?: string | RtoTypes

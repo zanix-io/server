@@ -7,8 +7,10 @@ import ProgramModule from 'modules/program/mod.ts'
 
 const sockerUrl = `ws://0.0.0.0:${SOCKET_PORT}/sock/mysock`
 
+const baseOptions = { headers: { 'Origin': '*' } }
+
 Deno.test('connects to WebSocket server', async () => {
-  const ws = new WebSocket(`${sockerUrl}/1`)
+  const ws = new WebSocket(`${sockerUrl}/1`, baseOptions)
 
   // Wait for the connection to open
   await new Promise((resolve) => (ws.onopen = resolve))
@@ -49,7 +51,7 @@ Deno.test('connects to WebSocket server', async () => {
 })
 
 Deno.test('should return error message on data validation', async () => {
-  const ws = new WebSocket(`${sockerUrl}/1`)
+  const ws = new WebSocket(`${sockerUrl}/1`, baseOptions)
 
   // Wait for the connection to open
   await new Promise((resolve) => (ws.onopen = resolve))

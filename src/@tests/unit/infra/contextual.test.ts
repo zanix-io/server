@@ -1,8 +1,8 @@
 import { ContextualBaseClass } from 'modules/infra/base/contextual.ts'
 import { assertEquals, assertThrows } from '@std/assert'
 import { assertSpyCalls, spy } from '@std/testing/mock'
-import { HttpError } from '@zanix/errors'
 import Program from 'modules/program/mod.ts'
+import { DEFAULT_CONTEXT_ID, ZANIX_PROPS } from 'utils/constants.ts'
 
 // Create a minimal mock subclass since ContextualBaseClass is abstract
 class TestContextual extends ContextualBaseClass {
@@ -20,7 +20,7 @@ class TestContextual extends ContextualBaseClass {
   }
 
   public setZnxProps(props: unknown) {
-    this['_znxProps'] = props as never
+    this[ZANIX_PROPS] = props as never
   }
 }
 
@@ -34,13 +34,13 @@ Deno.test('ContextualBaseClass.testConfig returns env accessors', () => {
 })
 
 Deno.test('ContextualBaseClass.testContext throws in SINGLETON mode', () => {
-  const instance = new TestContextual('ctx-singleton')
-  instance.setZnxProps({ lifetime: 'SINGLETON' })
+  const instance = new TestContextual(DEFAULT_CONTEXT_ID) // Assuming DEFAULT_CONTEXT_ID is set for the singleton
+  instance.setZnxProps({ startMode: 'SINGLETON' })
 
   assertThrows(
     () => instance.testContext,
-    HttpError,
-    "Access to the 'context' property is not allowed in singleton mode",
+    Deno.errors.Interrupted,
+    'The system could not find the required information to proceed',
   )
 })
 

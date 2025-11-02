@@ -40,20 +40,11 @@ export const LIFETIME_MODE: Record<Lifetime, Lifetime> = {
   TRANSIENT: 'TRANSIENT',
 }
 
-export const PROTOCOL_REGEX = /^([a-zA-Z][a-zA-Z\d+\-.]*):\/\//
-
-export const ALLOWED_PROTOCOLS = [
-  'http',
-  'https',
-  'ftp',
-  'mailto',
-  'zanix',
-  'mongodb+srv',
-  'mongodb',
-  'amqp',
-  'redis',
-]
-
-export const DEFAULT_URI_CONNECTOR = 'zanix-connector'
-
 export const HANDLER_METADATA_PROPERTY_KEY = 'handler_properties'
+
+export const DEFAULT_CONTEXT_ID = 'zanix-default-ctx'
+
+/**
+ * Constant to identify a Zanix class prototype props
+ */
+export const ZANIX_PROPS = '_znx_props_'

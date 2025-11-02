@@ -1,3 +1,5 @@
+import type { HandlerTypes } from 'typings/program.ts'
+import type { HandlerFunction } from 'typings/router.ts'
 import type {
   HandlerDecoratorOptions,
   ResolverRequestOptions,
@@ -8,13 +10,15 @@ import type {
 
 import { applyMiddlewaresToTarget } from 'middlewares/decorators/assembly.ts'
 import { buildGqlInput, scalarTypes } from 'handlers/graphql/types.ts'
+import { asyncContext } from 'modules/infra/base/storage.ts'
 import { gqlSchemaDefinitions } from '../schema.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { ZanixResolver } from '../base.ts'
 import { capitalize } from '@zanix/helpers'
-import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
-import { rootValue } from '../handler.ts'
+import { JSON_CONTENT_HEADER, ZANIX_PROPS } from 'utils/constants.ts'
+import { type RequestContext, rootValue } from '../handler.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { InternalError } from '@zanix/errors'
 
 /** Define decorator to register a route for handler gql */
 export function defineResolverDecorator(
@@ -22,17 +26,19 @@ export function defineResolverDecorator(
 ): ZanixClassDecorator {
   let prefix: string = ''
   let interactor: string | undefined
+  let enableALS = false
   if (typeof options === 'string') {
     prefix = options
   } else if (options) {
     interactor = getTargetKey(options.Interactor)
+    enableALS = options.enableALS || enableALS
     prefix = options.prefix || prefix
   }
 
   return function (Target) {
     if (!(Target.prototype instanceof ZanixResolver)) {
-      throw new Deno.errors.Interrupted(
-        `'${Target.name}' is not a valid Resolver. Please extend ${ZanixResolver.name}`,
+      throw new InternalError(
+        `The class '${Target.name}' is not a valid Resolver. Please extend ${ZanixResolver.name}`,
       )
     }
 
@@ -56,16 +62,25 @@ export function defineResolverDecorator(
       const pipes = Array.from(middlewares.pipes)
       const interceptors = Array.from(middlewares.interceptors)
 
-      rootValue[resolverName] = async function (this: typeof rootValue, payload) {
-        await Promise.all(pipes.map((pipe) => pipe(this._context)))
+      // Resolver handler definition
+      const resolver: HandlerFunction = async function (
+        payload,
+        request: RequestContext,
+      ) {
+        const { key, type } = Target.prototype[ZANIX_PROPS]
+        const { context } = request
 
-        delete this._context.payload.body
-        const { key, type } = Target.prototype['_znxProps']
-        const instance: ZanixResolver = ProgramModule.targets.getInstance(key, type, {
-          ctx: this._context,
-        })
+        await Promise.all(pipes.map((pipe) => pipe(context)))
 
-        const handlerResponse = handler.call(instance, payload, this._context)
+        delete context.payload.body
+
+        const instance = ProgramModule.targets.getHandler<ZanixResolver>(
+          key,
+          type as HandlerTypes,
+          context,
+        )
+
+        const handlerResponse = await handler.call(instance, payload, context)
 
         let response: Response
         if (typeof handlerResponse === 'string') response = new Response(handlerResponse)
@@ -75,24 +90,39 @@ export function defineResolverDecorator(
           })}
 
         for await (const interceptor of interceptors) {
-          response = await interceptor(this._context, response) // execute interceptors secuentially
+          response = await interceptor(context, response) // execute interceptors secuentially
         }
 
-        this._response = response
+        request.response = response
 
         if (response.headers.get('Content-Type') === JSON_CONTENT_HEADER['Content-Type']) {
           return response.json()
         }
         return response.text()
       }
+
+      // Resolver assignment
+      rootValue[resolverName] = function (
+        payload,
+        request: RequestContext,
+      ) {
+        const { data } = Target.prototype[ZANIX_PROPS]
+        const { context } = request
+
+        if (!data.enableALS) return resolver(payload, request)
+
+        return asyncContext.runWith(context.id, () => {
+          return resolver(payload, request)
+        })
+      }
     })
 
     ProgramModule.decorators.deleteDecorators('resolver')
 
-    ProgramModule.targets.toBeInstanced(getTargetKey(Target), {
+    ProgramModule.targets.defineTarget(getTargetKey(Target), {
       type: 'resolver',
       Target,
-      dataProps: { interactor },
+      dataProps: { interactor, enableALS },
       lifetime: 'TRANSIENT',
     })
   }

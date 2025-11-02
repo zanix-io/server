@@ -1,12 +1,13 @@
 import type { MiddlewaresContainer } from './middlewares.ts'
-import type { TargetContainer } from './targets.ts'
+import type { TargetContainer } from './targets/main.ts'
 import type { MetadataTargetSymbols } from 'typings/program.ts'
 import type { HttpMethods, RouteDefinitionProps, RoutesObject } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { ClassConstructor } from 'typings/targets.ts'
 
-import { BaseContainer } from './abstracts/main.ts'
+import { BaseContainer } from './base.ts'
 import { cleanRoute } from 'utils/routes.ts'
+import { InternalError } from '@zanix/errors'
 import { join } from '@std/path'
 
 export class RouteContainer extends BaseContainer {
@@ -36,10 +37,11 @@ export class RouteContainer extends BaseContainer {
       if (route[savedPath]) {
         const target: object['constructor'] = route[savedPath].handler['Target' as never]
         const targetMessage = target ? ` in "${target.name}"` : ''
-        throw new Deno.errors.Interrupted(
+        throw new InternalError(
           `Route path "${type}=>${savedPath}" is already defined${targetMessage}. Please ensure that each route has a unique path.`,
         )
       }
+
       route[savedPath] = {
         handler: { Target, propertyKey },
         methods: this.getHttpMethods({ Target, propertyKey }),

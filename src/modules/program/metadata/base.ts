@@ -1,10 +1,4 @@
-import type {
-  MetadataObjects,
-  MetadataTypes,
-  MetadataTypesKey,
-  ModuleTypes,
-  StartMode,
-} from 'typings/program.ts'
+import type { MetadataObjects, MetadataTypes, MetadataTypesKey } from 'typings/program.ts'
 import type { ClassConstructor } from 'typings/targets.ts'
 
 /**
@@ -22,10 +16,9 @@ export abstract class BaseContainer {
    * @private
    */
   private registerMetadataContainer(container: object) {
-    // register targets
-    const targets = new Set(Reflect.get(this.constructor, this.#metadata) || [])
-    if (!targets.has(container)) targets.add(container)
-    Reflect.set(this.constructor, this.#metadata, Array.from(targets))
+    const metadata = new Set(Reflect.get(this.constructor, this.#metadata) || [])
+    if (!metadata.has(container)) metadata.add(container)
+    Reflect.set(this.constructor, this.#metadata, Array.from(metadata))
   }
 
   /**
@@ -79,48 +72,6 @@ export abstract class BaseContainer {
   }
 
   /**
-   * Registers a key under a specific start mode.
-   * @param key The key to register.
-   * @param startMode The start mode identifier.
-   * @param container Optional container object (defaults to `this`).
-   * @protected
-   */
-  protected setTargetByStartMode(
-    key: string,
-    startMode: StartMode,
-    container: object = this,
-  ): void {
-    if (startMode === 'lazy') return // exclude, it is not necessary to save
-
-    this.registerMetadataContainer(container)
-    const targets = this.getTargetsByStartMode(startMode)
-
-    if (!targets.includes(key)) targets.push(key)
-    Reflect.set(container, this.key(`startMode:${startMode}`, 'data'), targets)
-  }
-
-  /**
-   * Registers a key under a specific module type.
-   * @param key The key to register.
-   * @param type The module type identifier.
-   * @param container Optional container object (defaults to `this`).
-   * @protected
-   */
-  protected setTargetByType(
-    key: string,
-    type: ModuleTypes,
-    container: object = this,
-  ) {
-    if (!(type === 'connector' || type === 'resolver')) return // is not neccesary (yet) to save other types
-
-    this.registerMetadataContainer(container)
-    const targets = this.getTargetsByType(type)
-
-    if (!targets.includes(key)) targets.push(key)
-    Reflect.set(container, this.key(`type:${type}`, 'data'), targets)
-  }
-
-  /**
    * Retrieves a registered target by key.
    * @param key The key to retrieve.
    * @param container Optional container object (defaults to `this`).
@@ -130,34 +81,6 @@ export abstract class BaseContainer {
   protected getTarget<T extends ClassConstructor>(key: string, container: object = this): T {
     this.registerMetadataContainer(container)
     return Reflect.get(container, this.key(key, 'target')) as T
-  }
-
-  /**
-   * Gets all registered keys for a specific start mode.
-   * @param startMode The start mode identifier.
-   * @param container Optional container object (defaults to `this`).
-   * @returns An array of registered keys.
-   */
-  public getTargetsByStartMode(
-    startMode: Exclude<StartMode, 'lazy'>,
-    container: object = this,
-  ): string[] {
-    this.registerMetadataContainer(container)
-    return Reflect.get(container, this.key(`startMode:${startMode}`, 'data')) || []
-  }
-
-  /**
-   * Gets all registered keys for a specific module type.
-   * @param type The module type identifier.
-   * @param container Optional container object (defaults to `this`).
-   * @returns An array of registered keys.
-   */
-  public getTargetsByType(
-    type: Extract<ModuleTypes, 'connector' | 'resolver'>,
-    container: object = this,
-  ): string[] {
-    this.registerMetadataContainer(container)
-    return Reflect.get(container, this.key(`type:${type}`, 'data')) || []
   }
 
   /**

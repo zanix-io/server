@@ -33,6 +33,12 @@ export function Socket(options: {
   route: string
   /** Rto to validate socket event data on message (Body) and request search or params */
   rto?: RtoTypes | RtoTypes['Body']
+  /**
+   * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
+   * This ensures each request gets its own context, preventing shared state in singleton scenarios.
+   * Defaults to `false`
+   */
+  enableALS?: boolean
   /** Interactor name for injection */
   Interactor?: ZanixInteractorClass
 }): ZanixClassDecorator

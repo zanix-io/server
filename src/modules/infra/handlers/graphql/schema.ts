@@ -31,5 +31,10 @@ export const defineSchema = () => {
 
   defineScalars(schema)
 
+  // Reset values
+  gqlSchemaDefinitions.Mutation = ''
+  gqlSchemaDefinitions.Query = ''
+  gqlSchemaDefinitions.Type = ''
+
   return schema
 }

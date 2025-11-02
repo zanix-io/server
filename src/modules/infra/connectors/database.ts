@@ -29,8 +29,8 @@ export abstract class ZanixDatabaseConnector<T extends CoreConnectorTemplates = 
    */
   protected readonly defaultDbName: string
 
-  constructor(contextId: string, options: ConnectorOptions = {}) {
-    super(contextId, options)
+  constructor(options: ConnectorOptions = {}) {
+    super(options)
     this.defaultDbName = this.getDefaultDatabaseName()
   }
 

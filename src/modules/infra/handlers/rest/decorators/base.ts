@@ -28,6 +28,12 @@ export function Controller(
 export function Controller(options: {
   /** Route prefix */
   prefix?: string
+  /**
+   * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
+   * This ensures each request gets its own context, preventing shared state in singleton scenarios.
+   * Defaults to `false`
+   */
+  enableALS?: boolean
   /** Interactor for injection */
   Interactor?: ZanixInteractorClass
 }): ZanixClassDecorator

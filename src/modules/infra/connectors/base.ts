@@ -7,8 +7,8 @@ import type {
 
 import ProgramModule from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
-import { DEFAULT_URI_CONNECTOR } from 'utils/constants.ts'
 import { BaseConnectionClass } from './connection.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 /**
  * Abstract base class for implementing service connectors in the Zanix framework.
@@ -39,19 +39,19 @@ export abstract class ZanixConnector<
    * If the connector's `startMode` is set to `'lazy'`, the connection is started automatically on instantiation.
    */
   constructor(
-    contextId: string,
-    { uri = DEFAULT_URI_CONNECTOR, ...opts }: ConnectorOptions = {},
+    options: string | ConnectorOptions = {},
   ) {
-    super(contextId, { uri, ...opts })
+    const args = typeof options === 'string' ? { contextId: options } : options
+    super(args)
 
-    const { key, data, startMode } = this['_znxProps']
-    this.#contextId = contextId
+    const { key, data, startMode } = this[ZANIX_PROPS]
+    this.#contextId = args.contextId
     this.#key = key
 
     // Start lazy connection after the child instance is fully initialized
     // (queueMicrotask ensures private fields are ready before execution)
     if (startMode === 'lazy' && data?.autoConnectOnLazy !== false) {
-      queueMicrotask(() => this.startConnection(uri))
+      queueMicrotask(() => this.startConnection())
     }
   }
 
@@ -72,7 +72,7 @@ export abstract class ZanixConnector<
         const key = getTargetKey(Connector)
         // Check if the connector is not circular, in which case return the same instance
         if (this.#key === key) return this as unknown as D
-        return ProgramModule.targets.getInstance<D>(key, 'connector', { ctx: this.#contextId })
+        return ProgramModule.targets.getConnector<D>(key, { contextId: this.#contextId })
       },
     }
   }

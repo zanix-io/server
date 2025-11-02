@@ -45,7 +45,7 @@ Deno.test('ZanixConnector: should wait onConnected and onDisconnected OK', async
       resolve(true)
     }
 
-    new Connector('id', {
+    new Connector({
       onConnected,
     })
   })
@@ -60,7 +60,7 @@ Deno.test('ZanixConnector: should wait onConnected and onDisconnected OK', async
       resolve(true)
     }
 
-    const connector = new Connector('id', {
+    const connector = new Connector({
       onDisconnected,
     })
 
@@ -74,7 +74,7 @@ Deno.test('ZanixConnector: should wait onConnected and onDisconnected Error', as
   let connected: unknown
 
   await new Promise((resolve) => {
-    new ConnectorErrorOne('id', {
+    new ConnectorErrorOne({
       onConnected: (status) => {
         connected = status
         resolve(true)
@@ -86,7 +86,7 @@ Deno.test('ZanixConnector: should wait onConnected and onDisconnected Error', as
   let disconnected: unknown
 
   await new Promise((resolve) => {
-    const _connector = new ConnectorErrorTwo('id', {
+    const _connector = new ConnectorErrorTwo({
       onConnected: () => {
         _connector['stopConnection']()
       },
@@ -104,7 +104,7 @@ Deno.test('ZanixConnector: should wait onConnected unknownError', async () => {
   let connected
 
   await new Promise((resolve) => {
-    new ConnectorUErrorOne('id', {
+    new ConnectorUErrorOne({
       onConnected: (status) => {
         connected = status
         resolve(true)
@@ -122,9 +122,7 @@ Deno.test('ZanixConnector: should wait onConnected unknownError', async () => {
       resolve(true)
     }
 
-    const _connector = new ConnectorUErrorTwo('id', {
-      onDisconnected,
-    })
+    const _connector = new ConnectorUErrorTwo({ contextId: 'id', onDisconnected })
 
     return _connector.connectorReady.then(() => _connector['stopConnection']())
   })

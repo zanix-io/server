@@ -16,8 +16,7 @@ import ProgramModule from 'modules/program/mod.ts'
 const interactors: (ctxId: string) => ZanixInteractorsGetter = (ctxId) => ({
   get: <T extends ZanixInteractorGeneric>(
     Interactor: ZanixInteractorClass<T>,
-  ): T =>
-    ProgramModule.targets.getInstance<T>(getTargetKey(Interactor), 'interactor', { ctx: ctxId }),
+  ): T => ProgramModule.targets.getInteractor<T>(getTargetKey(Interactor), { contextId: ctxId }),
 })
 
 /**

@@ -5,10 +5,11 @@ import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import ConnectorCoreModules from 'connectors/core.ts'
+import { InternalError } from '@zanix/errors'
 
 /** Define decorator to register a connector */
-export function defineConnectorDecorator(
-  options?: ConnectorDecoratorOptions,
+export function defineConnectorDecorator<L extends Lifetime>(
+  options?: ConnectorTypes | ConnectorDecoratorOptions<L>,
 ): ZanixClassDecorator {
   let key: string
   let type: ConnectorTypes = 'custom'
@@ -29,8 +30,8 @@ export function defineConnectorDecorator(
 
   return function (Target) {
     if (!(Target.prototype instanceof ZanixConnector)) {
-      throw new Deno.errors.Interrupted(
-        `'${Target.name}' is not a valid Connector. Please extend '${ZanixConnector.name}'`,
+      throw new InternalError(
+        `The class '${Target.name}' is not a valid Connector. Please extend '${ZanixConnector.name}'`,
       )
     }
 
@@ -38,15 +39,15 @@ export function defineConnectorDecorator(
       key = type
       const BaseTarget = ConnectorCoreModules[type as CoreConnectors].Target
       if (!(Target.prototype instanceof BaseTarget)) {
-        throw new Deno.errors.Interrupted(
-          `'${Target.name}' is not a valid '${type}' Connector. Please extend '${BaseTarget.name}'`,
+        throw new InternalError(
+          `The class '${Target.name}' is not a valid '${type}' Connector. Please extend '${BaseTarget.name}'`,
         )
       }
     } else {
       key = getTargetKey(Target)
     }
 
-    ProgramModule.targets.toBeInstanced(key, {
+    ProgramModule.targets.defineTarget(key, {
       Target,
       lifetime,
       startMode,

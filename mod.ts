@@ -7,11 +7,12 @@
  * \_____/ \__,_||_| |_||_|/_/\_\
  */
 
-import { WebServerManager } from 'modules/webserver/manager.ts'
 import ProgramModule from 'modules/program/public.ts'
 
 export { ProgramModule }
-export { BaseContainer as ProgramContainer } from 'modules/program/metadata/abstracts/main.ts'
+export { AsyncContext, asyncContext } from 'modules/infra/base/storage.ts'
+export { BaseContainer as ProgramContainer } from 'modules/program/metadata/base.ts'
+export { TargetContainer } from 'modules/program/metadata/targets/main.ts'
 
 // Handlers
 export { ZanixController } from 'handlers/rest/base.ts'
@@ -65,6 +66,9 @@ export {
   STATIC_PORT,
 } from 'utils/constants.ts'
 
+// Utils
+export { TargetError } from 'utils/errors.ts'
+
 // Types
 export type { GeneralTargetTypes, ModuleTypes, StartMode } from 'typings/program.ts'
 export type { ConnectionStatusHandler, Seeders } from 'typings/general.ts'
@@ -86,5 +90,5 @@ export type { ConnectorOptions, CoreConnectorTemplates } from 'typings/targets.t
 export type { HttpMethods } from 'typings/router.ts'
 
 // Main
-export { WebServerManager }
+export { WebServerManager } from 'modules/webserver/manager.ts'
 export { bootstrapServers, webServerManager } from 'webserver/mod.ts'

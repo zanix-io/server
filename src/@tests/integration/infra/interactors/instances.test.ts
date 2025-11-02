@@ -8,14 +8,14 @@ class OtherInteractor extends ZanixInteractor {
 }
 
 Deno.test('ZanixInteractor: should interact return a freeze instance', () => {
-  ProgramModule.targets.toBeInstanced(getTargetKey(OtherInteractor), {
+  ProgramModule.targets.defineTarget(getTargetKey(OtherInteractor), {
     Target: OtherInteractor,
     type: 'interactor',
+    lifetime: 'TRANSIENT',
   })
 
-  const result = ProgramModule.targets.getInstance<OtherInteractor>(
+  const result = ProgramModule.targets.getInteractor<OtherInteractor>(
     getTargetKey(OtherInteractor),
-    'interactor',
   )
 
   assertThrows(() => {

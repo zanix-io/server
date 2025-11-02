@@ -14,7 +14,17 @@ export type Payload = {
   body: <T extends BaseRTO>(key: keyof T) => T[keyof T]
 }
 
-/** Zanix base context for all target types*/
+/** Different context types for targets */
+export type InstanceContext = string | Partial<BaseContext> | undefined
+
+/** Instance options */
+export type InstanceOptions = {
+  params?: InstanceContext
+  keyId?: string
+  useExistingInstance?: boolean
+}
+
+/** Zanix base context for all target types */
 export type BaseContext = Readonly<{
   id: string
 }>

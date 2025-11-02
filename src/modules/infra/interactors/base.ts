@@ -9,6 +9,7 @@ import type {
 import { getTargetKey } from 'utils/targets.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { CoreBaseClass } from '../base/core.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 /**
  * Abstract class that extends `CoreBaseClass` and acts as an interactor for implementing the business logic of the application.
@@ -35,9 +36,9 @@ export abstract class ZanixInteractor<
   #contextId
   #key
 
-  constructor(contextId: string) {
+  constructor(contextId?: string) {
     super(contextId)
-    const { key, data } = this['_znxProps']
+    const { key, data } = this[ZANIX_PROPS]
     this.#connector = data.connector as string
     this.#key = key as string
     this.#contextId = contextId
@@ -53,8 +54,8 @@ export abstract class ZanixInteractor<
    * @returns {Connector} The resolved connector instance.
    */
   protected get connector(): Connector {
-    return ProgramModule.targets.getInstance<Connector>(this.#connector, 'connector', {
-      ctx: this.#contextId,
+    return ProgramModule.targets.getConnector<Connector>(this.#connector, {
+      contextId: this.#contextId,
     })
   }
 
@@ -75,7 +76,7 @@ export abstract class ZanixInteractor<
         const key = getTargetKey(Interactor)
         // Check if the interactor is not circular, in which case return the same instance
         if (this.#key === key) return this as unknown as T
-        return ProgramModule.targets.getInstance<T>(key, 'interactor', { ctx: this.#contextId })
+        return ProgramModule.targets.getInteractor<T>(key, { contextId: this.#contextId })
       },
     }
   }

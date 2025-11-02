@@ -1,3 +1,5 @@
+import { InternalError } from '@zanix/errors'
+
 // WeakMap to associate each class constructor with its unique ID.
 // WeakMap ensures that once the class is no longer referenced, its entry is GC'ed.
 const classIds = new WeakMap<{ name: string }, string>()
@@ -11,7 +13,7 @@ export const getTargetKey = (target?: { name: string }) => {
 
   // Prevent the use of reserved class name prefixes.
   if (name.startsWith('_Zanix')) {
-    throw new Deno.errors.Interrupted(
+    throw new InternalError(
       "Class names starting with '_Zanix' are reserved and cannot be used. Please choose a different class name.",
     )
   }

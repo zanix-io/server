@@ -1,5 +1,6 @@
 import { ZanixDatabaseConnector } from 'modules/infra/connectors/database.ts'
 import { assert, assertEquals } from '@std/assert'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 class DBConnector extends ZanixDatabaseConnector {
   public getModel(model: string): string {
@@ -16,14 +17,14 @@ class DBConnector extends ZanixDatabaseConnector {
 }
 
 Deno.test('ZanixDatabaseConnector: should define a database name', () => {
-  const conn = new DBConnector('uri')
+  const conn = new DBConnector()
 
   const dbName = conn['defaultDbName']
   assertEquals(dbName, 'zanix_server')
 })
 
 Deno.test('ZanixDatabaseConnector: should run seeders', async () => {
-  const conn = new DBConnector('uri')
+  const conn = new DBConnector()
   await conn.connectorReady
 
   assertEquals(conn['connected'], true)
@@ -50,14 +51,14 @@ Deno.test('ZanixDatabaseConnector: should run seeders', async () => {
     handlers: [
       function (model: string, context) {
         assertEquals(model, 'second model processed')
-        context['_znxProps'].data['db'] = 'model/db'
+        context[ZANIX_PROPS].data['db'] = 'model/db'
         seedExecution += 1
       },
     ],
   }])
 
   assertEquals(conn['connected'], false)
-  assertEquals(conn['_znxProps'].data['db'], 'model/db')
+  assertEquals(conn[ZANIX_PROPS].data['db'], 'model/db')
   assert(conn['secondSeeder' as never])
   assertEquals(seedExecution, 3)
   assertEquals(lastSeeder, '2')

@@ -23,7 +23,7 @@ import { Query } from 'handlers/graphql/decorators/query.ts'
 import { Pipe } from 'middlewares/decorators/pipe.ts'
 import { Interceptor } from 'modules/infra/middlewares/decorators/interceptor.ts'
 
-import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
+import { DEFAULT_CONTEXT_ID, JSON_CONTENT_HEADER } from 'utils/constants.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { assert } from '@std/assert/assert'
 import { assertEquals } from '@std/assert/assert-equals'
@@ -66,13 +66,17 @@ class _ConnectorC extends _ConnectorB {
 }
 @Connector({ startMode: 'onSetup' })
 class Connectors extends ZanixAsyncmqConnector<{ asyncmq: any }> {
+  constructor(contextId?: string) {
+    assertEquals(contextId, DEFAULT_CONTEXT_ID)
+    super({ contextId: contextId, uri: 'https://zanix-connector/' })
+  }
   public getConnected(): boolean {
     return this.connected
   }
   public stopConnection() {
     return true
   }
-  protected startConnection(uri: string) {
+  protected startConnection(uri?: string) {
     assertEquals(uri, 'https://zanix-connector/')
     return new Promise<boolean>((resolve) => {
       setTimeout(() => {
@@ -113,6 +117,7 @@ class InteractorD extends ZanixInteractor<never, { cache: any }> {
   public interactorDMessage = 'interactor D'
   constructor(contextId: string) {
     super(contextId)
+
     this.interactorDMessage = 'interactor D message'
   }
 }
@@ -281,7 +286,7 @@ class _Controller extends ZanixController<InteractorX> {
   }
 }
 
-@Controller()
+@Controller({ enableALS: true })
 class _ControllerBasic extends ZanixController {
   @Get()
   public hello() {

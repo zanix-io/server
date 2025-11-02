@@ -3,7 +3,7 @@ import type { BaseRTO } from '@zanix/validator'
 import type { HandlerContext } from 'typings/context.ts'
 import type { ZanixInteractorGeneric } from 'typings/targets.ts'
 
-import { requestValidationPipe } from 'middlewares/validation.pipe.ts'
+import { requestValidationPipe } from 'middlewares/defaults/validation.pipe.ts'
 import { HandlerBaseClass } from './base.ts'
 
 /**

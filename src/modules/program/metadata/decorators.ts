@@ -1,6 +1,6 @@
 import type { DecoratorsData, DecoratorTypes } from 'typings/decorators.ts'
 
-import { BaseContainer } from './abstracts/main.ts'
+import { BaseContainer } from './base.ts'
 
 /**
  * A container for holding and managing Decorators.
