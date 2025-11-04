@@ -30,7 +30,9 @@ class Program {
 }
 
 /**
- * A frozen singleton instance of the `Program` class to ensure only one instance exists.
+ * A frozen singleton instance of the `Program`,
+ * to provide reusable functionality and act as a shared program module.
+ *
  * @type {Readonly<Program>}
  */
 const PublicProgramModule: Readonly<Program> = Object.freeze(new Program())

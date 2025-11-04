@@ -15,7 +15,7 @@ Deno.test('connects to WebSocket server', async () => {
   // Wait for the connection to open
   await new Promise((resolve) => (ws.onopen = resolve))
 
-  ws.send(JSON.stringify({ email: 'iscam2216@gmail.com' }))
+  ws.send(JSON.stringify({ email: 'pepito.perez@email.com' }))
 
   const message: any = await new Promise((resolve) => {
     ws.onmessage = (event) => resolve(event.data)
@@ -34,7 +34,7 @@ Deno.test('connects to WebSocket server', async () => {
     {
       'message': 'interactor D message',
       'socket': 1,
-      'data': { 'email': 'iscam2216@gmail.com' },
+      'data': { 'email': 'pepito.perez@email.com' },
     },
   )
 

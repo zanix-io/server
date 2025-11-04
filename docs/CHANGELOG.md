@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.15] - 2025-11-03
+
+### Added
+
+- Session base types
+- Some documentation
+
 ## [1.0.14] - 2025-11-01
 
 ### Added

@@ -85,7 +85,7 @@ export type {
   MiddlewareInternalInterceptor,
   MiddlewarePipe,
 } from 'typings/middlewares.ts'
-export type { HandlerContext } from 'typings/context.ts'
+export type { HandlerContext, ScopedContext, Session } from 'typings/context.ts'
 export type { ConnectorOptions, CoreConnectorTemplates } from 'typings/targets.ts'
 export type { HttpMethods } from 'typings/router.ts'
 

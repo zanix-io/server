@@ -29,7 +29,7 @@ export class AsyncContext extends AsyncLocalStorage<BaseContext & Record<string,
    * This method wraps around the `runWith` method, providing an additional abstraction
    * for running the callback with the given context.
    *
-   * @param {BaseContext} context The context to set in the async storage.
+   * @param {BaseContext} contextId The context to set in the async storage.
    * @param {R} callback The callback function to execute with the provided context.
    *
    * @returns {R} The result of executing the callback.

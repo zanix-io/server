@@ -32,6 +32,10 @@ export function Controller(options: {
    * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
    * This ensures each request gets its own context, preventing shared state in singleton scenarios.
    * Defaults to `false`
+   *
+   * ⚠️ Enabling this feature may increase overload by managing multiple contexts simultaneously,
+   * especially if many data points are associated with each request, potentially adding more
+   * processing overhead.
    */
   enableALS?: boolean
   /** Interactor for injection */

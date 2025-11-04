@@ -1,8 +1,8 @@
 import type { MiddlewarePipe } from 'typings/middlewares.ts'
 import type { ScopedContext } from 'typings/context.ts'
 
-import ProgramModule from 'modules/program/mod.ts'
 import { processScopedPayload } from 'utils/context.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 /**
  * Middleware that sets up the initial context for a request or process.

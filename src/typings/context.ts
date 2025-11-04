@@ -29,9 +29,33 @@ export type BaseContext = Readonly<{
   id: string
 }>
 
-/** Interface context for general scoped target */
+/**
+ * A Session object that represents a user, API, or anonymous session with related roles and configuration.
+ *
+ * The `Session` type contains various properties that define the context of the session. It includes:
+ * - An optional `id`, which is a unique identifier for the session.
+ * - A required `type`, which can be one of 'user', 'api', or 'anonymous'.
+ * - An optional `roles` field that can either be an array of strings (defining multiple roles) or one of the specific role types: 'admin', 'superadmin', or 'general'.
+ * - A required `config` object that contains session-specific configurations:
+ *    - An optional `scope`, which is an array of strings defining the scope of the session.
+ *    - A required `rpm` (requests per minute), which is the rate limit for requests.
+ *    - Additional dynamic properties can be added to `config` through a flexible `Record<string, any>`.
+ * - The session can also have any other custom properties, thanks to the `Record<string, any>` which allows additional, flexible key-value pairs.
+ */
+export type Session = {
+  id?: string
+  type: 'user' | 'api' | 'anonymous'
+  roles?: string[] | 'admin' | 'superadmin' | 'general'
+  config: {
+    scope?: string[]
+    rpm: number
+  } & Record<string, any>
+} & Record<string, any>
+
+/** Interface context for general scoped process */
 export interface ScopedContext extends BaseContext {
   readonly payload: Payload
+  readonly session?: Session
 }
 
 /**

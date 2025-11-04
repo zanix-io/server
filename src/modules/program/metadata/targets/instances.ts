@@ -29,8 +29,6 @@ export abstract class BaseInstancesContainer extends BaseContainer {
       data: dataProps || {},
     }
 
-    // TODO: check if is needed to use Target.length to avlidate constructor parameters
-
     const key = this.#getKey(type, baseKey)
 
     // All scoped instances registered here will be removed at the end of the request cleanup.

@@ -79,7 +79,7 @@ export class InternalProgram {
 }
 
 /**
- * A frozen singleton instance of the `InternalProgram` class to ensure only one instance exists.
+ * A frozen singleton instance of the `InternalProgram`.
  * @type {Readonly<InternalProgram>}
  */
 const ProgramModule: Readonly<InternalProgram> = Object.freeze(new InternalProgram()) as Readonly<
