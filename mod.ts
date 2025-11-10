@@ -39,17 +39,19 @@ export { Interactor } from 'interactors/decorators/base.ts'
 
 // Connectors
 export { ZanixConnector } from 'connectors/base.ts'
-export { ZanixAsyncmqConnector } from 'connectors/asyncmq.ts'
-export { ZanixCacheConnector } from 'connectors/cache.ts'
-export { ZanixDatabaseConnector } from 'modules/infra/connectors/database.ts'
-export { ZanixWorkerConnector } from 'connectors/worker.ts'
+export { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
+export { ZanixCacheConnector } from 'connectors/core/cache.ts'
+export { ZanixDatabaseConnector } from 'connectors/core/database.ts'
+export { ZanixWorkerConnector } from 'connectors/core/worker.ts'
 export { Connector } from 'connectors/decorators/base.ts'
 
+// Providers
+export { ZanixProvider } from 'providers/base.ts'
+export { ZanixCacheProvider } from 'providers/core/cache.ts'
+export { ZanixWorkerProvider } from 'providers/core/worker.ts'
+
 // Middlewares
-export {
-  defineGlobalInterceptorHOC,
-  defineGlobalPipeHOC,
-} from 'modules/infra/middlewares/hocs/base.ts'
+export { defineGlobalInterceptorHOC, defineGlobalPipeHOC } from 'middlewares/hocs/base.ts'
 export { Pipe } from 'middlewares/decorators/pipe.ts'
 export { Interceptor } from 'middlewares/decorators/interceptor.ts'
 export { RequestValidation } from 'middlewares/decorators/validation.ts'
@@ -64,6 +66,7 @@ export {
   JSON_CONTENT_HEADER,
   SOCKET_PORT,
   STATIC_PORT,
+  ZANIX_SERVER_MODULES,
 } from 'utils/constants.ts'
 
 // Utils

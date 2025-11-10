@@ -10,7 +10,7 @@ import { Get } from 'modules/infra/handlers/rest/decorators/get.ts'
 import { ZanixInteractor } from 'interactors/base.ts'
 import { Interactor } from 'interactors/decorators/base.ts'
 import { Connector } from 'connectors/decorators/base.ts'
-import { ZanixAsyncmqConnector } from 'connectors/asyncmq.ts'
+import { ZanixAsyncmqConnector } from 'modules/infra/connectors/core/asyncmq.ts'
 import {
   defineGlobalInterceptorHOC,
   defineGlobalPipeHOC,
@@ -28,6 +28,8 @@ import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { assert } from '@std/assert/assert'
 import { assertEquals } from '@std/assert/assert-equals'
 import ProgramModule from 'modules/program/mod.ts'
+import { Provider } from 'providers/decorators/base.ts'
+import { ZanixProvider } from 'providers/base.ts'
 
 /** RTOS */
 class C extends BaseRTO {
@@ -50,10 +52,12 @@ class S extends BaseRTO {
 
 @Connector({ startMode: 'onBoot' })
 class _ConnectorA extends ZanixConnector {
-  protected override startConnection(): boolean {
+  protected override initialize() {
+  }
+  public override isHealthy() {
     return true
   }
-  protected override stopConnection() {
+  protected override close() {
     return true
   }
 }
@@ -65,21 +69,24 @@ class _ConnectorB extends _ConnectorA {
 class _ConnectorC extends _ConnectorB {
 }
 @Connector({ startMode: 'onSetup' })
-class Connectors extends ZanixAsyncmqConnector<{ asyncmq: any }> {
+class Connectors extends ZanixAsyncmqConnector {
+  #connected = false
+  protected override initialize(): Promise<void> | void {
+  }
   constructor(contextId?: string) {
     assertEquals(contextId, DEFAULT_CONTEXT_ID)
-    super({ contextId: contextId, uri: 'https://zanix-connector/' })
+    super({ contextId: contextId })
   }
   public getConnected(): boolean {
-    return this.connected
+    return this.#connected
   }
-  public stopConnection() {
+  public close() {
     return true
   }
-  protected startConnection(uri?: string) {
-    assertEquals(uri, 'https://zanix-connector/')
+  public isHealthy() {
     return new Promise<boolean>((resolve) => {
       setTimeout(() => {
+        this.#connected = true
         resolve(true)
       }, 500)
     })
@@ -90,9 +97,17 @@ class Connectors extends ZanixAsyncmqConnector<{ asyncmq: any }> {
   }
 }
 
+@Provider()
+class ProviderClass extends ZanixProvider<{ cache: any }> {
+  public override use(_: unknown): ZanixConnector {
+    throw new Error('Method not implemented.')
+  }
+  public providerMessage = 'provider class'
+}
+
 /** Interactors */
-@Interactor({ Connector: Connectors })
-class InteractorX extends ZanixInteractor<Connectors> {
+@Interactor({ Connector: Connectors, Provider: ProviderClass })
+class InteractorX extends ZanixInteractor<{ Connector: Connectors; Provider: ProviderClass }> {
   constructor(contextId: string) {
     super(contextId)
     this.interactors.get(InteractorD).interactorDMessage
@@ -101,6 +116,11 @@ class InteractorX extends ZanixInteractor<Connectors> {
 
   public secondInteractor() {
     return this.interactors.get(InteractorD).interactorDMessage
+  }
+
+  public providerInfo() {
+    return this.provider.providerMessage + this.connectors.get(Connectors).def() +
+      this.providers.get(ProviderClass).providerMessage
   }
 
   public connectorMessage() {
@@ -113,7 +133,7 @@ class InteractorX extends ZanixInteractor<Connectors> {
 }
 
 @Interactor()
-class InteractorD extends ZanixInteractor<never, { cache: any }> {
+class InteractorD extends ZanixInteractor<{ cache: any }> {
   public interactorDMessage = 'interactor D'
   constructor(contextId: string) {
     super(contextId)
@@ -271,6 +291,7 @@ class _Controller extends ZanixController<InteractorX> {
       searchParamByMid: ctx.payload.search.searchParamByMid,
       secondMessage: this.interactor.secondInteractor(),
       connectorMessage: this.interactor.connectorMessage(),
+      providerInfo: this.interactor.providerInfo(),
       searchParamByPipe: ctx.url.searchParams.get('searchParamByPipe'),
       contextId: this.context.id,
     }

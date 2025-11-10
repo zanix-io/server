@@ -115,7 +115,7 @@ export class WebServerManager {
           // overriding stop function
           this.stop = () =>
             server.shutdown().finally(() => {
-              logger.info(`${serverName} server is finished`)
+              logger.info(`${serverName} server is finished`, 'noSave')
             })
         } catch (error) {
           const serverInUse = Object.entries(currentServers).find(([_, server]) =>

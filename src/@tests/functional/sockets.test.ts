@@ -4,6 +4,7 @@ import './setup/mod.ts'
 import { assert, assertEquals } from '@std/assert'
 import { SOCKET_PORT } from './setup/mod.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { isUUID } from '@zanix/validator'
 
 const sockerUrl = `ws://0.0.0.0:${SOCKET_PORT}/sock/mysock`
 
@@ -58,27 +59,32 @@ Deno.test('should return error message on data validation', async () => {
 
   ws.send('ping')
 
-  const message = await new Promise<string>((resolve) => {
+  const message: any = await new Promise<string>((resolve) => {
     ws.onmessage = (event) => resolve(event.data)
   })
 
+  const jsonMessage = JSON.parse(message)
+  assert(isUUID(jsonMessage.id))
+  delete jsonMessage.id
   assertEquals(
-    message,
-    JSON.stringify({
+    jsonMessage,
+    {
       message: '"ping" should be a valid JSON',
       name: 'HttpError',
       status: { code: 'BAD_REQUEST', value: 400 },
-    }),
+    },
   )
 
   ws.send(JSON.stringify({ message: 'hola' }))
   const message2 = await new Promise<string>((resolve) => {
     ws.onmessage = (event) => resolve(event.data)
   })
-
+  const jsonMessage2 = JSON.parse(message2)
+  assert(isUUID(jsonMessage2.id))
+  delete jsonMessage2.id
   assertEquals(
-    message2,
-    JSON.stringify({
+    jsonMessage2,
+    {
       'message': 'BAD_REQUEST',
       'name': 'HttpError',
       'status': { 'code': 'BAD_REQUEST', 'value': 400 },
@@ -87,7 +93,7 @@ Deno.test('should return error message on data validation', async () => {
         'properties': { 'email': [{ 'constraints': ["'email' must be a valid email address."] }] },
         'target': 'C',
       },
-    }),
+    },
   )
 
   ws.close()

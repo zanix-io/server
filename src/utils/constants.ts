@@ -48,3 +48,23 @@ export const DEFAULT_CONTEXT_ID = 'zanix-default-ctx'
  * Constant to identify a Zanix class prototype props
  */
 export const ZANIX_PROPS = '_znx_props_'
+
+/**
+ * List of server module file extensions used within the Zanix framework.
+ *
+ * These modules are responsible for different layers of the server architecture, including:
+ * - `.handler.ts`: Manages request handling logic.
+ * - `.interactor.ts`: Contains business logic and interactions.
+ * - `.hoc.ts`: Higher-order components for enhancing functionality.
+ * - `.connector.ts`: Defines connectors for external services or databases.
+ * - `.provider.ts`: Manages providers that supply various services to the application.
+ *
+ * @constant
+ */
+export const ZANIX_SERVER_MODULES = [
+  '.handler.ts',
+  '.interactor.ts',
+  '.hoc.ts',
+  '.connector.ts',
+  '.provider.ts',
+]

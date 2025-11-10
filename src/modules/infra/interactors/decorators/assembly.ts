@@ -1,23 +1,30 @@
 import type { InteractorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
-import type { Lifetime } from 'typings/program.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
+import type { ZanixProvider } from 'providers/base.ts'
+import type { Lifetime } from 'typings/program.ts'
 
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
-import ConnectorCoreModules from 'connectors/mod.ts'
+import ConnectorCoreModules from 'connectors/core/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
 import { ZANIX_PROPS } from 'utils/constants.ts'
 
 /** Define decorator to register an interactor */
-export function defineInteractorDecorator<C extends typeof ZanixConnector, L extends Lifetime>(
-  options?: InteractorDecoratorOptions<C, L>,
+export function defineInteractorDecorator<
+  C extends typeof ZanixConnector,
+  P extends typeof ZanixProvider,
+  L extends Lifetime,
+>(
+  options?: InteractorDecoratorOptions<C, P, L>,
 ): ZanixClassDecorator {
   let connector: string | undefined
+  let provider: string | undefined
   let lifetime: Lifetime | undefined
   if (options) {
     lifetime = options.lifetime
     connector = getTargetKey(options.Connector)
+    provider = getTargetKey(options.Provider)
   }
 
   const coreConnectors = Object.values(ConnectorCoreModules)
@@ -52,7 +59,7 @@ export function defineInteractorDecorator<C extends typeof ZanixConnector, L ext
       lifetime: lifetime || 'SCOPED',
       startMode: options?.startMode,
       type: 'interactor',
-      dataProps: { connector },
+      dataProps: { connector, provider },
     })
   }
 }

@@ -1,4 +1,4 @@
-import type { ZanixDatabaseConnector } from 'modules/infra/connectors/database.ts'
+import type { ZanixDatabaseConnector } from 'modules/infra/connectors/core/database.ts'
 
 /**
  * An array of objects where each object represents a model and its associated handler functions.

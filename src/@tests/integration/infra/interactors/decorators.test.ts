@@ -2,9 +2,9 @@ import { assertSpyCalls, spy } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import { defineInteractorDecorator } from 'modules/infra/interactors/decorators/assembly.ts'
+import ConnectorCoreModules from 'modules/infra/connectors/core/all.ts'
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
-import ConnectorCoreModules from 'modules/infra/connectors/core.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
 
 const originalDefineTarget = Program.targets.defineTarget
@@ -57,9 +57,9 @@ Deno.test('should throw error if using core connector directly', () => {
   // Create a fake core connector
   class CoreConnector {}
   const coreConnectorKey = 'coreKey' as never
-  const originalCache = ConnectorCoreModules.cache
+  const originalWorker = ConnectorCoreModules['worker:local']
   // Inject it into CORE_CONNECTORS
-  ConnectorCoreModules.cache = {
+  ConnectorCoreModules['worker:local'] = {
     key: coreConnectorKey,
     Target: CoreConnector,
   }
@@ -86,5 +86,5 @@ Deno.test('should throw error if using core connector directly', () => {
   )
 
   // Restore Program.targets
-  ConnectorCoreModules.cache = originalCache
+  ConnectorCoreModules['worker:local'] = originalWorker
 })

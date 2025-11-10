@@ -25,6 +25,7 @@ Deno.test('Verifying controller api rest welcome service', async () => {
     search: 6,
     searchParamByMid: 'param value interactor D message',
     secondMessage: 'interactor D message',
+    providerInfo: 'provider class465provider class',
     connectorMessage: 'this connector is connected over def 465 by uuid context and query param 6',
     searchParamByPipe: 'Pipe search param',
   })

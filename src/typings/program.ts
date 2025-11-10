@@ -23,6 +23,7 @@ export type HandlerTypes =
 export type GeneralTargetTypes =
   | 'connector'
   | 'interactor'
+  | 'provider'
 
 /**
  * Union type of all module types in the system, including both handler-specific
@@ -37,10 +38,19 @@ export type ModuleTypes =
   | HandlerTypes
   | GeneralTargetTypes
 
-export type CoreConnectors = 'cache' | 'worker' | 'asyncmq' | 'database'
-export type GenericConnectors = 'custom'
+export type CoreCacheConnectors = 'local' | 'redis'
+export type CoreWorkerConnectors = 'local' | 'bull'
+export type CoreConnectors =
+  | `cache:${CoreCacheConnectors}`
+  | `worker:${CoreWorkerConnectors}`
+  | 'asyncmq'
+  | 'database'
 
-export type ConnectorTypes = CoreConnectors | GenericConnectors
+export type CoreProviders = 'cache' | 'worker'
+export type GenericTargets = 'custom'
+
+export type ConnectorTypes = CoreConnectors | GenericTargets
+export type ProviderTypes = CoreProviders | GenericTargets
 
 /**
  * **SINGLETON**: Guarantees a single instance throughout the entire application lifecycle.

@@ -9,6 +9,7 @@ import { webServerManager } from '@zanix/server'
 import { stub } from '@std/testing/mock'
 import { assert } from '@std/assert/assert'
 import logger from '@zanix/logger'
+import { connectorModuleInitialization } from 'utils/targets.ts'
 
 /** mocks */
 stub(console, 'info')
@@ -34,12 +35,14 @@ try {
     server: { port: GQL_PORT, globalPrefix: '/gql//' },
   })
 
-  const startConnection = async (key: string) => {
+  /** Target module setup startup initialization */
+  const startConnection = (key: string) => {
     const [type, id] = key.split(':') as [ModuleTypes, string]
     const instance = Program.targets['getInstance']<ZanixConnector>(id, type)
+
     if (type !== 'connector') return
-    await instance.connectorReady
-    return instance['startConnection']()
+
+    return connectorModuleInitialization(instance)
   }
 
   await Promise.all(Program.targets.getTargetsByStartMode('onSetup').map(startConnection))
@@ -53,13 +56,15 @@ try {
   assert(!Object.keys(Program.context).length)
   assert(!Object.keys(Program.routes).length)
 
-  assertEquals(Object.keys(Program.targets).length, 14)
+  // All instantiated classes
+  assertEquals(Object.keys(Program.targets).length, 15)
 
   await Promise.all(Program.targets.getTargetsByStartMode('postBoot').map(startConnection))
 
   Program.cleanupMetadata('postBoot')
 
-  assertEquals(Object.keys(Program.targets).length, 11)
+  // Persisted instances
+  assertEquals(Object.keys(Program.targets).length, 12)
 } catch (e) {
   logger.debug('An error ocurred', e)
   // ignore

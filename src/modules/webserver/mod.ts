@@ -2,22 +2,29 @@ import type { BootstrapServerOptions, ServerID } from 'typings/server.ts'
 import type { ModuleTypes } from 'typings/program.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 
+import { connectorModuleInitialization } from 'utils/targets.ts'
 import { GRAPHQL_PORT, SOCKET_PORT } from 'utils/constants.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { WebServerManager } from './manager.ts'
 import logger from '@zanix/logger'
 
+/** Target module setup startup initialization */
 const targetModuleInit = (key: string) => {
   const [type, id] = key.split(':') as [ModuleTypes, string]
   const instance = ProgramModule.targets['getInstance']<ZanixConnector>(id, type)
+
   if (type !== 'connector') return
-  return instance.connectorReady.then(() => instance['startConnection']())
+
+  return connectorModuleInitialization(instance)
 }
 
 /** Catch all module errors */
 self.addEventListener('unhandledrejection', (event) => {
   event.preventDefault()
-  logger.error(event.reason.message || 'Uncaught (in promise) Error', event.reason)
+  logger.error(event.reason?.message || 'Uncaught (in promise) Error', {
+    meta: { reason: event.reason, source: 'zanix' },
+    code: 'UNHANDLED_PROMISE_REJECTION',
+  })
 })
 
 /** Disconnect all current connectors */
@@ -25,7 +32,7 @@ self.addEventListener('unload', async () => {
   await Promise.all(
     ProgramModule.targets.getTargetsByType('connector').map((key) => {
       ProgramModule.targets.getConnector<ZanixConnector>(key, { useExistingInstance: true })
-        ?.['stopConnection']()
+        ?.['close']()
     }),
   )
 })
@@ -113,6 +120,7 @@ export const bootstrapServers = async (
 
   await Promise.all(ProgramModule.targets.getTargetsByStartMode('onSetup').map(targetModuleInit))
 
+  // REST initialization
   if (serveRest) {
     const { onCreate, isInternal, ...opts } = { ...server.rest } as Required<typeof server>['rest']
     const id = webServerManager.create('rest', {
@@ -122,6 +130,8 @@ export const bootstrapServers = async (
     onCreate?.(id)
     servers.push(id)
   }
+
+  // SOCKETS initialization
   if (serveSocket) {
     const { onCreate, isInternal, port, ...opts } = { ...server.socket } as Required<
       typeof server
@@ -134,6 +144,7 @@ export const bootstrapServers = async (
     servers.push(id)
   }
 
+  // GQL initialization
   if (serveGraphql) {
     const { onCreate, isInternal, port, ...opts } = { ...server.graphql } as Required<
       typeof server

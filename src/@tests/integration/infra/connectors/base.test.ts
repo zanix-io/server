@@ -1,131 +1,73 @@
-import type { ConnectionStatusHandler } from 'typings/general.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
-import { assert, assertEquals } from '@std/assert'
+import { assertAlmostEquals, assertRejects } from '@std/assert'
 import { stub } from '@std/testing/mock'
+import { connectorModuleInitialization } from 'utils/targets.ts'
+import { InternalError } from '@zanix/errors'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 
 stub(console, 'error')
 
-class Connector extends ZanixConnector {
-  protected startConnection = () => true
-  protected stopConnection = () => true
+function wait(ms: number): Promise<boolean> {
+  return new Promise<boolean>((resolve) => setTimeout(() => resolve(true), ms))
 }
-
-class ConnectorErrorOne extends ZanixConnector {
-  protected startConnection = () => {
-    throw new Error()
+class TestConnector extends ZanixConnector {
+  public async initialize() {
+    await wait(10)
   }
-  protected stopConnection = () => {
-    throw new Error()
-  }
-}
 
-class ConnectorErrorTwo extends ZanixConnector {
-  protected startConnection = () => true
-  protected stopConnection = () => {
-    throw new Error()
+  public isHealthy() {
+    return wait(10)
+  }
+
+  public close() {
+    return wait(10)
   }
 }
 
-class ConnectorUErrorOne extends ZanixConnector {
-  protected startConnection = () => false
-  protected stopConnection = () => false
-}
+Deno.test('ZanixConnector: should wait initialization connection on setup modes', async () => {
+  TestConnector.prototype[ZANIX_PROPS] = {
+    ...TestConnector.prototype[ZANIX_PROPS],
+    data: {
+      ...TestConnector.prototype[ZANIX_PROPS]?.data,
+      autoInitialize: { timeoutConnection: 2000, retryInterval: 100 },
+    },
+  }
 
-class ConnectorUErrorTwo extends ZanixConnector {
-  protected startConnection = () => true
-  protected stopConnection = () => false
-}
+  const originalIsHealthy = TestConnector.prototype.isHealthy
 
-Deno.test('ZanixConnector: should wait onConnected and onDisconnected OK', async () => {
-  let connected
+  let attemps = 0
+  TestConnector.prototype.isHealthy = () => {
+    attemps++
+    return false as never
+  }
 
-  await new Promise((resolve) => {
-    const onConnected: ConnectionStatusHandler = (status) => {
-      connected = status
-      resolve(true)
-    }
+  const conn = new TestConnector()
 
-    new Connector({
-      onConnected,
-    })
-  })
+  const time = Date.now()
+  await assertRejects(
+    () => connectorModuleInitialization(conn),
+    InternalError,
+    'Health check failed: Timeout reached',
+  )
 
-  assertEquals(connected, 'OK')
+  assertAlmostEquals(Date.now() - time, 2000, 100)
+  assertAlmostEquals(attemps, conn['timeoutConnection'] / conn['retryInterval'], 2)
 
-  let disconnected
+  const waitTime = 300
 
-  await new Promise((resolve) => {
-    const onDisconnected: ConnectionStatusHandler = (status) => {
-      disconnected = status
-      resolve(true)
-    }
+  attemps = 0
+  TestConnector.prototype.isHealthy = async () => {
+    attemps++
+    await wait(waitTime)
+    return attemps === 3
+  }
 
-    const connector = new Connector({
-      onDisconnected,
-    })
+  const conn2 = new TestConnector()
 
-    return connector.connectorReady.then(() => connector['stopConnection']())
-  })
+  const time2 = Date.now()
+  await connectorModuleInitialization(conn2)
 
-  assertEquals(disconnected, 'OK')
-})
+  assertAlmostEquals(Date.now() - time2, attemps * waitTime + attemps * conn2['retryInterval'], 100)
 
-Deno.test('ZanixConnector: should wait onConnected and onDisconnected Error', async () => {
-  let connected: unknown
-
-  await new Promise((resolve) => {
-    new ConnectorErrorOne({
-      onConnected: (status) => {
-        connected = status
-        resolve(true)
-      },
-    })
-  })
-
-  assert(connected instanceof Error)
-  let disconnected: unknown
-
-  await new Promise((resolve) => {
-    const _connector = new ConnectorErrorTwo({
-      onConnected: () => {
-        _connector['stopConnection']()
-      },
-      onDisconnected: (status) => {
-        disconnected = status
-        resolve(true)
-      },
-    })
-  })
-
-  assert(disconnected instanceof Error)
-})
-
-Deno.test('ZanixConnector: should wait onConnected unknownError', async () => {
-  let connected
-
-  await new Promise((resolve) => {
-    new ConnectorUErrorOne({
-      onConnected: (status) => {
-        connected = status
-        resolve(true)
-      },
-    })
-  })
-
-  assertEquals(connected, 'unknownError')
-
-  let disconnected
-
-  await new Promise((resolve) => {
-    const onDisconnected: ConnectionStatusHandler = (status) => {
-      disconnected = status
-      resolve(true)
-    }
-
-    const _connector = new ConnectorUErrorTwo({ contextId: 'id', onDisconnected })
-
-    return _connector.connectorReady.then(() => _connector['stopConnection']())
-  })
-
-  assertEquals(disconnected, 'unknownError')
+  TestConnector.prototype.isHealthy = originalIsHealthy
 })

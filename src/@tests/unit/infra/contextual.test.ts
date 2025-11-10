@@ -1,8 +1,11 @@
 import { ContextualBaseClass } from 'modules/infra/base/contextual.ts'
 import { assertEquals, assertThrows } from '@std/assert'
-import { assertSpyCalls, spy } from '@std/testing/mock'
+import { assertSpyCalls, spy, stub } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
 import { DEFAULT_CONTEXT_ID, ZANIX_PROPS } from 'utils/constants.ts'
+
+// mocks
+stub(console, 'error')
 
 // Create a minimal mock subclass since ContextualBaseClass is abstract
 class TestContextual extends ContextualBaseClass {

@@ -1,17 +1,19 @@
 // deno-lint-ignore-file no-explicit-any
-import type { ZanixInteractor } from 'modules/infra/interactors/base.ts'
+import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
+import type { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
-import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
-import type { ZanixWorkerConnector } from 'modules/infra/connectors/worker.ts'
-import type { ZanixAsyncmqConnector } from 'modules/infra/connectors/asyncmq.ts'
-import type { ZanixCacheConnector } from 'modules/infra/connectors/cache.ts'
-import type { ZanixDatabaseConnector } from 'modules/infra/connectors/database.ts'
-import type { HandlerBaseClass } from 'modules/infra/handlers/base.ts'
-import type { BaseRTO } from '@zanix/validator'
-import type { RtoTypes } from '@zanix/types'
+import type { ZanixCacheProvider } from 'providers/core/cache.ts'
+import type { ZanixWorkerProvider } from 'providers/core/worker.ts'
+import type { ZanixInteractor } from 'interactors/base.ts'
+import type { ZanixConnector } from 'connectors/base.ts'
+import type { HandlerBaseClass } from 'handlers/base.ts'
+import type { ZanixCacheConnector } from '@zanix/server'
+import type { ZanixProvider } from 'providers/base.ts'
 import type { HandlerFunction } from './router.ts'
 import type { HandlerContext } from './context.ts'
-import type { ConnectionStatusHandler } from './general.ts'
+import type { BaseRTO } from '@zanix/validator'
+import type { RtoTypes } from '@zanix/types'
+
 export type ClassConstructor<T extends TargetBaseClass = TargetBaseClass> = {
   new (...args: any[]): T
   prototype: T
@@ -48,13 +50,20 @@ export type GQLPrototype = (payload: any, ctx: HandlerContext) => unknown
 
 export type ZanixHandlerGeneric = HandlerBaseClass<any, any>
 
-export type ZanixInteractorGeneric = ZanixInteractor<any, any>
+export type ZanixInteractorGeneric = ZanixInteractor<any>
 
 export type ZanixInteractorClass<T extends ZanixInteractorGeneric = ZanixInteractorGeneric> = new (
   contextId: string,
 ) => T
 
-export type ZanixConnectorGeneric = ZanixConnector<any>
+export type ZanixConnectorGeneric = ZanixConnector
+
+export type ZanixProviderGeneric = ZanixProvider<any>
+
+export type ZanixCacheConnectorGeneric = ZanixCacheConnector<any, any>
+export type ZanixProviderClass<T extends ZanixProvider = ZanixProvider> = new (
+  contextId: string,
+) => T
 export type ZanixConnectorClass<T extends ZanixConnector = ZanixConnector> = new (
   contextId: string,
 ) => T
@@ -67,23 +76,49 @@ export type ZanixConnectorsGetter = {
   get: <D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D>) => D
 }
 
+export type ZanixProvidersGetter = {
+  get: <D extends ZanixProviderGeneric>(Connector: ZanixProviderClass<D>) => D
+}
 /**
  * Defines the available types for the different connectors in the Zanix system.
  *
  * This type can be used to specify which connectors are required for an instance
  * of the system, allowing flexible options depending on the specific use case.
  *
- * @property {ZanixWorkerConnector} worker - Optional connector for the worker part of the system.
+ * @property {ZanixWorkerProvider} worker - Optional provider for the worker part of the system.
  * @property {ZanixAsyncmqConnector|} asyncmq - Optional connector for the asynchronous message queue.
- * @property {ZanixCacheConnector} cache - Optional connector for the cache.
+ * @property {ZanixCacheProvider} cache - Optional provider for the cache.
  * @property {ZanixDatabaseConnector} database - Optional connector for the database.
  */
 export type CoreConnectorTemplates = {
-  worker?: ZanixWorkerConnector
+  worker?: ZanixWorkerProvider
   asyncmq?: ZanixAsyncmqConnector
-  cache?: ZanixCacheConnector
+  cache?: ZanixCacheProvider
   database?: ZanixDatabaseConnector
 }
+/**
+ * Indicates whether the connector should automatically initialize.
+ *
+ * - If set to `true`, the connector will automatically initialize on instantiation.
+ * - If set to `false`, the connector will not automatically initialize and will require manual initialization.
+ * - If set to an object, it allows configuring the auto-initialization behavior with the following properties:
+ *    - `timeoutConnection`: The maximum time (in milliseconds) to wait for the connection to be established during auto-initialization. Defaults to **10000ms (10 seconds)**.
+ *    - `retryInterval`: The interval (in milliseconds) between each retry when attempting to auto-initialize. Defaults to **500ms**.
+ *
+ * @type {boolean | { timeoutConnection?: number; retryInterval?: number }}
+ */
+export type ConnectorAutoInitOptions =
+  | boolean
+  | {
+    /**
+     * The maximum time (in milliseconds) to wait for the connection to be established during auto-initialization. Defaults to **10000ms (10 seconds)**.
+     */
+    timeoutConnection?: number
+    /**
+     * The interval (in milliseconds) between each retry when attempting to auto-initialize. Defaults to **500ms**.
+     */
+    retryInterval?: number
+  }
 
 /**
  * Configuration options for general connector lifecycle event handlers.
@@ -97,15 +132,13 @@ export type ConnectorOptions = {
    */
   contextId?: string
   /**
-   * The URI used to establish the external connection.
+   * Indicates whether the connector should automatically initialize.
+   *
+   * - If set to `true`, the connector will automatically initialize on instantiation.
+   * - If set to `false`, the connector will not automatically initialize and will require manual initialization.
+   * - If set to an object, it allows configuring the auto-initialization behavior with the following properties:
+   *    - `timeoutConnection`: The maximum time (in milliseconds) to wait for the connection to be established during auto-initialization. Defaults to **10000ms (10 seconds)**.
+   *    - `retryInterval`: The interval (in milliseconds) between each retry when attempting to auto-initialize. Defaults to **500ms**.
    */
-  uri?: string
-  /**
-   * Called when the connector successfully establishes a connection or encounters an error during the connection attempt.
-   */
-  onConnected?: ConnectionStatusHandler
-  /**
-   * Called when the connector disconnects, either normally or due to an unexpected error.
-   */
-  onDisconnected?: ConnectionStatusHandler
+  autoInitialize?: ConnectorAutoInitOptions
 }

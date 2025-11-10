@@ -28,80 +28,87 @@ deploy applications within Deno.
 
 ### **Architecture Overview**
 
-This repository follows a **hybrid architectural pattern**, primarily inspired by the **Adapter
-Pattern**, but combining additional concepts to better support modularity, scalability, and
-separation of concerns. The structure facilitates clean integration with external services and
-promotes reusable, testable components.
+This repository follows a **hybrid architectural pattern**, inspired by the **Adapter Pattern** and
+enhanced with **modular service orchestration** to support scalability, testability, and
+maintainability. The design enforces **separation of concerns**, enabling clean integration with
+external systems while keeping business logic isolated.
 
 Below is a high-level overview of the architecture of a **ZANIX** application:
 
 ```
-+-------------------------+
-|      External Inputs    |   <- HTTP, GraphQL, WebSocket, Events
-+-------------------------+
-            |
-            v
-+-------------------------+
-|        HANDLERS         |   <- *.handler.ts
-| Controllers, Resolvers, |
-| Subscribers, WebSocket  |
-+-------------------------+
-            |
-            v
-+-------------------------+
-|       INTERACTORS       |   <- *.interactor.ts
-| Business Logic, Services|
-| Orchestration Layer     |
-+-------------------------+
-            |
-            v
-+-------------------------+
-|        CONNECTORS       |   <- *.connector.ts
-| DB, APIs, Queues, Cache |
-| External Integration    |
-+-------------------------+
-
-         ▲         ▲
-         |         |
-         |         |
-+--------+---------+-------------------------+
-|             DEPENDENCIES (HOCs)            |  <- *.hoc.ts
-| Middleware, Jobs, Models, Auth Guards, etc |
-+--------------------------------------------+
++-------------------------------------------------+
+|                EXTERNAL INPUTS                  |  <- HTTP, GraphQL, WebSocket, Events
++-------------------------------------------------+
+                        |
+                        v
++-------------------------------------------------+
+|                    HANDLERS                     |  <- *.handler.ts
+|  Controllers, Resolvers, Subscribers, Sockets   |
++-------------------------------------------------+
+                        |
+                        v
++-------------------------------------------------+
+|                  INTERACTORS                    |  <- *.interactor.ts
+|   Core Business Logic, Application Services     |
++-------------------------------------------------+
+                        |
+                        v
++-------------------------------------------------+
+|                   PROVIDERS                     |  <- *.provider.ts
+|         Technical Orchestration Layer           |
+|   (Repositories, DataServices, InfraServices)   |
+|    Use CONNECTORS to access external systems    |
++-------------------------------------------------+
+                        |
+                        v
++-------------------------------------------------+
+|                   CONNECTORS                    |  <- *.connector.ts
+|  DB, APIs, Queues, Cache, External Integrations |
+|    Pure infrastructure layer, no domain logic   |
++-------------------------------------------------+
+                 ▲             ▲
+                 |             |
+                 |             |
++----------------+-------------+------------------+
+|             DEPENDENCIES (HOCs)                 |  <- *.hoc.ts
+|  Middleware, Jobs, Models, Auth Guards, etc.    |
++-------------------------------------------------+
 ```
 
 ---
 
 ### **Component Descriptions**
 
-- **Handlers** (`*.handler.ts`): Include **controllers**, **resolvers**, **subscribers**, and
-  **WebSocket handlers**. They handle incoming requests or events and delegate execution to the
-  appropriate interactors (services).
+- **Handlers** (`*.handler.ts`): Handle **incoming requests or events**. Include controllers,
+  resolvers, subscribers, and WebSocket handlers. They delegate execution to **Interactors** while
+  remaining free of business logic.
 
-- **Interactors** (`*.interactor.ts`): Encapsulate the **core business logic**. These typically
-  include **services** or **adapters**, and are responsible for orchestrating application behavior.
-  They act as intermediaries between handlers and connectors.
+- **Interactors** (`*.interactor.ts`): Encapsulate the **core business logic** and
+  **application-level orchestration**. Interactors call **Providers** to perform operations that
+  involve external systems or technical workflows.
 
-- **Connectors** (`*.connector.ts`): Serve as **clients or providers** to external systems (e.g.,
-  APIs, databases, caches, queues). They handle integration logic, including API requests, database
-  queries, or cache access.
+- **Providers** (`*.provider.ts`): Serve as the **technical orchestration layer**, bridging
+  interactors and connectors. They may **fuse the responsibilities of repositories and data
+  services**, orchestrating multiple connectors while keeping domain logic separate.
 
-- **Dependencies**: Shared building blocks used across the application as **HOCs (Higher-Order
-  Components)** (`*.hoc.ts`): Reusable functions that enhance or wrap other components (e.g.,
-  Middlewares, Jobs, Models).
+- **Connectors** (`*.connector.ts`): Handle **low-level integration** with external systems
+  (databases, caches, APIs, queues, etc.). They are pure infrastructure components with no domain
+  logic.
+
+- **Dependencies / HOCs** (`*.hoc.ts`): Shared reusable building blocks (Higher-Order Components)
+  that enhance or wrap components, such as middlewares, jobs, auth guards, or model utilities.
 
 ---
 
 ### **File Naming Conventions**
 
-To ensure consistency and maintainability, follow the naming conventions below:
-
 | Component Type               | File Suffix      | Example                |
 | ---------------------------- | ---------------- | ---------------------- |
 | Handler                      | `.handler.ts`    | `user.handler.ts`      |
 | Interactor                   | `.interactor.ts` | `auth.interactor.ts`   |
+| Provider                     | `.provider.ts`   | `user.provider.ts`     |
 | Connector                    | `.connector.ts`  | `payment.connector.ts` |
-| Higher-Order Component (HOC) | `.hoc.ts`        | `auth-guard.hoc.ts`    |
+| Higher-Order Component (HOC) | `.hoc.ts`        | `model.hoc.ts`         |
 
 ---
 

@@ -85,10 +85,12 @@ export abstract class BaseInstancesContainer extends BaseContainer {
       throw new TargetError('This action cannot be completed at the moment.', startMode, {
         code: 'INVALID_INSTANCE',
         meta: {
-          message: 'An error ocurred on trying to instance the class',
+          source: 'zanix',
           classType: type,
+          message: 'An error ocurred on trying to instance the class',
           targetName: Target ? `${Target.name}` : "'unknown': there is no metadata information",
         },
+        shouldLog: true,
         cause: e,
       })
     }
@@ -97,10 +99,9 @@ export abstract class BaseInstancesContainer extends BaseContainer {
   /**
    * Freeze instance object
    */
-  private instanceFreeze<T>(instance: T) {
-    const connector = instance as typeof ZanixConnector['prototype']
-    if (connector.connectorReady) {
-      connector.connectorReady.then(() => {
+  private instanceFreeze<T extends TargetBaseClass>(instance: T) {
+    if ('isReady' in instance) {
+      ;(instance as unknown as typeof ZanixConnector['prototype']).isReady.then(() => {
         Object.freeze(instance)
       })
     } else Object.freeze(instance)

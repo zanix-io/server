@@ -11,7 +11,7 @@ import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
  *
  * @param {ConnectorTypes} type - The type of the interactor connector.
  *
- * Defaults: `type`='custom', `startMode`='postBoot', `lifetime`='SINGLETON, `autoConnectOnLazy`=true
+ * Defaults: `type`='custom', `startMode`='postBoot', `lifetime`='SINGLETON, `autoInitialize`=true
  *
  * ℹ️ The **connector** with a `TRANSIENT` lifetime should be used **only** during configuration or setup.
  * It is **not supported** when using StarMode with lazy initialization, as it has no practical effect.
@@ -29,14 +29,18 @@ export function Connector(type?: ConnectorTypes): ZanixClassDecorator
  * allowing customization of lifecycle and initialization behavior.
  *
  * @param {Object} options - Configuration options for the connector.
- * @param {GenericConnectors} options.type - The generic connector type (e.g., 'custom'). Defaults to 'custom'
+ * @param {ConnectorTypes} options.type - The generic connector type (e.g., 'custom'). Defaults to 'custom'
  * @param {StartMode} [options.startMode='postBoot'] - The instance initialization mode.
  *                                                Determines when the connector instance is started.
  * @param {Lifetime} [options.lifetime='SINGLETON'] - The connector's lifetime scope,
  *                                                    specifying the dependency injection strategy.
- * @param {boolean} [options.autoConnectOnLazy=true] - If set to `true`, the connector will automatically call `startConnection`
- *                                                     when it is instantiated lazily.
- *                                                     Useful for enabling immediate connection in lazy-loading scenarios.
+ * @param {boolean} [options.autoInitialize=true] - Determines whether the object should automatically
+ *                                                  initialize itself upon instantiation.
+ *                                                  When set to `true`, the instance will automatically
+ *                                                  call its initialization logic right after being created.
+ *                                                  When set to `false`, the instance will not initialize itself,
+ *                                                  and you will need to explicitly call the initialization method.
+ *                                                  This property defaults to `true` if not specified.
  *
  * ℹ️ The **connector** with a `TRANSIENT` lifetime should be used **only** during configuration or setup.
  * It is **not supported** when using StarMode with lazy initialization, as it has no practical effect.

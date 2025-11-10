@@ -1,8 +1,8 @@
-import type { ConnectorOptions, CoreConnectorTemplates } from 'typings/targets.ts'
+import type { ConnectorOptions } from 'typings/targets.ts'
 import type { Seeders } from 'typings/general.ts'
 
 import { readConfig } from '@zanix/helpers'
-import { ZanixConnector } from './base.ts'
+import { ZanixConnector } from '../base.ts'
 
 /**
  * Abstract base class for connectors that integrate with database systems.
@@ -18,12 +18,8 @@ import { ZanixConnector } from './base.ts'
  *
  * @abstract
  * @extends ZanixConnector
- *
- * @template T - A generic type representing the type of core connectors used by the current connector.
- *               By default, it is set to `object`, meaning the base core connector types are provided unless explicitly specified.
  */
-export abstract class ZanixDatabaseConnector<T extends CoreConnectorTemplates = object>
-  extends ZanixConnector<T> {
+export abstract class ZanixDatabaseConnector extends ZanixConnector {
   /**
    * Retrieves the database name based on zanix project info
    */

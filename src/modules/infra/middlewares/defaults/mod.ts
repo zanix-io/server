@@ -51,7 +51,10 @@ export const getDefaultGlobalInterceptors = (
     } catch (e) {
       const error = e as HttpError
       error.id = error.id || ctx.id
-      logger.error(`An error ocurred on route '${ctx.url.pathname}'`, error)
+      logger.error(`An error occurred on route '${ctx.url.pathname}'`, error, {
+        meta: { route: ctx.url.pathname, source: 'zanix' },
+        code: 'ROUTE_ERROR',
+      })
 
       return errorResponses(e)
     }

@@ -1,9 +1,10 @@
 // deno-lint-ignore-file ban-types
 import type { RtoTypes } from '@zanix/types'
-import type { ClassConstructor, ZanixInteractorClass } from './targets.ts'
-import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
+import type { ClassConstructor, ConnectorAutoInitOptions, ZanixInteractorClass } from './targets.ts'
 import type { MiddlewareInterceptor, MiddlewarePipe, MiddlewareTypes } from './middlewares.ts'
-import type { ConnectorTypes, HandlerTypes, Lifetime, StartMode } from './program.ts'
+import type { ConnectorTypes, HandlerTypes, Lifetime, ProviderTypes, StartMode } from './program.ts'
+import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
+import type { ZanixProvider } from 'providers/base.ts'
 import type { HttpMethods } from './router.ts'
 
 export type ZanixClassDecorator = (
@@ -68,17 +69,34 @@ type StartModeOnTransient<L extends Lifetime> = L extends 'TRANSIENT'
 
 export type InteractorDecoratorOptions<
   C extends typeof ZanixConnector,
+  P extends typeof ZanixProvider,
   L extends Lifetime,
 > = {
   Connector?: C
+  Provider?: P
   lifetime?: L
 } & StartModeOnTransient<L>
 
 export type ConnectorDecoratorOptions<L extends Lifetime> = {
   type?: ConnectorTypes
   lifetime?: L
-  autoConnectOnLazy?: boolean
+  /**
+   * Indicates whether the connector should automatically initialize.
+   *
+   * - If set to `true`, the connector will automatically initialize on instantiation.
+   * - If set to `false`, the connector will not automatically initialize and will require manual initialization.
+   * - If set to an object, it allows configuring the auto-initialization behavior with the following properties:
+   *    - `timeoutConnection`: The maximum time (in milliseconds) to wait for the connection to be established during auto-initialization. Defaults to **10000ms (10 seconds)**.
+   *    - `retryInterval`: The interval (in milliseconds) between each retry when attempting to auto-initialize. Defaults to **500ms**.
+   */
+  autoInitialize?: ConnectorAutoInitOptions
 } & StartModeOnTransient<L>
+
+export type ProviderDecoratorOptions<L extends Exclude<Lifetime, 'TRANSIENT'>> = {
+  type?: ProviderTypes
+  lifetime?: L
+  startMode?: StartMode
+}
 
 export type HandlerDecoratorMethodOptions = {
   pathOrRTO?: string | RtoTypes

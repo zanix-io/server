@@ -8,17 +8,19 @@ import { ZANIX_PROPS } from 'utils/constants.ts'
 
 // Mock ZanixConnector
 class MockConnector extends ZanixConnector {
-  public override startConnection(): Promise<boolean> | boolean {
+  protected override initialize(): Promise<void> | void {
+  }
+  protected override close(): unknown {
     return true
   }
-  public override stopConnection(): Promise<boolean> | boolean {
+  public override isHealthy(): Promise<boolean> | boolean {
     return true
   }
   public foo = 'bar'
 }
 
 // Mock Interactor to extend the abstract class
-class MockInteractor extends ZanixInteractor<MockConnector> {
+class MockInteractor extends ZanixInteractor<{ Connector: MockConnector }> {
 }
 
 // Needed to simulate access to zanix props
@@ -29,7 +31,7 @@ MockInteractor.prototype[ZANIX_PROPS] = {
 }
 
 // Another interactor to simulate "other" class
-class OtherInteractor extends ZanixInteractor<MockConnector> {
+class OtherInteractor extends ZanixInteractor<{ Connector: MockConnector }> {
   public v = 3
 }
 // Needed to simulate access to zanix props

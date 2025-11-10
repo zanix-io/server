@@ -1,10 +1,11 @@
 import type { ConnectorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
 import type { ConnectorTypes, CoreConnectors, Lifetime, StartMode } from 'typings/program.ts'
+import type { ConnectorAutoInitOptions } from 'typings/targets.ts'
 
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
-import { getTargetKey } from 'utils/targets.ts'
+import ConnectorCoreModules from 'connectors/core/all.ts'
 import ProgramModule from 'modules/program/mod.ts'
-import ConnectorCoreModules from 'connectors/core.ts'
+import { getTargetKey } from 'utils/targets.ts'
 import { InternalError } from '@zanix/errors'
 
 /** Define decorator to register a connector */
@@ -15,7 +16,7 @@ export function defineConnectorDecorator<L extends Lifetime>(
   let type: ConnectorTypes = 'custom'
   let startMode: StartMode = 'postBoot'
   let lifetime: Lifetime = 'SINGLETON'
-  let autoConnectOnLazy = true
+  let autoInitialize: ConnectorAutoInitOptions = true
 
   if (typeof options === 'string') {
     type = options
@@ -23,7 +24,7 @@ export function defineConnectorDecorator<L extends Lifetime>(
     type = options.type || type
     startMode = options.startMode || startMode
     lifetime = options.lifetime || lifetime
-    autoConnectOnLazy = options.autoConnectOnLazy ?? autoConnectOnLazy
+    autoInitialize = options.autoInitialize ?? autoInitialize
   }
 
   const coreConnectors = Object.keys(ConnectorCoreModules)
@@ -52,7 +53,7 @@ export function defineConnectorDecorator<L extends Lifetime>(
       lifetime,
       startMode,
       type: 'connector',
-      dataProps: { type, autoConnectOnLazy },
+      dataProps: { type, autoInitialize },
     })
   }
 }

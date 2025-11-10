@@ -1,8 +1,11 @@
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
-import { assert, assertEquals, assertThrows } from '@std/assert'
+import { assert, assertAlmostEquals, assertEquals, assertThrows } from '@std/assert'
 import Program from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
+
+// mocks
+console.error = () => {}
 
 function wait(ms: number): Promise<boolean> {
   return new Promise<boolean>((resolve) => setTimeout(() => resolve(true), ms))
@@ -11,11 +14,15 @@ function wait(ms: number): Promise<boolean> {
 const waiting = 20 // wait more time because of queueMicrotask
 
 class TestConnector extends ZanixConnector {
-  public startConnection(): Promise<boolean> {
+  public async initialize() {
+    await wait(10)
+  }
+
+  public isHealthy() {
     return wait(10)
   }
 
-  public stopConnection(): Promise<boolean> {
+  public close() {
     return wait(10)
   }
 }
@@ -25,193 +32,140 @@ class PrivateFieldTestConnector extends ZanixConnector {
     super(id)
   }
   #private = 0
-  public startConnection(): Promise<boolean> {
+
+  public async initialize() {
     this.field++
     this.#private++
-    return wait(10)
+    await wait(10)
   }
 
-  public async stopConnection(): Promise<boolean> {
+  public async isHealthy(): Promise<boolean> {
     await wait(10)
-    return this.field === 4 && this.#private === 1
+    return this.field === 5 && this.#private === 1
   }
+
+  public close() {}
 }
 
 class OtherConnector extends TestConnector {
 }
 
-Deno.test(
-  'ZanixConnector: should initialize with connected = false and autoconnect',
-  async () => {
-    TestConnector.prototype[ZANIX_PROPS] = {
-      ...TestConnector.prototype[ZANIX_PROPS],
-      startMode: 'lazy',
-    }
-
-    const conn = new TestConnector()
-    assertEquals(conn['connected'], false)
-
-    await wait(waiting)
-    assertEquals(conn['connected'], true)
-  },
-)
-
-Deno.test('ZanixConnector: should work with private fields by queueMicrotask', async () => {
-  PrivateFieldTestConnector.prototype[ZANIX_PROPS] = {
-    ...PrivateFieldTestConnector.prototype[ZANIX_PROPS],
-    startMode: 'lazy',
-  }
-
-  const conn = new PrivateFieldTestConnector('ctx-check')
-
-  await wait(waiting)
-
-  assert(await conn.stopConnection() === false)
-})
-
 Deno.test('ZanixConnector: should avoid autoconnect', async () => {
   TestConnector.prototype[ZANIX_PROPS] = {
     ...TestConnector.prototype[ZANIX_PROPS],
-    startMode: 'lazy',
-    data: { autoConnectOnLazy: false },
+    data: { autoInitialize: false, ...TestConnector.prototype[ZANIX_PROPS]?.data },
   }
 
   const conn = new TestConnector()
-  delete TestConnector.prototype[ZANIX_PROPS].data.autoConnectOnLazy
-  assertEquals(conn['connected'], false)
 
-  await wait(waiting)
-  assertEquals(conn['connected'], false)
-})
-
-Deno.test('ZanixConnector: should not start connection if is not lazy', async () => {
-  TestConnector.prototype[ZANIX_PROPS] = {
-    ...TestConnector.prototype[ZANIX_PROPS],
-    startMode: 'onBoot',
-  }
-  const conn = new TestConnector()
-  assertEquals(conn['connected'], false)
-
-  await wait(waiting)
-  assertEquals(conn['connected'], false)
-})
-
-Deno.test('ZanixConnector: should stop connection', async () => {
-  TestConnector.prototype[ZANIX_PROPS] = {
-    ...TestConnector.prototype[ZANIX_PROPS],
-    startMode: 'lazy',
-  }
-  const conn = new TestConnector()
-
-  await wait(waiting) // wait until lazy connected
-
-  assertEquals(conn['connected'], true)
-
-  const promise = conn.stopConnection()
-  assert(promise instanceof Promise)
-  await promise
-  assertEquals(conn['connected'], false)
+  const time = Date.now()
+  const ready = await conn['isReady']
+  assertAlmostEquals(Date.now() - time, 0) // No waiting for initialization is needed.
+  assert(ready)
 })
 
 Deno.test(
-  'ZanixConnector: should not stop connection if is already disconnected',
+  'ZanixConnector: should auto-initialize with isReady = true',
   async () => {
     TestConnector.prototype[ZANIX_PROPS] = {
       ...TestConnector.prototype[ZANIX_PROPS],
-      startMode: 'lazy',
+      data: { autoInitialize: false, ...TestConnector.prototype[ZANIX_PROPS]?.data },
     }
 
-    const conn = new TestConnector()
+    delete TestConnector.prototype[ZANIX_PROPS]?.data?.autoInitialize
 
-    await wait(waiting) // wait until lazy connected
+    const conn = new TestConnector({ autoInitialize: true })
 
-    assertEquals(conn['stopCalled'], false)
-    assert(conn.stopConnection() instanceof Promise)
-    assertEquals(conn['stopCalled'], true)
+    const time = Date.now()
+    const ready = await conn['isReady']
+    assertAlmostEquals(Date.now() - time, 10, 5) // Should wait for the initialization process to finish.
 
-    await wait(waiting) // wait until is connected
+    assert(ready)
 
-    assert(!(conn.stopConnection() instanceof Promise)) // is already stopped and returns true
-    assertEquals(conn['stopCalled'], false)
-    await wait(waiting)
-    assertEquals(conn['stopCalled'], false)
+    const conn2 = new TestConnector()
+    assert(await conn2['isReady'])
   },
 )
 
 Deno.test(
-  'ZanixConnector: should not start connection if is already connected',
+  'ZanixConnector `initialize` should work with private fields by queueMicrotask',
   async () => {
-    TestConnector.prototype[ZANIX_PROPS] = {
-      ...TestConnector.prototype[ZANIX_PROPS],
-      startMode: 'onBoot',
-    }
-    const conn = new TestConnector()
-    await conn.connectorReady
-
-    assertEquals(conn['startCalled'], false)
-    conn.startConnection()
-    assertEquals(conn['connected'], false)
-    assertEquals(conn['startCalled'], true)
-    assert(!(conn.startConnection() instanceof Promise))
+    const conn = new PrivateFieldTestConnector('ctx-check')
 
     await wait(waiting)
-    assertEquals(conn['startCalled'], false)
-    assertEquals(conn['connected'], true)
-    assert(!(conn.startConnection() instanceof Promise))
+
+    assert(await conn.isHealthy())
   },
 )
 
-Deno.test('ZanixConnector: should initialize connection sync', async () => {
-  TestConnector.prototype[ZANIX_PROPS] = {
-    ...TestConnector.prototype[ZANIX_PROPS],
-    startMode: 'onBoot',
-  }
-  const originalStart = TestConnector.prototype.startConnection
-  const originalStop = TestConnector.prototype.stopConnection
-  TestConnector.prototype.startConnection = () => true as never
-  TestConnector.prototype.stopConnection = () => true as never
+Deno.test('ZanixConnector: should have correct timeout and retries values', async () => {
+  delete TestConnector.prototype[ZANIX_PROPS]?.data?.autoInitialize
 
   const conn = new TestConnector()
-  await conn.connectorReady
+  await conn.isReady
+  assertEquals(conn['timeoutConnection'], 10000)
+  assertEquals(conn['retryInterval'], 500)
 
-  assertEquals(conn['connected'], false)
-  assert(!(conn.startConnection() instanceof Promise))
-  assertEquals(conn['connected'], true)
+  const conn2 = new TestConnector({ autoInitialize: false })
+  await conn2.isReady
+  assertEquals(conn2['timeoutConnection'], 10000)
+  assertEquals(conn2['retryInterval'], 500)
 
-  assert(!(conn.stopConnection() instanceof Promise))
-  assertEquals(conn['connected'], false)
+  const conn3 = new TestConnector({ autoInitialize: { timeoutConnection: 500, retryInterval: 30 } })
+  await conn3.isReady
+  assertEquals(conn3['timeoutConnection'], 500)
+  assertEquals(conn3['retryInterval'], 30)
 
-  TestConnector.prototype.startConnection = originalStart
-  TestConnector.prototype.stopConnection = originalStop
+  TestConnector.prototype[ZANIX_PROPS] = {
+    ...TestConnector.prototype[ZANIX_PROPS],
+    data: {
+      ...TestConnector.prototype[ZANIX_PROPS]?.data,
+      autoInitialize: { timeoutConnection: 100, retryInterval: 10 },
+    },
+  }
+  const conn4 = new TestConnector()
+  await conn4.isReady
+  assertEquals(conn4['timeoutConnection'], 100)
+  assertEquals(conn4['retryInterval'], 10)
 })
 
-Deno.test('ZanixConnector: should interact with context and other conectors', async () => {
-  Program.targets.defineTarget(getTargetKey(OtherConnector), {
-    Target: OtherConnector,
-    type: 'connector',
-    lifetime: 'TRANSIENT',
-  })
+Deno.test('ZanixConnector: should interact with context', async () => {
   const conn = new TestConnector({ contextId: 'id' })
-  await conn.connectorReady
-
-  const result = conn['connectors'].get(OtherConnector)
-
-  // freeze validation when connector is ready
-  result.stopConnection = (() => {}) as never
-  await result.connectorReady
-  assertThrows(() => {
-    result.stopConnection = (() => {}) as never
-  })
+  await conn.isReady
 
   // props validations
-  assert(result['context'].id === undefined)
-  assertEquals(result[ZANIX_PROPS].key, 'Z$OtherConnector$1')
+  assert(conn['context'].id === undefined)
 
   const errorContext = new OtherConnector()
+
   assertThrows(
     () => errorContext['context'],
     Deno.errors.Http,
     'The system could not find the required information to proceed',
   )
   await wait(waiting)
+})
+
+Deno.test('ZanixConnector: be freeze after auto-initialize', async () => {
+  const targetKey = getTargetKey(TestConnector)
+  Program.targets.defineTarget(targetKey, {
+    Target: TestConnector,
+    type: 'connector',
+    lifetime: 'TRANSIENT',
+  })
+
+  const conn = Program.targets.getConnector<TestConnector>(targetKey)
+
+  assertEquals(conn[ZANIX_PROPS].key, targetKey)
+
+  // freeze validation when connector is ready
+  conn.close = (() => {}) as never
+  await conn.isReady
+  assertThrows(
+    () => {
+      conn.close = (() => {}) as never
+    },
+    TypeError,
+    "Cannot assign to read only property 'close' of object",
+  )
 })

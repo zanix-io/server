@@ -1,6 +1,6 @@
 {
   "name": "@zanix/server",
-  "version": "1.0.15",
+  "version": "1.1.0",
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true,
@@ -66,6 +66,7 @@
     "handlers/": "./src/modules/infra/handlers/",
     "interactors/": "./src/modules/infra/interactors/",
     "connectors/": "./src/modules/infra/connectors/",
+    "providers/": "./src/modules/infra/providers/",
     "middlewares/": "./src/modules/infra/middlewares/",
     "webserver/": "./src/modules/webserver/"
   },

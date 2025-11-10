@@ -4,6 +4,7 @@ import type {
   ZanixInteractorClass,
   ZanixInteractorGeneric,
   ZanixInteractorsGetter,
+  ZanixProviderGeneric,
 } from 'typings/targets.ts'
 
 import { getTargetKey } from 'utils/targets.ts'
@@ -29,10 +30,13 @@ import { ZANIX_PROPS } from 'utils/constants.ts'
  *                       By default, it is set to `object`, meaning the base core connector types are provided unless explicitly specified.
  */
 export abstract class ZanixInteractor<
-  Connector extends ZanixConnectorGeneric = never,
-  T extends CoreConnectorTemplates = object,
+  T extends CoreConnectorTemplates & {
+    Provider?: ZanixProviderGeneric
+    Connector?: ZanixConnectorGeneric
+  } = object,
 > extends CoreBaseClass<T> {
   #connector
+  #provider
   #contextId
   #key
 
@@ -40,6 +44,7 @@ export abstract class ZanixInteractor<
     super(contextId)
     const { key, data } = this[ZANIX_PROPS]
     this.#connector = data.connector as string
+    this.#provider = data.provider as string
     this.#key = key as string
     this.#contextId = contextId
   }
@@ -51,10 +56,29 @@ export abstract class ZanixInteractor<
    * communicate with a connector.
    *
    * @protected
-   * @returns {Connector} The resolved connector instance.
+   * @returns {T['Connector']} The resolved connector instance.
    */
-  protected get connector(): Connector {
-    return ProgramModule.targets.getConnector<Connector>(this.#connector, {
+  protected get connector(): T['Connector'] extends ZanixConnectorGeneric ? T['Connector'] : never {
+    return ProgramModule.targets.getConnector<
+      T['Connector'] extends ZanixConnectorGeneric ? T['Connector'] : never
+    >(this.#connector, {
+      contextId: this.#contextId,
+    })
+  }
+
+  /**
+   * Returns the provider instance associated with this interactor.
+   *
+   * This getter exposes a dynamic utility that allows the current interactor to retrieve and
+   * communicate with a provider.
+   *
+   * @protected
+   * @returns {T['Provider']} The resolved provider instance.
+   */
+  protected get provider(): T['Provider'] extends ZanixProviderGeneric ? T['Provider'] : never {
+    return ProgramModule.targets.getProvider<
+      T['Provider'] extends ZanixProviderGeneric ? T['Provider'] : never
+    >(this.#provider, {
       contextId: this.#contextId,
     })
   }

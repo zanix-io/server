@@ -7,7 +7,7 @@ import { baseErrorResponses } from 'modules/webserver/helpers/errors.ts'
 import { HttpError } from '@zanix/errors'
 import logger from '@zanix/logger'
 
-const catcher = async (socket: WebSocket, callback: () => unknown) => {
+const catcher = async (socket: WebSocket, event: Event, callback: () => unknown) => {
   try {
     let response
     const cb = callback()
@@ -15,7 +15,10 @@ const catcher = async (socket: WebSocket, callback: () => unknown) => {
     else response = cb
     return response
   } catch (e) {
-    logger.error('An error ocurred on socket', e)
+    logger.error('An error occurred on socket', e, {
+      meta: { event: event.type, source: 'zanix' },
+      code: 'SOCKET_ERROR',
+    })
     socket.send(baseErrorResponses(e))
   }
 }
@@ -31,11 +34,11 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
 
       socket.onopen = (event) => {
         contextSettingPipe(ctx)
-        return catcher(socket, () => this['onopen'](event))
+        return catcher(socket, event, () => this['onopen'](event))
       }
 
       socket.onerror = (event) => {
-        return catcher(socket, () => this['onerror'](event))
+        return catcher(socket, event, () => this['onerror'](event))
       }
 
       socket.onmessage = (event) => {
@@ -49,7 +52,7 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
           return socket.send(baseErrorResponses(error))
         }
 
-        return catcher(socket, async () => {
+        return catcher(socket, event, async () => {
           if (rto) await this.requestValidation(rto, ctx)
           return this['onmessage'](event)
         })
@@ -57,7 +60,7 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
 
       socket.onclose = (event) => {
         cleanUpPipe(ctx)
-        return catcher(socket, () => this['onclose'](event))
+        return catcher(socket, event, () => this['onclose'](event))
       }
 
       return response

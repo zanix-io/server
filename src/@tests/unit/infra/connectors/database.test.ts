@@ -1,8 +1,17 @@
-import { ZanixDatabaseConnector } from 'modules/infra/connectors/database.ts'
+import { ZanixDatabaseConnector } from 'modules/infra/connectors/core/database.ts'
 import { assert, assertEquals } from '@std/assert'
 import { ZANIX_PROPS } from 'utils/constants.ts'
 
 class DBConnector extends ZanixDatabaseConnector {
+  protected override initialize() {
+  }
+
+  protected override close(): boolean {
+    return true
+  }
+  public override isHealthy(): Promise<boolean> | boolean {
+    throw new Error('Method not implemented.')
+  }
   public getModel(model: string): string {
     return model + ' processed'
   }
@@ -25,9 +34,8 @@ Deno.test('ZanixDatabaseConnector: should define a database name', () => {
 
 Deno.test('ZanixDatabaseConnector: should run seeders', async () => {
   const conn = new DBConnector()
-  await conn.connectorReady
+  assert(await conn.isReady)
 
-  assertEquals(conn['connected'], true)
   let seedExecution = 0
   let lastSeeder = ''
   await conn['runSeeders']([{
@@ -36,7 +44,7 @@ Deno.test('ZanixDatabaseConnector: should run seeders', async () => {
       (model: string, context) => {
         assertEquals(model, 'model processed')
         seedExecution += 1
-        context['connected'] = false
+        context.constructor.prototype['firstSeeder'] = true
         lastSeeder = '1'
       },
       function (model, context) {
@@ -57,7 +65,7 @@ Deno.test('ZanixDatabaseConnector: should run seeders', async () => {
     ],
   }])
 
-  assertEquals(conn['connected'], false)
+  assert(conn['firstSeeder' as never])
   assertEquals(conn[ZANIX_PROPS].data['db'], 'model/db')
   assert(conn['secondSeeder' as never])
   assertEquals(seedExecution, 3)

@@ -7,6 +7,24 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-11-10
+
+### Added
+
+- Introduced a **technical orchestration layer** for providers in `.providers.ts`, enabling better
+  modularity and management of provider interactions.
+
+### Changed
+
+- Updated connector access and definitions: connectors can no longer access other connectors,
+  ensuring a more isolated and secure structure.
+- Interactors now have access to both providers and connectors, allowing for enhanced flexibility in
+  interactions and data flow.
+- The **Cache Core** has been refactored into a **Cache Provider**, streamlining cache management
+  and improving provider interactions.
+- The **Worker Core** is now refactored as a **Worker Provider**, enabling better separation of
+  concerns and enhancing worker management capabilities.
+
 ## [1.0.15] - 2025-11-03
 
 ### Added

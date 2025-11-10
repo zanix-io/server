@@ -1,6 +1,4 @@
-import type { CoreConnectorTemplates } from 'typings/targets.ts'
-
-import { ZanixConnector } from './base.ts'
+import { ZanixConnector } from '../base.ts'
 
 /**
  * Abstract base class for connectors that integrate with background job or worker systems.
@@ -15,10 +13,6 @@ import { ZanixConnector } from './base.ts'
  *
  * @abstract
  * @extends ZanixConnector
- *
- * @template T - A generic type representing the type of core connectors used by the current connector.
- *               By default, it is set to `object`, meaning the base core connector types are provided unless explicitly specified.
  */
-export abstract class ZanixWorkerConnector<T extends CoreConnectorTemplates = object>
-  extends ZanixConnector<T> {
+export abstract class ZanixWorkerConnector extends ZanixConnector {
 }

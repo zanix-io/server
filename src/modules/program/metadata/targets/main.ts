@@ -4,6 +4,7 @@ import type {
   ZanixConnectorGeneric,
   ZanixHandlerGeneric,
   ZanixInteractorGeneric,
+  ZanixProviderGeneric,
 } from 'typings/targets.ts'
 import type {
   HandlerTypes,
@@ -167,6 +168,22 @@ export class TargetContainer extends BaseInstancesContainer {
     const { contextId, useExistingInstance } = options
 
     return this.getInstance<T>(key, 'connector', {
+      params: contextId || asyncContext.getId(),
+      keyId: contextId,
+      useExistingInstance,
+    })
+  }
+
+  /**
+   * Getting a provider instance
+   */
+  public getProvider<T extends ZanixProviderGeneric>(
+    key: string,
+    options: { contextId?: string; useExistingInstance?: boolean } = {},
+  ): T {
+    const { contextId, useExistingInstance } = options
+
+    return this.getInstance<T>(key, 'provider', {
       params: contextId || asyncContext.getId(),
       keyId: contextId,
       useExistingInstance,

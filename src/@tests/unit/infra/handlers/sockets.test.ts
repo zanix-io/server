@@ -100,13 +100,13 @@ Deno.test('ZanixWebSocket onerror logs correctly', () => {
   logSpy.restore()
 })
 
-Deno.test('socketHandler throws HttpError if not websocket upgrade', async () => {
+Deno.test('socketHandler throws HttpError if not websocket upgrade', () => {
   const ctx = {
     req: { headers: new Map() },
   } as any
   const handler = socketHandler(null as never).bind(new TestSocketHandler())
-  await assertThrows(
-    () => Promise.resolve(handler(ctx)),
+  assertThrows(
+    () => handler(ctx),
     HttpError,
     'METHOD_NOT_ALLOWED',
   )
