@@ -31,7 +31,9 @@ export abstract class ZanixCacheProvider extends ZanixProvider {
   /**
    * This property is not available in this provider, so use `this` to access the instance instead.
    */
-  protected override accessor cache: never = null as never
+  protected override get cache(): never {
+    return null as never
+  }
 
   /**
    * Retrieves a different cache connector based on the given `cache` identifier.

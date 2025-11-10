@@ -31,7 +31,9 @@ export abstract class ZanixWorkerProvider extends ZanixProvider {
   /**
    * This property is not available in this provider, so use `this` to access the instance instead.
    */
-  protected override accessor worker: never = null as never
+  protected override get worker(): never {
+    return null as never
+  }
 
   /**
    * Retrieves a different worker connector based on the given `worker` identifier.
