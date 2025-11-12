@@ -7,6 +7,8 @@ import ProgramModule from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { InternalError } from '@zanix/errors'
 
+import 'providers/core/mod.ts' // initialize module
+
 /** Define decorator to register a provider */
 export function defineProviderDecorator<L extends Exclude<Lifetime, 'TRANSIENT'>>(
   options?: ProviderTypes | ProviderDecoratorOptions<L>,

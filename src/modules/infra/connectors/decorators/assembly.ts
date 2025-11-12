@@ -8,6 +8,8 @@ import ProgramModule from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { InternalError } from '@zanix/errors'
 
+import 'connectors/core/mod.ts' // initialize module
+
 /** Define decorator to register a connector */
 export function defineConnectorDecorator<L extends Lifetime>(
   options?: ConnectorTypes | ConnectorDecoratorOptions<L>,

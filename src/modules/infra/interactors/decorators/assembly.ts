@@ -5,10 +5,39 @@ import type { Lifetime } from 'typings/program.ts'
 
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import ConnectorCoreModules from 'connectors/core/mod.ts'
+import ProviderCoreModules from 'providers/core/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
 import { ZANIX_PROPS } from 'utils/constants.ts'
+
+const coreItems = {
+  connector: Object.values(ConnectorCoreModules),
+  provider: Object.values(ProviderCoreModules),
+}
+
+/** Validate core dependency */
+function validateCoreDependency(
+  Dependency: typeof ZanixConnector | typeof ZanixProvider | undefined,
+  type: 'connector' | 'provider',
+  id: string | undefined,
+  target: string,
+) {
+  if (!Dependency) return
+
+  const dependencyType = ProgramModule.targets['getTarget'](`${type}:${id}`)
+    ?.prototype[ZANIX_PROPS].type // Asume that exists if is not core
+
+  const coreMatch = coreItems[type].find(({ Target }) => Dependency.prototype instanceof Target)
+  if (!dependencyType && coreMatch) {
+    throw new InternalError(
+      `Invalid dependency injection: '${Dependency.name}' is a core ${type} that can be overridden but should not be manually injected into '${target}'. ` +
+        `Access it through 'this.${
+          coreMatch.key.split(':')[0]
+        }' inside your class, and remove it from the Interactor decorator configuration.`,
+    )
+  }
+}
 
 /** Define decorator to register an interactor */
 export function defineInteractorDecorator<
@@ -27,8 +56,6 @@ export function defineInteractorDecorator<
     provider = getTargetKey(options.Provider)
   }
 
-  const coreConnectors = Object.values(ConnectorCoreModules)
-
   return function (Target) {
     if (!(Target.prototype instanceof ZanixInteractor)) {
       throw new InternalError(
@@ -36,21 +63,11 @@ export function defineInteractorDecorator<
       )
     }
 
+    const name = Target.name
     // Core connector validation use
-    const Connector = options?.Connector
-    if (Connector) {
-      const connectorType = ProgramModule.targets['getTarget']('connector:' + connector)
-        ?.prototype[ZANIX_PROPS].type // Asume that exists if is not core
-
-      const connectorTarget = coreConnectors.find(({ Target: ConnectorTarget }) =>
-        Connector.prototype instanceof ConnectorTarget
-      )
-      if (!connectorType && connectorTarget) {
-        throw new InternalError(
-          `Invalid dependency injection: '${Connector.name}' is a core connector and cannot be injected into '${Target.name}'. Access it through 'this.${connectorTarget?.key}' inside your class, and remove it from the Interactor decorator configuration.`,
-        )
-      }
-    }
+    validateCoreDependency(options?.Connector, 'connector', connector, name)
+    // Core provider validation use
+    validateCoreDependency(options?.Provider, 'provider', provider, name)
 
     const key = getTargetKey(Target)
 

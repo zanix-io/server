@@ -24,7 +24,7 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
   extends ZanixProvider<T> {
   #contextId
 
-  constructor(contextId: string) {
+  constructor(contextId?: string) {
     super(contextId)
 
     this.#contextId = contextId

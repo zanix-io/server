@@ -20,7 +20,9 @@ import { ZanixConnector } from '../base.ts'
  * @abstract
  * @extends ZanixConnector
  */
-export abstract class ZanixCacheConnector<K, V, A extends 'sync' | 'async'> extends ZanixConnector {
+// deno-lint-ignore no-explicit-any
+export abstract class ZanixCacheConnector<K = any, V = any, A extends 'sync' | 'async' = 'async'>
+  extends ZanixConnector {
   /** TTL (in seconds) */
   public readonly ttl: number
   protected readonly namespace?: string

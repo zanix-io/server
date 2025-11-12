@@ -10,6 +10,7 @@ import { stub } from '@std/testing/mock'
 import { assert } from '@std/assert/assert'
 import logger from '@zanix/logger'
 import { connectorModuleInitialization } from 'utils/targets.ts'
+import { INSTANCE_KEY_SEPARATOR } from 'utils/constants.ts'
 
 /** mocks */
 stub(console, 'info')
@@ -37,7 +38,7 @@ try {
 
   /** Target module setup startup initialization */
   const startConnection = (key: string) => {
-    const [type, id] = key.split(':') as [ModuleTypes, string]
+    const [type, id] = key.split(INSTANCE_KEY_SEPARATOR) as [ModuleTypes, string]
     const instance = Program.targets['getInstance']<ZanixConnector>(id, type)
 
     if (type !== 'connector') return
@@ -57,14 +58,14 @@ try {
   assert(!Object.keys(Program.routes).length)
 
   // All instantiated classes
-  assertEquals(Object.keys(Program.targets).length, 15)
+  assertEquals(Object.keys(Program.targets).length, 17)
 
   await Promise.all(Program.targets.getTargetsByStartMode('postBoot').map(startConnection))
 
   Program.cleanupMetadata('postBoot')
 
   // Persisted instances
-  assertEquals(Object.keys(Program.targets).length, 12)
+  assertEquals(Object.keys(Program.targets).length, 14)
 } catch (e) {
   logger.debug('An error ocurred', e)
   // ignore

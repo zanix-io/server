@@ -2,10 +2,10 @@ import { assertSpyCalls, spy } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import { defineInteractorDecorator } from 'modules/infra/interactors/decorators/assembly.ts'
-import ConnectorCoreModules from 'modules/infra/connectors/core/all.ts'
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
 import { ZANIX_PROPS } from 'utils/constants.ts'
+import { ZanixWorkerConnector } from 'modules/infra/connectors/core/worker.ts'
 
 const originalDefineTarget = Program.targets.defineTarget
 
@@ -55,17 +55,21 @@ Deno.test('should throw error if class is not an interactor', () => {
 
 Deno.test('should throw error if using core connector directly', () => {
   // Create a fake core connector
-  class CoreConnector {}
-  const coreConnectorKey = 'coreKey' as never
-  const originalWorker = ConnectorCoreModules['worker:local']
-  // Inject it into CORE_CONNECTORS
-  ConnectorCoreModules['worker:local'] = {
-    key: coreConnectorKey,
-    Target: CoreConnector,
+  class CoreConnector extends ZanixWorkerConnector {
+    protected override initialize(): Promise<void> | void {
+      throw new Error('Method not implemented.')
+    }
+    protected override close(): unknown {
+      throw new Error('Method not implemented.')
+    }
+    public override isHealthy(): Promise<boolean> | boolean {
+      throw new Error('Method not implemented.')
+    }
   }
 
   class MyInteractor extends ZanixInteractor {}
-  class BadConnector extends CoreConnector {}
+  class BadConnector extends CoreConnector {
+  }
 
   // Mock getTarget and defineTarget
   Program.targets['getTarget'] = () =>
@@ -82,9 +86,6 @@ Deno.test('should throw error if using core connector directly', () => {
   assertThrows(
     () => Decorator(MyInteractor),
     Deno.errors.Interrupted,
-    `Invalid dependency injection: 'BadConnector' is a core connector and cannot be injected into 'MyInteractor'. Access it through 'this.coreKey' inside your class, and remove it from the Interactor decorator configuration.`,
+    `Invalid dependency injection: 'BadConnector' is a core connector that can be overridden but should not be manually injected into 'MyInteractor'. Access it through 'this.worker' inside your class, and remove it from the Interactor decorator configuration.`,
   )
-
-  // Restore Program.targets
-  ConnectorCoreModules['worker:local'] = originalWorker
 })

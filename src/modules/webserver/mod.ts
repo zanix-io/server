@@ -3,14 +3,14 @@ import type { ModuleTypes } from 'typings/program.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 
 import { connectorModuleInitialization } from 'utils/targets.ts'
-import { GRAPHQL_PORT, SOCKET_PORT } from 'utils/constants.ts'
+import { GRAPHQL_PORT, INSTANCE_KEY_SEPARATOR, SOCKET_PORT } from 'utils/constants.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { WebServerManager } from './manager.ts'
 import logger from '@zanix/logger'
 
 /** Target module setup startup initialization */
 const targetModuleInit = (key: string) => {
-  const [type, id] = key.split(':') as [ModuleTypes, string]
+  const [type, id] = key.split(INSTANCE_KEY_SEPARATOR) as [ModuleTypes, string]
   const instance = ProgramModule.targets['getInstance']<ZanixConnector>(id, type)
 
   if (type !== 'connector') return
@@ -19,12 +19,12 @@ const targetModuleInit = (key: string) => {
 }
 
 /** Catch all module errors */
-self.addEventListener('unhandledrejection', (event) => {
+self.addEventListener('unhandledrejection', async (event) => {
   event.preventDefault()
-  logger.error(event.reason?.message || 'Uncaught (in promise) Error', {
-    meta: { reason: event.reason, source: 'zanix' },
-    code: 'UNHANDLED_PROMISE_REJECTION',
-  })
+  const error = await event.promise.catch((err) => err)
+  error.code = 'UNHANDLED_PROMISE_REJECTION'
+  error.meta = { source: 'zanix' }
+  logger.error(event.reason?.message || 'Uncaught (in promise) Error', error)
 })
 
 /** Disconnect all current connectors */

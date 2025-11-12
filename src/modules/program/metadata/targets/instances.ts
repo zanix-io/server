@@ -3,7 +3,7 @@ import type { MetadataInstances, ModuleTypes } from 'typings/program.ts'
 import type { InstanceOptions } from 'typings/context.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 
-import { DEFAULT_CONTEXT_ID, ZANIX_PROPS } from 'utils/constants.ts'
+import { DEFAULT_CONTEXT_ID, INSTANCE_KEY_SEPARATOR, ZANIX_PROPS } from 'utils/constants.ts'
 import { TargetError } from 'utils/errors.ts'
 import { BaseContainer } from '../base.ts'
 
@@ -12,8 +12,8 @@ import { BaseContainer } from '../base.ts'
  */
 export abstract class BaseInstancesContainer extends BaseContainer {
   #scopedInstances = new Set<string>()
-  #getKey = (type: ModuleTypes, baseKey: string) => `${type}:${baseKey}`
-  #getInstanceKey = (key: string, keyId: string) => `${key}:${keyId}`
+  #getKey = (type: ModuleTypes, baseKey: string) => `${type}${INSTANCE_KEY_SEPARATOR}${baseKey}`
+  #getInstanceKey = (key: string, keyId: string) => `${key}${INSTANCE_KEY_SEPARATOR}${keyId}`
 
   /**
    * Function to save target instance definition
@@ -85,6 +85,7 @@ export abstract class BaseInstancesContainer extends BaseContainer {
       throw new TargetError('This action cannot be completed at the moment.', startMode, {
         code: 'INVALID_INSTANCE',
         meta: {
+          key,
           source: 'zanix',
           classType: type,
           message: 'An error ocurred on trying to instance the class',

@@ -10,7 +10,6 @@ import { Get } from 'modules/infra/handlers/rest/decorators/get.ts'
 import { ZanixInteractor } from 'interactors/base.ts'
 import { Interactor } from 'interactors/decorators/base.ts'
 import { Connector } from 'connectors/decorators/base.ts'
-import { ZanixAsyncmqConnector } from 'modules/infra/connectors/core/asyncmq.ts'
 import {
   defineGlobalInterceptorHOC,
   defineGlobalPipeHOC,
@@ -30,6 +29,8 @@ import { assertEquals } from '@std/assert/assert-equals'
 import ProgramModule from 'modules/program/mod.ts'
 import { Provider } from 'providers/decorators/base.ts'
 import { ZanixProvider } from 'providers/base.ts'
+import { ZanixCacheProvider } from 'providers/core/cache.ts'
+import { ZanixCacheConnector } from 'modules/infra/connectors/core/cache.ts'
 
 /** RTOS */
 class C extends BaseRTO {
@@ -69,7 +70,7 @@ class _ConnectorB extends _ConnectorA {
 class _ConnectorC extends _ConnectorB {
 }
 @Connector({ startMode: 'onSetup' })
-class Connectors extends ZanixAsyncmqConnector {
+class Connectors extends ZanixConnector {
   #connected = false
   protected override initialize(): Promise<void> | void {
   }
@@ -97,8 +98,52 @@ class Connectors extends ZanixAsyncmqConnector {
   }
 }
 
+@Connector('cache:local')
+class _CacheClass extends ZanixCacheConnector {
+  public override set(_: any, __: any): Promise<void> {
+    throw new Error('Method not implemented.')
+  }
+  public get(_: any): any {
+    return '1'
+  }
+  public override has(_: any): Promise<boolean> {
+    throw new Error('Method not implemented.')
+  }
+  public override delete(_: any): Promise<boolean> {
+    throw new Error('Method not implemented.')
+  }
+  public override clear(): Promise<void> {
+    throw new Error('Method not implemented.')
+  }
+  public override size(): Promise<number> {
+    throw new Error('Method not implemented.')
+  }
+  public override keys(): Promise<any[]> {
+    throw new Error('Method not implemented.')
+  }
+  public override values<O = any>(): Promise<O[]> {
+    throw new Error('Method not implemented.')
+  }
+  protected override initialize(): Promise<void> | void {
+  }
+  protected override close(): unknown {
+    return true
+  }
+  public override isHealthy(): Promise<boolean> | boolean {
+    return true
+  }
+}
+
+@Provider('cache')
+class _CacheProviderClass extends ZanixCacheProvider<{ cache: any }> {
+}
+
 @Provider()
 class ProviderClass extends ZanixProvider<{ cache: any }> {
+  constructor() {
+    super()
+    assertEquals(this.cache.local.get(), '1')
+  }
   public override use(_: unknown): ZanixConnector {
     throw new Error('Method not implemented.')
   }

@@ -23,7 +23,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
   extends ZanixProvider<T> {
   #contextId
 
-  constructor(contextId: string) {
+  constructor(contextId?: string) {
     super(contextId)
 
     this.#contextId = contextId
@@ -82,7 +82,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * This getter provides a direct access to the local cache connector.
    */
   public get local(): ZanixCacheConnectorGeneric<'sync'> {
-    return this.use<'sync'>('redis')
+    return this.use<'sync'>('local')
   }
 
   /**

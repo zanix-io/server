@@ -40,6 +40,7 @@ export const LIFETIME_MODE: Record<Lifetime, Lifetime> = {
   TRANSIENT: 'TRANSIENT',
 }
 
+export const INSTANCE_KEY_SEPARATOR = '::'
 export const HANDLER_METADATA_PROPERTY_KEY = 'handler_properties'
 
 export const DEFAULT_CONTEXT_ID = 'zanix-default-ctx'
