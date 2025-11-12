@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-11-11
+
+### Fixed
+
+- Cache and Worker providers.
+
 ## [1.1.0] - 2025-11-10
 
 ### Added

@@ -49,6 +49,7 @@ export { Connector } from 'connectors/decorators/base.ts'
 export { ZanixProvider } from 'providers/base.ts'
 export { ZanixCacheProvider } from 'providers/core/cache.ts'
 export { ZanixWorkerProvider } from 'providers/core/worker.ts'
+export { Provider } from 'providers/decorators/base.ts'
 
 // Middlewares
 export { defineGlobalInterceptorHOC, defineGlobalPipeHOC } from 'middlewares/hocs/base.ts'
@@ -73,7 +74,12 @@ export {
 export { TargetError } from 'utils/errors.ts'
 
 // Types
-export type { GeneralTargetTypes, ModuleTypes, StartMode } from 'typings/program.ts'
+export type {
+  CoreCacheConnectors,
+  GeneralTargetTypes,
+  ModuleTypes,
+  StartMode,
+} from 'typings/program.ts'
 export type { ConnectionStatusHandler, Seeders } from 'typings/general.ts'
 export type {
   BootstrapServerOptions,

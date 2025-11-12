@@ -1,4 +1,5 @@
 import type { ZanixWorkerConnector } from 'connectors/core/worker.ts'
+import type { CoreConnectorTemplates } from 'typings/targets.ts'
 import type { CoreWorkerConnectors } from 'typings/program.ts'
 import ConnectorCoreModules from 'connectors/core/all.ts'
 
@@ -19,7 +20,8 @@ import { ZanixProvider } from '../base.ts'
  * @abstract
  * @extends ZanixProvider
  */
-export abstract class ZanixWorkerProvider extends ZanixProvider {
+export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = object>
+  extends ZanixProvider<T> {
   #contextId
 
   constructor(contextId: string) {
@@ -29,10 +31,10 @@ export abstract class ZanixWorkerProvider extends ZanixProvider {
   }
 
   /**
-   * This property is not available in this provider, so use `this` to access the instance instead.
+   * **Note:** use `this` to access the instance instead.
    */
-  protected override get worker(): never {
-    return null as never
+  protected override get worker(): this {
+    return this
   }
 
   /**
@@ -45,9 +47,14 @@ export abstract class ZanixWorkerProvider extends ZanixProvider {
    * This method dynamically retrieves a worker connector based on the provided `worker` key
    */
   public use<T extends ZanixWorkerConnector>(worker: CoreWorkerConnectors): T {
-    return ProgramModule.targets.getConnector<T>(ConnectorCoreModules[`worker:${worker}`].key, {
-      contextId: this.#contextId,
-    })
+    const workerId = `worker:${worker}` as const
+    return this.checkInstance(
+      () =>
+        ProgramModule.targets.getConnector<T>(ConnectorCoreModules[workerId].key, {
+          contextId: this.#contextId,
+        }),
+      workerId,
+    )
   }
 
   /**
@@ -59,12 +66,7 @@ export abstract class ZanixWorkerProvider extends ZanixProvider {
    * This getter provides a direct access to the Bull worker connector.
    */
   public get bull(): ZanixWorkerConnector {
-    return ProgramModule.targets.getConnector<ZanixWorkerConnector>(
-      ConnectorCoreModules['worker:bull'].key,
-      {
-        contextId: this.#contextId,
-      },
-    )
+    return this.use('bull')
   }
 
   /**
@@ -76,11 +78,6 @@ export abstract class ZanixWorkerProvider extends ZanixProvider {
    * This getter provides a direct access to the local worker connector.
    */
   public get local(): ZanixWorkerConnector {
-    return ProgramModule.targets.getConnector<ZanixWorkerConnector>(
-      ConnectorCoreModules['worker:local'].key,
-      {
-        contextId: this.#contextId,
-      },
-    )
+    return this.use('local')
   }
 }

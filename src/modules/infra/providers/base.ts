@@ -1,7 +1,10 @@
 import type { CoreConnectorTemplates } from 'typings/targets.ts'
+import type { CoreConnectors } from 'typings/program.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 
 import { CoreBaseClass } from '../base/core.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
+import { TargetError } from 'utils/errors.ts'
 
 /**
  * Abstract base class for implementing **providers** and the technical orchestration layer in the Zanix framework.
@@ -24,6 +27,45 @@ import { CoreBaseClass } from '../base/core.ts'
  */
 export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
   extends CoreBaseClass<T> {
+  /**
+   * Checks if an instance is available and executes the given function.
+   *
+   * This method ensures that the requested connector instance exists
+   * in the current context before executing the provided callback function.
+   * If the instance is not available, it throws a `TargetError`.
+   */
+  protected checkInstance<T>(fn: () => T, connector: CoreConnectors): T {
+    const { startMode } = this[ZANIX_PROPS]
+    try {
+      return fn()
+    } catch {
+      throw new TargetError('An error occurred in the system', startMode, {
+        code: 'CONNECTOR_INSTANCE_NOT_FOUND',
+        cause: `The "${connector}" instance is not available in this context.`,
+        meta: {
+          connector,
+          target: 'provider',
+          source: 'zanix',
+          suggestion:
+            'Check environment variables and configuration settings to ensure this connector is properly configured.',
+        },
+      })
+    }
+  }
+
+  /** Not method implemented base error */
+  private methodNotImplementedError(methodName: string) {
+    const { startMode } = this[ZANIX_PROPS]
+    return new TargetError('An error occurred in the system', startMode, {
+      code: 'METHOD_NOT_IMPLEMENTED',
+      cause: `Connector '${methodName}' method was not implemented.`,
+      meta: {
+        target: 'provider',
+        source: 'zanix',
+      },
+    })
+  }
+
   /**
    * Retrieves a different connector based on the given identifier.
    *

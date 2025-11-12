@@ -26,3 +26,10 @@ export type Seeders = Array<{
  * @returns {void}
  */
 export type ConnectionStatusHandler = <T extends Error | 'OK' | 'unknownError'>(status: T) => void
+
+/** Async return */
+export type Async<V> = {
+  never: Promise<V> | V
+  async: Promise<V>
+  sync: V
+}

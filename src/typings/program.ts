@@ -38,8 +38,9 @@ export type ModuleTypes =
   | HandlerTypes
   | GeneralTargetTypes
 
-export type CoreCacheConnectors = 'local' | 'redis'
-export type CoreWorkerConnectors = 'local' | 'bull'
+export type GenericTargets = 'custom'
+export type CoreCacheConnectors = 'local' | 'memcached' | 'redis' | GenericTargets
+export type CoreWorkerConnectors = 'local' | 'bull' | GenericTargets
 export type CoreConnectors =
   | `cache:${CoreCacheConnectors}`
   | `worker:${CoreWorkerConnectors}`
@@ -47,7 +48,6 @@ export type CoreConnectors =
   | 'database'
 
 export type CoreProviders = 'cache' | 'worker'
-export type GenericTargets = 'custom'
 
 export type ConnectorTypes = CoreConnectors | GenericTargets
 export type ProviderTypes = CoreProviders | GenericTargets

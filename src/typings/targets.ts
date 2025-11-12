@@ -60,7 +60,11 @@ export type ZanixConnectorGeneric = ZanixConnector
 
 export type ZanixProviderGeneric = ZanixProvider<any>
 
-export type ZanixCacheConnectorGeneric = ZanixCacheConnector<any, any>
+export type ZanixCacheConnectorGeneric<A extends 'sync' | 'async' = 'async'> = ZanixCacheConnector<
+  any,
+  any,
+  A
+>
 export type ZanixProviderClass<T extends ZanixProvider = ZanixProvider> = new (
   contextId: string,
 ) => T

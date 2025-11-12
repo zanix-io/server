@@ -1,4 +1,5 @@
 import type { ConnectorOptions } from 'typings/targets.ts'
+import type { Async } from 'typings/general.ts'
 
 import { ZanixConnector } from '../base.ts'
 
@@ -19,13 +20,14 @@ import { ZanixConnector } from '../base.ts'
  * @abstract
  * @extends ZanixConnector
  */
-export abstract class ZanixCacheConnector<K, V> extends ZanixConnector {
+export abstract class ZanixCacheConnector<K, V, A extends 'sync' | 'async'> extends ZanixConnector {
+  /** TTL (in seconds) */
   public readonly ttl: number
   protected readonly namespace?: string
 
   /**
    * Creates an instance of ZanixCache Base.
-   * @param ttl Optional TTL (in milliseconds). If set, each entry expires after this duration.
+   * @param ttl Optional TTL (in seconds). If set, each entry expires after this duration.
    * @param namespace Key prefix to segment data on cloud caching
    */
   constructor(
@@ -42,8 +44,9 @@ export abstract class ZanixCacheConnector<K, V> extends ZanixConnector {
    *
    * @param key The key used to store the value.
    * @param value The value to store.
+   * @param exp The optional expiration (in seconds) or KEEPTTL if already exists
    */
-  public abstract set(key: K, value: V): void
+  public abstract set(key: K, value: V, exp?: number | 'KEEPTTL'): Async<void>[A]
 
   /**
    * Retrieves a value from the cache.
@@ -51,7 +54,7 @@ export abstract class ZanixCacheConnector<K, V> extends ZanixConnector {
    * @param key The key to look up in the cache.
    * @returns The cached value, or `undefined` if not found.
    */
-  public abstract get(key: K): V | undefined | Promise<V | undefined>
+  public abstract get<O = V>(key: K): Async<O | undefined>[A]
 
   /**
    * Checks whether the cache contains a specific key.
@@ -59,7 +62,7 @@ export abstract class ZanixCacheConnector<K, V> extends ZanixConnector {
    * @param key The key to check for.
    * @returns `true` if the key exists, otherwise `false`.
    */
-  public abstract has(key: K): boolean | Promise<boolean>
+  public abstract has(key: K): Async<boolean>[A]
 
   /**
    * Deletes an entry from the cache.
@@ -67,33 +70,33 @@ export abstract class ZanixCacheConnector<K, V> extends ZanixConnector {
    * @param key The key to delete.
    * @returns `true` if the entry existed and was removed, otherwise `false`.
    */
-  public abstract delete(key: K): boolean | Promise<boolean>
+  public abstract delete(key: K): Async<boolean>[A]
 
   /**
    * Removes all entries from the cache.
    */
-  public abstract clear(): void | Promise<void>
+  public abstract clear(): Async<void>[A]
 
   /**
    * Returns the number of valid entries currently in the cache.
    *
    * @returns The number of items in the cache.
    */
-  public abstract size(): number | Promise<number>
+  public abstract size(): Async<number>[A]
 
   /**
    * Returns all keys currently stored in the cache.
    *
    * @returns An array of keys.
    */
-  public abstract keys(): K[] | Promise<K[]>
+  public abstract keys(): Async<K[]>[A]
 
   /**
    * Returns all values currently stored in the cache.
    *
    * @returns An array of values.
    */
-  public abstract values(): V[] | Promise<V[]>
+  public abstract values<O = V>(): Async<O[]>[A]
 
   /**
    * Generate key with namespace (prefix)
