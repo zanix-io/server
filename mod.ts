@@ -52,10 +52,17 @@ export { ZanixWorkerProvider } from 'providers/core/worker.ts'
 export { Provider } from 'providers/decorators/base.ts'
 
 // Middlewares
-export { defineGlobalInterceptorHOC, defineGlobalPipeHOC } from 'middlewares/hocs/base.ts'
+export {
+  defineGlobalGuardHOC,
+  defineGlobalInterceptorHOC,
+  defineGlobalPipeHOC,
+} from 'middlewares/hocs/base.ts'
 export { Pipe } from 'middlewares/decorators/pipe.ts'
+export { Guard } from 'middlewares/decorators/guard.ts'
 export { Interceptor } from 'middlewares/decorators/interceptor.ts'
 export { RequestValidation } from 'middlewares/decorators/validation.ts'
+export { requestValidationPipe } from 'modules/infra/middlewares/defaults/validation.pipe.ts'
+export { defineMiddlewareDecorator } from 'modules/infra/middlewares/decorators/assembly.ts'
 
 // Constants
 export {
@@ -72,6 +79,11 @@ export {
 
 // Utils
 export { TargetError } from 'utils/errors.ts'
+export { cleanRoute } from 'utils/routes.ts'
+export { processUrlParams } from 'utils/params.ts'
+export { gzipResponse, gzipResponseFromResponse } from 'utils/gzip.ts'
+export { getConnectors, getProviders } from 'utils/targets.ts'
+export { errorResponses } from 'webserver/helpers/errors.ts'
 
 // Types
 export type {
@@ -88,8 +100,10 @@ export type {
   WebServerTypes,
 } from 'typings/server.ts'
 export type {
+  MiddlewareGlobalGuard,
   MiddlewareGlobalInterceptor,
   MiddlewareGlobalPipe,
+  MiddlewareGuard,
   MiddlewareInterceptor,
   MiddlewareInternalInterceptor,
   MiddlewarePipe,
@@ -97,6 +111,12 @@ export type {
 export type { HandlerContext, ScopedContext, Session } from 'typings/context.ts'
 export type { ConnectorOptions, CoreConnectorTemplates } from 'typings/targets.ts'
 export type { HttpMethods } from 'typings/router.ts'
+export type {
+  ZanixClassDecorator,
+  ZanixFunctionDecorator,
+  ZanixGenericDecorator,
+  ZanixMethodDecorator,
+} from 'typings/decorators.ts'
 
 // Main
 export { WebServerManager } from 'modules/webserver/manager.ts'

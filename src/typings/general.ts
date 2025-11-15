@@ -33,3 +33,22 @@ export type Async<V> = {
   async: Promise<V>
   sync: V
 }
+
+/**
+ * Options for controlling GZIP compression settings.
+ */
+export type GzipSettings = {
+  /**
+   * Minimum size in bytes before compression is applied.
+   * Defaults to 1024 bytes (1 KB) if not specified.
+   */
+  threshold?: number
+}
+
+/**
+ * Options for controlling GZIP compression.
+ *
+ * Can either be `false` to disable compression entirely,
+ * or an object with optional settings.
+ */
+export type GzipOptions = false | GzipSettings

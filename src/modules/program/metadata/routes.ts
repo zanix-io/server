@@ -32,7 +32,10 @@ export class RouteContainer extends BaseContainer {
 
       const savedPath = cleanRoute(join(prefix, endpoint))
 
-      const { interceptors, pipes } = this.middlewares.getMiddlewares(type, { Target, propertyKey })
+      const { interceptors, pipes, guards } = this.middlewares.getMiddlewares(type, {
+        Target,
+        propertyKey,
+      })
 
       if (route[savedPath]) {
         const target: object['constructor'] = route[savedPath].handler['Target' as never]
@@ -47,6 +50,7 @@ export class RouteContainer extends BaseContainer {
         methods: this.getHttpMethods({ Target, propertyKey }),
         interceptors: Array.from(interceptors),
         pipes: Array.from(pipes),
+        guards: Array.from(guards),
       }
     }
   }

@@ -7,7 +7,7 @@ import ProgramModule from 'modules/program/mod.ts'
 import { capitalize } from '@zanix/helpers'
 import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
-import { ZANIX_PROPS } from 'utils/constants.ts'
+import { PARAM_PATTERN, ZANIX_PROPS } from 'utils/constants.ts'
 
 /** Function to process routes */
 export const routeProcessor = (server: WebServerTypes, globalPrefix: string = '') => {
@@ -20,8 +20,10 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
 
   globalPrefix = cleanRoute(globalPrefix).replace(/\/$/g, '').replace(/^\//g, '')
 
-  const processedRoutes = Object.keys(routes).reduce<ProcessedRoutes>((acc, route) => {
-    const { handler, interceptors, pipes, methods } = routes[route]
+  const processedRoutes = Object.keys(routes).reduce<
+    { absolutePaths: ProcessedRoutes; relativePaths: ProcessedRoutes }
+  >((acc, route) => {
+    const { handler, interceptors, pipes, methods, guards } = routes[route]
     route = globalPrefix && `/${globalPrefix}` !== route ? `/${globalPrefix}${route}` : route
 
     logger.info(
@@ -50,17 +52,23 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
       }
     }
 
-    acc[route as keyof typeof acc] = {
-      regex: pathToRegex(route),
+    const baseRoute = {
       params: getParamNames(route),
       handler: processedHandler,
       methods: methods.length === 0 ? ['GET', 'POST'] : methods,
       interceptors,
       enableALS,
+      guards,
       pipes,
+    } as ProcessedRoutes[0]
+
+    if (PARAM_PATTERN.test(route)) {
+      acc.relativePaths[route] = { ...baseRoute, regex: pathToRegex(route) }
+    } else {
+      acc.absolutePaths[route] = baseRoute
     }
     return acc
-  }, {})
+  }, { relativePaths: {}, absolutePaths: {} })
 
   return processedRoutes
 }

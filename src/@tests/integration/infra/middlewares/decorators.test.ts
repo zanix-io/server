@@ -3,8 +3,7 @@ import { assertSpyCalls, spy } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
 import {
   applyMiddlewaresToTarget,
-  defineInterceptorDecorator,
-  definePipeDecorator,
+  defineMiddlewareDecorator,
 } from 'modules/infra/middlewares/decorators/assembly.ts'
 import { assertEquals } from '@std/assert/assert-equals'
 
@@ -13,14 +12,17 @@ function DummyPipe(_: any, next: any) {
   return next()
 }
 
+function DummyGuard(_: any, next: any) {
+  return next()
+}
+
 function DummyInterceptor(_: any, next: any) {
   return next()
 }
 
-const addPipeSpy = spy(Program.middlewares, 'addPipe')
-
 Deno.test('definePipeDecorator on class should call addPipe', () => {
-  @definePipeDecorator(DummyPipe)
+  const addPipeSpy = spy(Program.middlewares, 'addPipe')
+  @defineMiddlewareDecorator('pipe', DummyPipe)
   class SomeClass {}
 
   assertSpyCalls(addPipeSpy, 1)
@@ -30,10 +32,22 @@ Deno.test('definePipeDecorator on class should call addPipe', () => {
   addPipeSpy.restore()
 })
 
+Deno.test('defineGuardDecorator on class should call addGuard', () => {
+  const addGuardSpy = spy(Program.middlewares, 'addGuard')
+  @defineMiddlewareDecorator('guard', DummyGuard)
+  class SomeClass {}
+
+  assertSpyCalls(addGuardSpy, 1)
+  assertEquals(addGuardSpy.calls[0].args[0], DummyGuard)
+  assertEquals(addGuardSpy.calls[0].args[1]?.Target, SomeClass)
+
+  addGuardSpy.restore()
+})
+
 Deno.test('defineInterceptorDecorator on class should call addInterceptor', () => {
   const addInterceptorSpy = spy(Program.middlewares, 'addInterceptor')
 
-  @defineInterceptorDecorator(DummyInterceptor)
+  @defineMiddlewareDecorator('interceptor', DummyInterceptor)
   class AnotherClass {}
 
   assertSpyCalls(addInterceptorSpy, 1)
@@ -49,7 +63,7 @@ Deno.test('definePipeDecorator on method should call addDecoratorData with pipe'
   // deno-lint-ignore no-unused-vars
   class Controller {
     // deno-lint-ignore deno-zanix-plugin/require-access-modifier
-    @definePipeDecorator(DummyPipe)
+    @defineMiddlewareDecorator('pipe', DummyPipe)
     handle() {}
   }
 
@@ -62,13 +76,32 @@ Deno.test('definePipeDecorator on method should call addDecoratorData with pipe'
   addDecoratorSpy.restore()
 })
 
+Deno.test('defineGuardDecorator on method should call addDecoratorData with guard', () => {
+  const addDecoratorSpy = spy(Program.decorators, 'addDecoratorData')
+
+  // deno-lint-ignore no-unused-vars
+  class Controller {
+    // deno-lint-ignore deno-zanix-plugin/require-access-modifier
+    @defineMiddlewareDecorator('guard', DummyGuard)
+    handle() {}
+  }
+
+  assertSpyCalls(addDecoratorSpy, 1)
+  const call = addDecoratorSpy.calls[0] as any
+  assertEquals(call.args[0].handler, 'handle')
+  assertEquals(call.args[0].mid, DummyGuard)
+  assertEquals(call.args[1], 'guard')
+
+  addDecoratorSpy.restore()
+})
+
 Deno.test('defineInterceptor on method should call addDecoratorData with interceptor', () => {
   const addDecoratorSpy = spy(Program.decorators, 'addDecoratorData')
 
   // deno-lint-ignore no-unused-vars
   class Controller {
     // deno-lint-ignore deno-zanix-plugin/require-access-modifier
-    @defineInterceptorDecorator(DummyInterceptor)
+    @defineMiddlewareDecorator('interceptor', DummyInterceptor)
     process() {}
   }
 
@@ -82,10 +115,13 @@ Deno.test('defineInterceptor on method should call addDecoratorData with interce
 })
 
 Deno.test('applyMiddlewaresToTarget should apply and clear decorators', () => {
+  const addGuardSpy = spy(Program.middlewares, 'addGuard')
   const addPipeSpy = spy(Program.middlewares, 'addPipe')
   const addInterceptorSpy = spy(Program.middlewares, 'addInterceptor')
   Program.decorators.getDecoratorsData = ((key: any) => {
-    if (key === 'pipe') {
+    if (key === 'guard') {
+      return [{ handler: 'foo', mid: DummyGuard }]
+    } else if (key === 'pipe') {
       return [{ handler: 'foo', mid: DummyPipe }]
     } else if (key === 'interceptor') {
       return [{ handler: 'bar', mid: DummyInterceptor }]
@@ -100,10 +136,18 @@ Deno.test('applyMiddlewaresToTarget should apply and clear decorators', () => {
 
   applyMiddlewaresToTarget(TargetClass as never)
 
-  assertSpyCalls(getDecoratorsSpy, 2)
+  assertSpyCalls(getDecoratorsSpy, 3)
+  assertSpyCalls(addGuardSpy, 1)
+  assertSpyCalls(getDecoratorsSpy, 3)
   assertSpyCalls(addPipeSpy, 1)
   assertSpyCalls(addInterceptorSpy, 1)
-  assertSpyCalls(deleteSpy, 2)
+  assertSpyCalls(deleteSpy, 3)
+
+  assertEquals(addGuardSpy.calls[0].args[0], DummyGuard)
+  assertEquals(addGuardSpy.calls[0].args[1], {
+    Target: TargetClass as never,
+    propertyKey: 'foo',
+  })
 
   assertEquals(addPipeSpy.calls[0].args[0], DummyPipe)
   assertEquals(addPipeSpy.calls[0].args[1], {
@@ -117,6 +161,7 @@ Deno.test('applyMiddlewaresToTarget should apply and clear decorators', () => {
     propertyKey: 'bar',
   })
 
+  addGuardSpy.restore()
   addPipeSpy.restore()
   addInterceptorSpy.restore()
   getDecoratorsSpy.restore()

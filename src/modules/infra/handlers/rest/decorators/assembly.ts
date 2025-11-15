@@ -6,7 +6,10 @@ import type {
 } from 'typings/decorators.ts'
 import type { HttpMethods } from 'typings/router.ts'
 
-import { applyMiddlewaresToTarget, definePipeDecorator } from 'middlewares/decorators/assembly.ts'
+import {
+  applyMiddlewaresToTarget,
+  defineMiddlewareDecorator,
+} from 'middlewares/decorators/assembly.ts'
 import { requestValidationPipe } from 'middlewares/defaults/validation.pipe.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import ProgramModule from 'modules/program/mod.ts'
@@ -80,6 +83,6 @@ export function defineControllerMethodDecorator(
       { handler, endpoint: endpoint || handler, httpMethod },
       'controller',
     )
-    if (rto) definePipeDecorator((ctx) => requestValidationPipe(ctx, rto))(method)
+    if (rto) defineMiddlewareDecorator('pipe', (ctx) => requestValidationPipe(ctx, rto))(method)
   }
 }

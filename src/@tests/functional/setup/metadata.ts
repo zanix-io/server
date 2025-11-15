@@ -31,6 +31,7 @@ import { Provider } from 'providers/decorators/base.ts'
 import { ZanixProvider } from 'providers/base.ts'
 import { ZanixCacheProvider } from 'providers/core/cache.ts'
 import { ZanixCacheConnector } from 'modules/infra/connectors/core/cache.ts'
+import { Guard } from 'modules/infra/middlewares/decorators/guard.ts'
 
 /** RTOS */
 class C extends BaseRTO {
@@ -100,31 +101,34 @@ class Connectors extends ZanixConnector {
 
 @Connector('cache:local')
 class _CacheClass extends ZanixCacheConnector {
+  public override getClient<T>(): T {
+    throw new Error('Method not implemented.')
+  }
   public override set(_: any, __: any): Promise<void> {
     throw new Error('Method not implemented.')
   }
   public get(_: any): any {
     return '1'
   }
-  public override has(_: any): Promise<boolean> {
+  public override has(_: any): boolean {
     throw new Error('Method not implemented.')
   }
-  public override delete(_: any): Promise<boolean> {
+  public override delete(_: any): boolean {
     throw new Error('Method not implemented.')
   }
-  public override clear(): Promise<void> {
+  public override clear(): void {
     throw new Error('Method not implemented.')
   }
-  public override size(): Promise<number> {
+  public override size(): number {
     throw new Error('Method not implemented.')
   }
-  public override keys(): Promise<any[]> {
+  public override keys(): any[] {
     throw new Error('Method not implemented.')
   }
-  public override values<O = any>(): Promise<O[]> {
+  public override values<O = any>(): O[] {
     throw new Error('Method not implemented.')
   }
-  protected override initialize(): Promise<void> | void {
+  protected override initialize(): void {
   }
   protected override close(): unknown {
     return true
@@ -356,6 +360,17 @@ class _Controller extends ZanixController<InteractorX> {
 class _ControllerBasic extends ZanixController {
   @Get()
   public hello() {
+    return 'response'
+  }
+}
+
+@Controller()
+class _ControllerGuard extends ZanixController {
+  @Get()
+  @Guard((ctx) => {
+    return { response: new Response(ctx.id) }
+  })
+  public helloGuard() {
     return 'response'
   }
 }

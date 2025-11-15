@@ -81,8 +81,8 @@ export class WebServerManager {
 
     const {
       isInternal,
-      server: { onceStop, globalPrefix, ssl, cors, ...opts } = {},
-      handler = getMainHandler(type, cors, isInternal ? serverID : globalPrefix),
+      server: { onceStop, globalPrefix, ssl, gzip, cors, ...opts } = {},
+      handler = getMainHandler(type, { cors, gzip }, isInternal ? serverID : globalPrefix),
     } = options
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 

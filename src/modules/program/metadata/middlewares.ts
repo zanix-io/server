@@ -1,4 +1,4 @@
-import type { MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
+import type { MiddlewareGuard, MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
 import type { MetadataTargetSymbols } from 'typings/program.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 
@@ -7,6 +7,24 @@ import { BaseContainer } from './base.ts'
 export class MiddlewaresContainer extends BaseContainer {
   #interceptorsKey = (key = '') => `interceptors:${key}`
   #pipesKey = (key = '') => `pipes:${key}`
+  #guardsKey = (key = '') => `guards:${key}`
+
+  /**
+   * Generic function to add a middleare
+   */
+  private addMiddleware<T extends MiddlewareGuard | MiddlewareInterceptor | MiddlewarePipe>(
+    middleware: T,
+    getMiddlewares: ({ Target, propertyKey }: MetadataTargetSymbols) => T[],
+    keyFn: (propertyKey: string) => string,
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
+  ) {
+    const elements = getMiddlewares({ Target, propertyKey })
+    const elementsSet = new Set<T>(elements)
+
+    if (!elementsSet.has(middleware)) elementsSet.add(middleware)
+
+    this.setData(keyFn(propertyKey), Array.from(elementsSet), Target)
+  }
 
   /**
    * Function to add a pipe to a specified target or property.
@@ -15,30 +33,42 @@ export class MiddlewaresContainer extends BaseContainer {
     pipe: MiddlewarePipe,
     { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ) {
-    const pipes = this.getPipes({ Target, propertyKey })
-    const pipesSet = new Set<MiddlewarePipe>(pipes)
-
-    if (!pipesSet.has(pipe)) pipesSet.add(pipe)
-
-    this.setData<MiddlewarePipe[]>(this.#pipesKey(propertyKey), Array.from(pipesSet), Target)
+    this.addMiddleware(pipe, this.getPipes.bind(this), this.#pipesKey.bind(this), {
+      Target,
+      propertyKey,
+    })
   }
 
   /**
    * Function to add a global pipe.
    */
-  public addGlobalPipe(pipe: MiddlewarePipe, servers: WebServerTypes[]) {
+  public addGlobalPipe(pipe: MiddlewarePipe, servers: (WebServerTypes | 'all')[]) {
     servers.forEach((server) => {
       this.addPipe(pipe, { propertyKey: server })
     })
   }
 
   /**
-   * Retrieves all Pipes associated with a specific target or property
+   * Function to add a guard to a specified target or property.
    */
-  public getPipes({ Target, propertyKey = 'local' }: MetadataTargetSymbols = {}): MiddlewarePipe[] {
-    return this.getData<MiddlewarePipe[] | undefined>(this.#pipesKey(propertyKey), Target) || []
+  public addGuard(
+    guard: MiddlewareGuard,
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
+  ) {
+    this.addMiddleware(guard, this.getGuards.bind(this), this.#guardsKey.bind(this), {
+      Target,
+      propertyKey,
+    })
   }
 
+  /**
+   * Function to add a global guard.
+   */
+  public addGlobalGuard(guard: MiddlewareGuard, servers: (WebServerTypes | 'all')[]) {
+    servers.forEach((server) => {
+      this.addGuard(guard, { propertyKey: server })
+    })
+  }
   /**
    * Function to add an interceptor to a specified target or property
    */
@@ -46,25 +76,43 @@ export class MiddlewaresContainer extends BaseContainer {
     interceptor: MiddlewareInterceptor,
     { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ) {
-    const interceptors = this.getInterceptors({ Target, propertyKey })
-    const interceptorsSet = new Set<MiddlewareInterceptor>(interceptors)
-
-    if (!interceptorsSet.has(interceptor)) interceptorsSet.add(interceptor)
-
-    this.setData<MiddlewareInterceptor[]>(
-      this.#interceptorsKey(propertyKey),
-      Array.from(interceptorsSet),
-      Target,
+    this.addMiddleware(
+      interceptor,
+      this.getInterceptors.bind(this),
+      this.#interceptorsKey.bind(this),
+      {
+        Target,
+        propertyKey,
+      },
     )
   }
 
   /**
    * Function to add a global interceptor.
    */
-  public addGlobalInterceptor(interceptor: MiddlewareInterceptor, servers: WebServerTypes[]) {
+  public addGlobalInterceptor(
+    interceptor: MiddlewareInterceptor,
+    servers: (WebServerTypes | 'all')[],
+  ) {
     servers.forEach((server) => {
       this.addInterceptor(interceptor, { propertyKey: server })
     })
+  }
+
+  /**
+   * Retrieves all Guards associated with a specific property
+   */
+  public getGuards(
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
+  ): MiddlewareGuard[] {
+    return this.getData<MiddlewareGuard[] | undefined>(this.#guardsKey(propertyKey), Target) || []
+  }
+
+  /**
+   * Retrieves all Pipes associated with a specific target or property
+   */
+  public getPipes({ Target, propertyKey = 'local' }: MetadataTargetSymbols = {}): MiddlewarePipe[] {
+    return this.getData<MiddlewarePipe[] | undefined>(this.#pipesKey(propertyKey), Target) || []
   }
 
   /**
@@ -104,22 +152,46 @@ export class MiddlewaresContainer extends BaseContainer {
   }
 
   /**
+   * Retrieves target guards
+   */
+  public getTargetGuards(
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
+  ): MiddlewareGuard[] {
+    return [
+      ...this.getGuards({ Target }), // Target level pipes
+      ...this.getGuards({ Target, propertyKey }), // Property level pipes
+    ]
+  }
+
+  /**
    * Retrieves all middlewares
    */
   public getMiddlewares(
     type: WebServerTypes,
     { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
-  ): { interceptors: Set<MiddlewareInterceptor>; pipes: Set<MiddlewarePipe> } {
+  ): {
+    interceptors: Set<MiddlewareInterceptor>
+    pipes: Set<MiddlewarePipe>
+    guards: Set<MiddlewareGuard>
+  } {
     const interceptors = new Set([
-      ...this.getInterceptors({ propertyKey: type }), // Global level interceptors
+      ...this.getInterceptors({ propertyKey: 'all' }), // Global level interceptors for all servers
+      ...this.getInterceptors({ propertyKey: type }), // Global level interceptors for specific server
       ...this.getTargetInterceptors({ Target, propertyKey }),
     ])
 
     const pipes = new Set([
-      ...this.getPipes({ propertyKey: type }), // Global level pipes
+      ...this.getPipes({ propertyKey: 'all' }), // Global level pipes for all servers
+      ...this.getPipes({ propertyKey: type }), // Global level pipes for specific server
       ...this.getTargetPipes({ Target, propertyKey }),
     ])
 
-    return { interceptors, pipes }
+    const guards = new Set([
+      ...this.getGuards({ propertyKey: 'all' }), // Global level guards for all servers
+      ...this.getGuards({ propertyKey: type }), // Global level guards for specific server
+      ...this.getTargetGuards({ Target, propertyKey }),
+    ])
+
+    return { interceptors, pipes, guards }
   }
 }

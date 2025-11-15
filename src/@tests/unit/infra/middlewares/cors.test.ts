@@ -2,10 +2,10 @@ import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
 import { HttpError } from '@zanix/errors'
 import { assert } from '@std/assert'
-import { corsValidation } from 'modules/infra/middlewares/defaults/cors.ts'
+import { corsGuard } from 'modules/infra/middlewares/defaults/cors.guard.ts'
 
-Deno.test('Cors validation pipe', () => {
-  const cors = corsValidation({
+Deno.test('Cors validation pipe', async () => {
+  const cors = corsGuard({
     origins: ['https://example.com', /^https:\/\/sub\..*\.example\.com$/],
     allowedHeaders: ['Content-Type', 'Authorization'],
     exposedHeaders: ['Content-Length'],
@@ -49,7 +49,7 @@ Deno.test('Cors validation pipe', () => {
   )
 
   // origin string
-  const response = cors({
+  const response = await cors({
     req: new Request(baseUrl, {
       headers: {
         'Origin': 'https://example.com',
@@ -67,7 +67,7 @@ Deno.test('Cors validation pipe', () => {
   })
 
   // origin regex
-  const response2 = corsValidation({
+  const response2 = await corsGuard({
     origins: [/^https:\/\/sub\..*\.example\.com$/],
   })({
     req: new Request(baseUrl, {
@@ -87,7 +87,7 @@ Deno.test('Cors validation pipe', () => {
   })
 
   // origin function
-  const response3 = corsValidation({
+  const response3 = await corsGuard({
     origins: (or) => or.startsWith('http'),
   })({
     req: new Request(baseUrl, {
@@ -107,7 +107,7 @@ Deno.test('Cors validation pipe', () => {
   })
 
   // no credentials
-  const response4 = corsValidation({
+  const response4 = await corsGuard({
     credentials: false,
     preflight: { maxAge: 600, optionsSuccessStatus: 204 },
   })({
@@ -128,7 +128,7 @@ Deno.test('Cors validation pipe', () => {
   })
 
   // prefligths
-  const response5 = corsValidation({
+  const response5 = await corsGuard({
     origins: ['*'],
     preflight: { maxAge: 600, optionsSuccessStatus: 204 },
   })({

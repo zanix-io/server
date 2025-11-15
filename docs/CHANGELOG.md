@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.3] - 2025-11-14
+
+### Changed
+
+- Cache abstract class now supports scheduler functionality.
+- Cache abstract provider now supports retrieving client instances.
+
+### Added
+
+- **Guard Middleware Support**: Added support for middleware decorators and HOC in
+  [Guard](../src/modules/infra/middlewares/hocs/guards.ts).
+
 ## [1.1.2] - 2025-11-11
 
 ### Fixed

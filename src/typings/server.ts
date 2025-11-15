@@ -1,5 +1,6 @@
 import type { HttpMethods } from '@zanix/server'
 import type { CorsOptions } from './middlewares.ts'
+import type { GzipOptions } from './general.ts'
 
 /**
  * Represents the various types of web servers that can be managed by the system.
@@ -57,16 +58,34 @@ type CorsAllowedMethods<Methods extends HttpMethods> =
  * - `onceStop` (optional): A callback function that is called once when the server stops.
  * - `ssl` (optional): SSL certificate keyPair values
  * - `globalPrefix` (optional): A global route prefix for the API.
+ * - `gzip` (optional): For controlling GZIP compression.
+ * - `cors` (optional): Configuration options for Cross-Origin Resource Sharing (CORS).
  */
 export type ServerOptions<K extends WebServerTypes = never> =
   & (Deno.ServeTcpOptions | (Deno.ServeTcpOptions & Deno.TlsCertifiedKeyPem))
   & {
     onceStop?: () => void
+    /**
+     * SSL certificate keyPair values
+     */
     ssl?: { key: string; cert: string }
+    /**
+     * Configuration options for Cross-Origin Resource Sharing (CORS).
+     */
     cors?: 'socket' extends K ? Pick<CorsOptions, 'origins'>
       : 'graphql' extends K ? CorsAllowedMethods<'GET' | 'POST'>
       : 'ssr' extends K ? Omit<CorsOptions, 'allowedMethods'>
       : CorsOptions
+    /**
+     * Options for controlling GZIP compression.
+     *
+     * Can either be `false` to disable compression entirely,
+     * or an object with optional settings.
+     */
+    gzip?: GzipOptions
+    /**
+     * A global route prefix for the API.
+     */
     globalPrefix?: string
   }
 

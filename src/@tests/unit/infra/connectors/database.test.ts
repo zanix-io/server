@@ -15,14 +15,6 @@ class DBConnector extends ZanixDatabaseConnector {
   public getModel(model: string): string {
     return model + ' processed'
   }
-
-  public startConnection(): boolean {
-    return true
-  }
-
-  public stopConnection(): boolean {
-    return true
-  }
 }
 
 Deno.test('ZanixDatabaseConnector: should define a database name', () => {

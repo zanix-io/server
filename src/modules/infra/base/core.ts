@@ -2,21 +2,17 @@ import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 import type { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 import type { ZanixWorkerProvider } from 'providers/core/worker.ts'
 import type { ZanixCacheProvider } from 'providers/core/cache.ts'
-import type { ZanixProvider } from '../providers/base.ts'
-import type { ZanixConnector } from 'connectors/base.ts'
 import type {
   CoreConnectorTemplates,
-  ZanixConnectorClass,
   ZanixConnectorsGetter,
-  ZanixProviderClass,
   ZanixProvidersGetter,
 } from 'typings/targets.ts'
 
+import { getConnectors, getProviders } from 'utils/targets.ts'
 import ConnectorCoreModules from 'connectors/core/all.ts'
 import ProviderCoreModules from 'providers/core/all.ts'
 import { ContextualBaseClass } from './contextual.ts'
 import ProgramModule from 'modules/program/mod.ts'
-import { getTargetKey } from 'utils/targets.ts'
 
 /**
  * Abstract base class that provides access to core connectors such as worker, asyncmq, cache, and database.
@@ -132,14 +128,7 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * @returns {ZanixConnectorsGetter} A utility for retrieving and interacting with other connectors.
    */
   protected get connectors(): ZanixConnectorsGetter {
-    return {
-      get: <D extends ZanixConnector>(
-        Connector: ZanixConnectorClass<D>,
-      ): D => {
-        const key = getTargetKey(Connector)
-        return ProgramModule.targets.getConnector<D>(key, { contextId: this.#contextId })
-      },
-    }
+    return getConnectors(this.#contextId)
   }
 
   /**
@@ -157,13 +146,6 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * @returns {ZanixProvidersGetter} A utility for retrieving and interacting with other providers.
    */
   protected get providers(): ZanixProvidersGetter {
-    return {
-      get: <D extends ZanixProvider<T>>(
-        Provider: ZanixProviderClass<D>,
-      ): D => {
-        const key = getTargetKey(Provider)
-        return ProgramModule.targets.getProvider<D>(key, { contextId: this.#contextId })
-      },
-    }
+    return getProviders(this.#contextId)
   }
 }

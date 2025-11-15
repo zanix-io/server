@@ -101,4 +101,4 @@ export type MetadataInstances<
   dataProps?: Record<string, MetadataObjects | undefined>
 }
 
-export type ZanixGlobalExports<T> = { exports: T }
+export type ZanixGlobalExports<T> = { exports?: T }

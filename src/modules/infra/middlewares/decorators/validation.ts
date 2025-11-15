@@ -2,7 +2,7 @@ import type { RtoTypes } from '@zanix/types'
 import type { ZanixGenericDecorator } from 'typings/decorators.ts'
 
 import { requestValidationPipe } from 'middlewares/defaults/validation.pipe.ts'
-import { definePipeDecorator } from './assembly.ts'
+import { defineMiddlewareDecorator } from './assembly.ts'
 
 /**
  * Method-level decorator for applying request validation using Request Transfer Objects (RTOs).
@@ -17,7 +17,7 @@ import { definePipeDecorator } from './assembly.ts'
  *
  * @example
  * ```ts
- * @RequestValidation({
+ * \@RequestValidation({
  *   body: CreateUserBodyRTO,
  *   params: UserParamsRTO,
  *   query: UserQueryRTO,
@@ -29,5 +29,5 @@ import { definePipeDecorator } from './assembly.ts'
  * @returns {MethodDecorator} The method decorator that applies the validation to the target handler.
  */
 export function RequestValidation(rto: RtoTypes): ZanixGenericDecorator {
-  return definePipeDecorator((ctx) => requestValidationPipe(ctx, rto))
+  return defineMiddlewareDecorator('pipe', (ctx) => requestValidationPipe(ctx, rto))
 }

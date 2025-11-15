@@ -21,8 +21,8 @@
     "jsr:@std/path@^1.1.1": "1.1.2",
     "jsr:@std/testing@1.0.9": "1.0.9",
     "jsr:@std/uuid@0.224": "0.224.3",
-    "jsr:@zanix/utils@*": "2.2.0",
-    "jsr:@zanix/utils@2": "2.2.0",
+    "jsr:@zanix/utils@*": "2.2.1",
+    "jsr:@zanix/utils@2": "2.2.1",
     "npm:@types/node@*": "24.2.0",
     "npm:esbuild@0.20.2": "0.20.2",
     "npm:graphql-jit@0.1.0": "0.1.0_graphql@16.10.0",
@@ -120,78 +120,8 @@
         "jsr:@std/crypto"
       ]
     },
-    "@zanix/utils@2.1.0": {
-      "integrity": "b4314d0466a75e9d01ecb578fb8acd893b5b03d4de76f0802acbeca116101e17",
-      "dependencies": [
-        "jsr:@luca/esbuild-deno-loader",
-        "jsr:@std/fmt",
-        "jsr:@std/path@0.224",
-        "npm:esbuild",
-        "npm:javascript-obfuscator"
-      ]
-    },
-    "@zanix/utils@2.1.1": {
-      "integrity": "94f0df00d5befd3e8704e56c21d64dd2f092b5aacdb29810c04098065ac3ce3d",
-      "dependencies": [
-        "jsr:@luca/esbuild-deno-loader",
-        "jsr:@std/fmt",
-        "jsr:@std/path@0.224",
-        "npm:esbuild",
-        "npm:javascript-obfuscator"
-      ]
-    },
-    "@zanix/utils@2.1.2": {
-      "integrity": "4b10e24b82f23719704c17371bd5768fac72b4bc1f2cb449c021168b2f5b64b2",
-      "dependencies": [
-        "jsr:@luca/esbuild-deno-loader",
-        "jsr:@std/fmt",
-        "jsr:@std/path@0.224",
-        "npm:esbuild",
-        "npm:javascript-obfuscator"
-      ]
-    },
-    "@zanix/utils@2.1.4": {
-      "integrity": "614e681c4eda49f24731abc077517fbdac8cd44e777c03ee3d4b0601562ce64e",
-      "dependencies": [
-        "jsr:@luca/esbuild-deno-loader",
-        "jsr:@std/fmt",
-        "jsr:@std/path@0.224",
-        "npm:esbuild",
-        "npm:javascript-obfuscator"
-      ]
-    },
-    "@zanix/utils@2.1.5": {
-      "integrity": "4389b52b74b2f23c9e838d1b218792940cf755608269fc71eb33926fcd23d99e",
-      "dependencies": [
-        "jsr:@luca/esbuild-deno-loader",
-        "jsr:@std/fmt",
-        "jsr:@std/path@0.224",
-        "npm:esbuild",
-        "npm:javascript-obfuscator"
-      ]
-    },
-    "@zanix/utils@2.1.7": {
-      "integrity": "00514b5b8bd5370698ba09d8beb3345527050019ca31ed8a1001d86fb1ba03a6",
-      "dependencies": [
-        "jsr:@luca/esbuild-deno-loader",
-        "jsr:@std/fmt",
-        "jsr:@std/path@0.224",
-        "npm:esbuild",
-        "npm:javascript-obfuscator"
-      ]
-    },
-    "@zanix/utils@2.1.8": {
-      "integrity": "ed64ad326a61eeed2ce5cbdb2a82b752969423e5694a0bcc1c26aac47e640989",
-      "dependencies": [
-        "jsr:@luca/esbuild-deno-loader",
-        "jsr:@std/fmt",
-        "jsr:@std/path@0.224",
-        "npm:esbuild",
-        "npm:javascript-obfuscator"
-      ]
-    },
-    "@zanix/utils@2.2.0": {
-      "integrity": "d91f6e4b9dbef068847b7cba7f182009b3bd6909e203109ba339fe53a28701a6",
+    "@zanix/utils@2.2.1": {
+      "integrity": "8f3f4ce6a1728b12ff332d9efdb1ade2e55381ad1dfa954db706fe58e9f32213",
       "dependencies": [
         "jsr:@luca/esbuild-deno-loader",
         "jsr:@std/fmt",

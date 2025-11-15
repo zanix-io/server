@@ -1,5 +1,5 @@
 import type { HandlerContext } from './context.ts'
-import type { MiddlewareInterceptor, MiddlewarePipe } from './middlewares.ts'
+import type { MiddlewareGuard, MiddlewareInterceptor, MiddlewarePipe } from './middlewares.ts'
 import type { MetadataTargetSymbols } from './program.ts'
 import type { WebServerTypes } from './server.ts'
 
@@ -33,6 +33,7 @@ export type RouteDefinition = {
     | Required<Omit<MetadataTargetSymbols, 'type'>> & { type?: MetadataTargetSymbols['type'] }
   enableALS?: boolean
   methods?: HttpMethods[]
+  guards?: MiddlewareGuard[]
   pipes?: MiddlewarePipe[]
   interceptors?: MiddlewareInterceptor[]
 }

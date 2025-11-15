@@ -2,16 +2,28 @@ import type { ProcessedRoutes } from 'typings/router.ts'
 import { HttpError } from '@zanix/errors'
 
 /**
- * Function to clean routes
+ * Normalizes and sanitizes a route path string.
  *
- * @param route - The route path
+ * This function trims whitespace, removes extra slashes, converts backslashes
+ * to forward slashes, ensures the path starts with a single `/`, and removes
+ * any trailing slash. The result is also converted to lowercase.
+ *
+ * @param {string} route - The raw route path to clean.
+ * @returns {string} A normalized route string starting with `/`.
  *
  * @example
  * ```ts
- * cleanRoute("///folder1/folder2//file") // should return /folder1/folder2/file
+ * cleanRoute("///folder1/folder2//file")
+ * // → "/folder1/folder2/file"
+ *
+ * cleanRoute("  \\API\\Users\\  ")
+ * // → "/api/users"
+ *
+ * cleanRoute("")
+ * // → "/"
  * ```
  */
-export function cleanRoute(route: string) {
+export function cleanRoute(route: string): string {
   route = route.trim()
   route = route.replace(/\s+/g, '')
   route = route.replace(/\\/g, '/')
@@ -31,7 +43,7 @@ export const pathToRegex = (path: string) => {
   return new RegExp('^' + path.replace(/\/:([a-zA-Z0-9_-]+)/g, '(\/[a-zA-Z0-9_\.%-]+)') + '$') // Ensure all route paths are URL-encoded to prevent errors with special characters.
 }
 
-/** Function to get param names form string */
+/** Function to get param names from string */
 export const getParamNames = (route: string) => {
   return route.split('/').filter((part) => part.startsWith(':')).map((param) =>
     param.substring(1).replace('?', '')
@@ -60,13 +72,13 @@ export const bodyPayloadProperty = async (
 
 /**
  * A function to find a matching route by path
- * @param processedRoutes
+ * @param relativeRoutes
  * @param path
  * @returns
  */
-export const findMatchingRoute = (processedRoutes: ProcessedRoutes, path: string) => {
-  for (const key in processedRoutes) {
-    const route = processedRoutes[key]
+export const findMatchingRoute = (relativeRoutes: ProcessedRoutes, path: string) => {
+  for (const key in relativeRoutes) {
+    const route = relativeRoutes[key]
     const match = route.regex.exec(path)
 
     if (match) {

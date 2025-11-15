@@ -1,4 +1,4 @@
-import { assert, assertEquals, assertExists, assertThrows } from '@std/assert'
+import { assert, assertEquals, assertExists, assertFalse, assertThrows } from '@std/assert'
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import { routeProcessor } from 'modules/webserver/helpers/routes.ts'
 import Program from 'modules/program/mod.ts'
@@ -24,14 +24,15 @@ Deno.test('routeProcessor should return default adapted routes', () => {
     handler: () => '' as never,
   })
 
-  const routes = routeProcessor('rest')
+  const { absolutePaths, relativePaths } = routeProcessor('rest')
 
-  assertExists(routes[path].regex)
-  assertEquals(routes[path].params, ['param'])
-  assertEquals(routes[path].methods, ['GET', 'POST']) // Default methods
-  assertEquals(routes[path].interceptors[0]({} as never, {} as never), 'resp' as never)
-  assert(routes[path].pipes.length === 0)
-  assert(typeof routes[path].handler === 'function')
+  assertFalse(Object.keys(absolutePaths).length)
+  assertExists(relativePaths[path].regex)
+  assertEquals(relativePaths[path].params, ['param'])
+  assertEquals(relativePaths[path].methods, ['GET', 'POST']) // Default methods
+  assertEquals(relativePaths[path].interceptors[0]({} as never, {} as never), 'resp' as never)
+  assert(relativePaths[path].pipes.length === 0)
+  assert(typeof relativePaths[path].handler === 'function')
 
   // References should be deleted
   Program.routes.resetContainer()
@@ -71,21 +72,21 @@ Deno.test('routeProcessor should return adapted routes for external definitions'
 
   Program.targets.defineTarget(Target.name, { type: 'controller', Target, lifetime: 'TRANSIENT' })
 
-  const routes = routeProcessor('rest')
+  const { absolutePaths, relativePaths } = routeProcessor('rest')
 
   const fullPath = '/prefix/' + path
 
-  assertExists(routes['/prefix/fb'])
-  assertExists(routes[fullPath].regex)
-  assertEquals(routes[fullPath].params, ['param-1'])
-  assert(routes[fullPath].interceptors.length === 0)
-  assertEquals(routes[fullPath].methods, ['DELETE'])
-  assertEquals(routes[fullPath].pipes.length, 4)
-  assertEquals(routes[fullPath].pipes[0]({ id: 2 } as never), 'this is global' as never)
-  assertEquals(routes['/prefix/fb'].pipes.length, 3) // One global, two for the target
-  assertEquals(routes['/prefix/fb'].pipes[0]({ id: 2 } as never), 'this is global' as never)
-  assertEquals(routes[fullPath].pipes[1]({ id: 2 } as never), 2 as never)
-  assertEquals(routes[fullPath].pipes[2]({ id: 2 } as never), undefined)
+  assertExists(absolutePaths['/prefix/fb'])
+  assertExists(relativePaths[fullPath].regex)
+  assertEquals(relativePaths[fullPath].params, ['param-1'])
+  assert(relativePaths[fullPath].interceptors.length === 0)
+  assertEquals(relativePaths[fullPath].methods, ['DELETE'])
+  assertEquals(relativePaths[fullPath].pipes.length, 4)
+  assertEquals(relativePaths[fullPath].pipes[0]({ id: 2 } as never), 'this is global' as never)
+  assertEquals(absolutePaths['/prefix/fb'].pipes.length, 3) // One global, two for the target
+  assertEquals(absolutePaths['/prefix/fb'].pipes[0]({ id: 2 } as never), 'this is global' as never)
+  assertEquals(relativePaths[fullPath].pipes[1]({ id: 2 } as never), 2 as never)
+  assertEquals(relativePaths[fullPath].pipes[2]({ id: 2 } as never), undefined)
 })
 
 Deno.test('routeProcessor should throw because of douplicate routes', () => {

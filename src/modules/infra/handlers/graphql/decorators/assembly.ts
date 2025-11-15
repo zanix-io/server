@@ -1,5 +1,6 @@
 import type { HandlerTypes } from 'typings/program.ts'
 import type { HandlerFunction } from 'typings/router.ts'
+import type { HandlerContext } from 'typings/context.ts'
 import type {
   HandlerDecoratorOptions,
   ResolverRequestOptions,
@@ -15,10 +16,12 @@ import { gqlSchemaDefinitions } from '../schema.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { ZanixResolver } from '../base.ts'
 import { capitalize } from '@zanix/helpers'
-import { JSON_CONTENT_HEADER, ZANIX_PROPS } from 'utils/constants.ts'
+import { ZANIX_PROPS } from 'utils/constants.ts'
 import { type RequestContext, rootValue } from '../handler.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
+import { plainResponseInterceptor } from 'middlewares/defaults/response.interceptor.ts'
+import { mainGuard, mainInterceptor, mainPipe } from 'middlewares/defaults/main.middlewares.ts'
 
 /** Define decorator to register a route for handler gql */
 export function defineResolverDecorator(
@@ -59,6 +62,7 @@ export function defineResolverDecorator(
         propertyKey: name,
       })
 
+      const guards = Array.from(middlewares.guards)
       const pipes = Array.from(middlewares.pipes)
       const interceptors = Array.from(middlewares.interceptors)
 
@@ -70,35 +74,37 @@ export function defineResolverDecorator(
         const { key, type } = Target.prototype[ZANIX_PROPS]
         const { context } = request
 
-        await Promise.all(pipes.map((pipe) => pipe(context)))
+        // Only execute Target guards that could not be executed due to a single GQL route
+        const { headers, response: guardResponse } = await mainGuard(context, guards)
+        if (guardResponse) {
+          request.response = guardResponse
+          return plainResponseInterceptor(context, guardResponse)
+        }
+
+        // Only execute Target pipes that could not be executed due to a single GQL route
+        await mainPipe(context, pipes)
 
         delete context.payload.body
 
+        // Handler instance
         const instance = ProgramModule.targets.getHandler<ZanixResolver>(
           key,
           type as HandlerTypes,
           context,
         )
 
-        const handlerResponse = await handler.call(instance, payload, context)
+        const handlerFn = (ctx: HandlerContext) => handler.call(instance, payload, ctx)
 
-        let response: Response
-        if (typeof handlerResponse === 'string') response = new Response(handlerResponse)
-        else if (handlerResponse instanceof Response) response = handlerResponse
-        else {response = new Response(JSON.stringify(handlerResponse), {
-            headers: JSON_CONTENT_HEADER,
-          })}
-
-        for await (const interceptor of interceptors) {
-          response = await interceptor(context, response) // execute interceptors secuentially
-        }
+        // Only execute Target interceptor that could not be executed due to a single GQL route
+        const response = await mainInterceptor(context, null as never, {
+          handler: handlerFn,
+          interceptors,
+          headers,
+        })
 
         request.response = response
 
-        if (response.headers.get('Content-Type') === JSON_CONTENT_HEADER['Content-Type']) {
-          return response.json()
-        }
-        return response.text()
+        return plainResponseInterceptor(context, response)
       }
 
       // Resolver assignment

@@ -2,6 +2,7 @@ import ProgramModule from 'modules/program/mod.ts'
 import './setup/mod.ts'
 
 import { assert, assertEquals } from '@std/assert'
+import { isUUID } from '@zanix/validator'
 
 const restUrl = 'http://0.0.0.0:8000/api'
 
@@ -9,6 +10,16 @@ Deno.test('Verifying controller api rest basic', async () => {
   const query = await fetch(`${restUrl}/hello`)
   const response = await query.text()
   assertEquals(response, 'response')
+
+  // Cors validation
+  assert(query.headers.has('access-control-allow-credentials'))
+  assert(query.headers.has('access-control-allow-origin'))
+})
+
+Deno.test('Verifying controller guard api rest', async () => {
+  const query = await fetch(`${restUrl}/helloGuard`)
+  const response = await query.text()
+  assert(isUUID(response))
 })
 
 Deno.test('Verifying controller api rest welcome service', async () => {

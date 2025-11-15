@@ -1,17 +1,14 @@
 import type { ZanixGenericDecorator } from 'typings/decorators.ts'
 import type { MiddlewareInterceptor } from 'typings/middlewares.ts'
 
-import { defineInterceptorDecorator } from './assembly.ts'
+import { defineMiddlewareDecorator } from './assembly.ts'
 
 /**
  * Method-level decorator for applying a middleware interceptor to a specific handler.
  *
- * Interceptors are executed **after** the main handler and can modify or replace
- * the outgoing response. They are typically used for:
- * - Response transformation
- * - Logging or metrics
- * - Error handling or wrapping
- * - Adding headers or metadata
+ * 🔁 Use an **Interceptor** to modify, wrap, or observe the outgoing `Response` after the handler has executed.
+ * Interceptors are responsible for response transformation, logging, adding headers or unifying the response format.
+ * They only run if the handler successfully produces a `Response`.
  *
  * The provided `interceptor` function conforms to the {@link MiddlewareInterceptor} signature,
  * receiving the current {@link HandlerContext}, the handler's response, and any additional arguments.
@@ -21,7 +18,7 @@ import { defineInterceptorDecorator } from './assembly.ts'
  *
  * @example
  * ```ts
- * @Interceptor(addCustomHeaders)
+ * \@Interceptor(addCustomHeaders)
  * public async getUser(ctx: HandlerContext) {
  *   return new Response('User data');
  * }
@@ -29,5 +26,5 @@ import { defineInterceptorDecorator } from './assembly.ts'
  * @returns {ZanixGenericDecorator} The method decorator that registers the interceptor for the target handler.
  */
 export function Interceptor(interceptor: MiddlewareInterceptor): ZanixGenericDecorator {
-  return defineInterceptorDecorator(interceptor)
+  return defineMiddlewareDecorator('interceptor', interceptor)
 }

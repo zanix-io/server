@@ -40,18 +40,18 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * Retrieves a specific cache connector by identifier.
    *
    * @param {CoreCacheConnectors} cache - The identifier for the desired cache.
-   * @returns {ZanixCacheConnectorGeneric<A> } - A connector of the specified type`ZanixCacheConnectorGeneric`.
+   * @returns {ZanixCacheConnectorGeneric<P> } - A connector of the specified type`ZanixCacheConnectorGeneric`.
    *
    * @remarks
    * This method dynamically retrieves a cache connector based on the provided `cache` key
    */
-  public use<A extends 'sync' | 'async' = 'sync'>(
-    cache: CoreCacheConnectors,
-  ): ZanixCacheConnectorGeneric<A> {
+  public use<P extends CoreCacheConnectors>(
+    cache: P,
+  ): ZanixCacheConnectorGeneric<P> {
     const cacheId = `cache:${cache}` as const
     return this.checkInstance(
       () =>
-        ProgramModule.targets.getConnector<ZanixCacheConnectorGeneric<A>>(
+        ProgramModule.targets.getConnector<ZanixCacheConnectorGeneric<P>>(
           ConnectorCoreModules[cacheId].key,
           {
             contextId: this.#contextId,
@@ -69,7 +69,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * @remarks
    * This getter provides a direct access to the Redis cache connector.
    */
-  public get redis(): ZanixCacheConnectorGeneric {
+  public get redis(): ZanixCacheConnectorGeneric<'redis'> {
     return this.use('redis')
   }
 
@@ -81,8 +81,8 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * @remarks
    * This getter provides a direct access to the local cache connector.
    */
-  public get local(): ZanixCacheConnectorGeneric<'sync'> {
-    return this.use<'sync'>('local')
+  public get local(): ZanixCacheConnectorGeneric<'local'> {
+    return this.use('local')
   }
 
   /**
@@ -93,17 +93,21 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    *
    * Conceptually, the method should:
    * - Attempt to retrieve the value from one or more caches (e.g. local, remote).
-   * - Optionally invoke a fetch function (`fetchFn`) to obtain the value when it is not found.
+   * - Optionally invoke a fetch function (`fetcher`) to obtain the value when it is not found.
    * - Optionally store newly fetched values back into the cache.
    *
    * The specific caching strategy, TTL handling, and error behavior are left to the implementation.
    * This definition only outlines the expected purpose and general flow.
    */
-  public getCachedOrFetch<V, K>(
+  public getCachedOrFetch<V, K = string>(
     _provider: Exclude<CoreCacheConnectors, 'local'>,
     _key: K,
-    _options: { fetchFn?: () => Promise<V>; exp?: number | 'KEEPTTL' },
-  ): Promise<V | undefined> {
+    _options: {
+      fetcher?: () => V | Promise<V>
+      /** expiration time en seconds */
+      exp?: number | 'KEEPTTL'
+    },
+  ): Promise<V> {
     throw this['methodNotImplementedError']('getCachedOrFetch')
   }
 
@@ -122,11 +126,45 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * are managed — depends entirely on the implementation.
    * This definition serves only as a conceptual guideline.
    */
-  public getCachedOrRevalidate<V, K>(
+  public getCachedOrRevalidate<V, K = string>(
     _provider: Exclude<CoreCacheConnectors, 'local'>,
     _key: K,
-    _options: { fetchFn?: () => Promise<V>; exp?: number | 'KEEPTTL' } = {},
-  ): Promise<V | undefined> {
+    _options: {
+      fetcher?: () => V | Promise<V>
+      /** expiration time en seconds */
+      exp?: number | 'KEEPTTL'
+      /** Soft TTL in seconds. After this time, the cache is refreshed in background. */
+      softTtl?: number
+    } = {},
+  ): Promise<V> {
+    throw this['methodNotImplementedError']('getCachedOrRevalidate')
+  }
+
+  /**
+   * Saves a value to local cache and the specified provider.
+   *
+   * @template K - Type of the cache key.
+   * @template V - Type of the value to be stored in the cache.
+   *
+   * @param {Object} _options - Options for saving to the cache.
+   * @param {Extract<CoreCacheConnectors, 'redis'>} _options.provider - Cache provider or connector to use (e.g., `'redis'`).
+   * @param {K} _options.key - Key under which the value will be stored.
+   * @param {V} _options.value - Value to store in the cache.
+   * @param {number | 'KEEPTTL'} [_options.exp] - Expiration time in seconds, or `'KEEPTTL'` to keep the existing TTL.
+   * @param {boolean} [_options.schedule] - The optional flag indicating whether to save in the background
+   *                (using pipeline or scheduler strategies).
+   *
+   * @throws {Error} Always throws an error since this method is abstract and must be implemented by subclasses.
+   *
+   * @returns {Promise<void>} A promise that resolves when the save operation completes (or in this case, never, since it throws).
+   */
+  public saveToCaches<K, V>(_options: {
+    provider: Extract<CoreCacheConnectors, 'redis'>
+    key: K
+    value: V
+    exp?: number | 'KEEPTTL'
+    schedule?: boolean
+  }): Promise<void> {
     throw this['methodNotImplementedError']('getCachedOrRevalidate')
   }
 }

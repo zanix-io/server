@@ -1,27 +1,92 @@
 // deno-lint-ignore-file ban-types
 import type { RtoTypes } from '@zanix/types'
 import type { ClassConstructor, ConnectorAutoInitOptions, ZanixInteractorClass } from './targets.ts'
-import type { MiddlewareInterceptor, MiddlewarePipe, MiddlewareTypes } from './middlewares.ts'
+import type {
+  MiddlewareGuard,
+  MiddlewareInterceptor,
+  MiddlewarePipe,
+  MiddlewareTypes,
+} from './middlewares.ts'
 import type { ConnectorTypes, HandlerTypes, Lifetime, ProviderTypes, StartMode } from './program.ts'
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import type { ZanixProvider } from 'providers/base.ts'
 import type { HttpMethods } from './router.ts'
 
+/**
+ * A decorator type for classes.
+ *
+ * This type represents a decorator function that can be applied to a class constructor.
+ * Optionally, it can also receive a `context` that provides additional information about the class being decorated.
+ *
+ * @param {ClassConstructor} Target - The class constructor that is being decorated.
+ * @param {ClassDecoratorContext} [context] - An optional context object providing metadata or additional information about the class.
+ *
+ * @example
+ * const MyClassDecorator: ZanixClassDecorator = (Target, context) => {
+ *   console.log(`Class ${Target.name} decorated!`);
+ * };
+ */
 export type ZanixClassDecorator = (
   Target: ClassConstructor,
   context?: ClassDecoratorContext,
 ) => void
 
+/**
+ * A decorator type for functions (methods).
+ *
+ * This type represents a decorator function that can be applied to class methods or standalone functions.
+ * Optionally, it can also receive a `context` that provides additional information about the function being decorated.
+ *
+ * @param {Function} method - The method (function) that is being decorated.
+ * @param {DecoratorContext} [context] - An optional context object providing metadata or additional information about the function.
+ *
+ * @example
+ * const MyFunctionDecorator: ZanixFunctionDecorator = (method, context) => {
+ *   console.log(`Function ${method.name} decorated!`);
+ * };
+ */
 export type ZanixFunctionDecorator = (
   method: Function,
   context?: DecoratorContext,
 ) => void
 
+/**
+ * A decorator type for class methods.
+ *
+ * This type represents a decorator function that can be applied to class methods.
+ * Optionally, it can also receive a `context` object that provides additional information about the method being decorated.
+ *
+ * @param {Function} method - The class method that is being decorated.
+ * @param {ClassMethodDecoratorContext} [context] - An optional context object providing metadata or additional information about the method.
+ *
+ * @example
+ * const MyMethodDecorator: ZanixMethodDecorator = (method, context) => {
+ *   console.log(`Method ${method.name} decorated!`);
+ * };
+ */
 export type ZanixMethodDecorator = (
   method: Function,
   context?: ClassMethodDecoratorContext,
 ) => void
 
+/**
+ * A generic decorator type that can be applied to both classes and functions.
+ *
+ * This type represents a decorator function that can be applied to a class constructor or a method (function).
+ * It can also receive an optional `context` that provides additional information about the class or method being decorated.
+ *
+ * @param {ClassConstructor | Function} Target - The target of the decorator, which can be a class constructor or a function (method).
+ * @param {ClassDecoratorContext | ClassMethodDecoratorContext} [context] - An optional context object providing metadata or additional information about the target.
+ *
+ * @example
+ * const MyGenericDecorator: ZanixGenericDecorator = (Target, context) => {
+ *   if (typeof Target === 'function') {
+ *     console.log(`Function ${Target.name} decorated!`);
+ *   } else {
+ *     console.log(`Class ${Target.name} decorated!`);
+ *   }
+ * };
+ */
 export type ZanixGenericDecorator = (
   Target: ClassConstructor | Function,
   context?: ClassDecoratorContext | ClassMethodDecoratorContext,
@@ -134,6 +199,7 @@ export type DecoratorsData<T extends DecoratorTypes> = T extends 'controller'
       request: ResolverTypes
     } & Omit<ResolverRequestOptions, 'name'>
   : T extends 'socket' ? { handler: string; endpoint: string }
+  : T extends 'guard' ? { handler: string; mid: MiddlewareGuard }
   : T extends 'pipe' ? { handler: string; mid: MiddlewarePipe }
   : T extends 'interceptor' ? { handler: string; mid: MiddlewareInterceptor }
   : object

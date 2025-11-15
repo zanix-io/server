@@ -45,6 +45,8 @@ export const HANDLER_METADATA_PROPERTY_KEY = 'handler_properties'
 
 export const DEFAULT_CONTEXT_ID = 'zanix-default-ctx'
 
+export const PARAM_PATTERN = /\/:\w+/
+
 /**
  * Constant to identify a Zanix class prototype props
  */

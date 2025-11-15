@@ -1,5 +1,5 @@
 import type { HandlerContext } from 'typings/context.ts'
-import type { CorsOptions } from 'typings/middlewares.ts'
+import type { CorsOptions, MiddlewareGuard } from 'typings/middlewares.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { HttpMethods } from 'typings/router.ts'
 
@@ -72,10 +72,10 @@ import { validateMethodsPipe } from './methods.pipe.ts'
  * @returns {(ctx: HandlerContext) => { response?: Response; headers?: Record<string, string> }} A middleware function
  * that must be used to configure CORS policy to the response.
  */
-export const corsValidation = <Credential extends boolean>(
+export const corsGuard = <Credential extends boolean>(
   options?: CorsOptions<Credential>,
   type: WebServerTypes = 'rest',
-): (ctx: HandlerContext) => { response?: Response; headers?: Record<string, string> } => {
+): MiddlewareGuard => {
   if (!options) return () => ({})
 
   const methodMap: Record<WebServerTypes, HttpMethods[]> = {
@@ -100,7 +100,7 @@ export const corsValidation = <Credential extends boolean>(
     const origin = credentials ? ctx.req.headers.get('Origin') : '*'
 
     if (!origin) {
-      throw new HttpError('FORBIDDEN', { message: 'CORS blocked: no Origin header present' })
+      throw new HttpError('BAD_REQUEST', { message: 'CORS blocked: no Origin header present' })
     }
 
     const isValidOrigin = !credentials ||
@@ -111,7 +111,7 @@ export const corsValidation = <Credential extends boolean>(
         ))
 
     if (!isValidOrigin) {
-      throw new HttpError('FORBIDDEN', { message: `CORS blocked for origin: ${origin}` })
+      throw new HttpError('BAD_REQUEST', { message: `CORS blocked for origin: ${origin}` })
     }
 
     // Preflights

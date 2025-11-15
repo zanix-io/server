@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import type { MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
+import type { MiddlewareGuard, MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertArrayIncludes } from '@std/assert/assert-array-includes'
 import { MiddlewaresContainer } from 'modules/program/metadata/middlewares.ts'
@@ -27,6 +27,19 @@ Deno.test('MiddlewaresContainer: add global pipe', () => {
 
   const httpsPipes = container.getPipes({ propertyKey: 'socket' })
   assertArrayIncludes(httpsPipes, [pipe])
+})
+
+Deno.test('MiddlewaresContainer: add global guard', () => {
+  const container = new MiddlewaresContainer()
+  const guard: MiddlewareGuard = (x) => x as any
+
+  container.addGlobalGuard(guard, ['rest', 'socket'])
+
+  const httpGuards = container.getGuards({ propertyKey: 'rest' })
+  assertEquals(httpGuards, [guard])
+
+  const httpsGuards = container.getGuards({ propertyKey: 'socket' })
+  assertEquals(httpsGuards, [guard])
 })
 
 Deno.test('MiddlewaresContainer: add and get interceptor for target', () => {
@@ -98,17 +111,41 @@ Deno.test('MiddlewaresContainer: getMiddlewares returns full set for given serve
   const Target = {} as any
   const interceptor: MiddlewareInterceptor = (_ctx, next: any) => next()
   const pipe: MiddlewarePipe = (x) => x as any
+  const guard: MiddlewareGuard = (x) => x as any
 
   container.addInterceptor(interceptor, { Target })
   container.addPipe(pipe, { Target })
   container.addGlobalInterceptor(interceptor, ['rest'])
+  container.addGlobalGuard(guard, ['rest'])
+  container.addGlobalGuard(guard, ['all'])
   container.addGlobalPipe(pipe, ['rest'])
 
-  const { interceptors, pipes } = container.getMiddlewares('rest', {
+  const { interceptors, pipes, guards } = container.getMiddlewares('rest', {
     Target,
     propertyKey: 'handle',
   })
 
   assert(interceptors.has(interceptor))
   assert(pipes.has(pipe))
+  assertEquals(Array.from(guards), [guard])
+
+  const { guards: guardSsr } = container.getMiddlewares('ssr', {
+    Target,
+    propertyKey: 'handle',
+  })
+  assertEquals(Array.from(guardSsr), [guard])
+})
+
+Deno.test('MiddlewaresContainer: add global interceptor for all servers', () => {
+  const container = new MiddlewaresContainer()
+  const interceptor: MiddlewareInterceptor = (_ctx, next: any) => next()
+
+  container.addGlobalInterceptor(interceptor, ['all', 'rest'])
+
+  const rest = container.getMiddlewares('rest')
+  assertEquals(Array.from(rest.interceptors), [interceptor]) // only one
+  const gql = container.getMiddlewares('graphql')
+  assertEquals(Array.from(gql.interceptors), [interceptor])
+  const ssr = container.getMiddlewares('ssr')
+  assertEquals(Array.from(ssr.interceptors), [interceptor])
 })

@@ -5,8 +5,8 @@ import { processUrlParams } from 'utils/params.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { contextId } from 'utils/context.ts'
 
-Deno.test('contextId should return a correct uuid', async () => {
-  assertMatch(await contextId(), uuidRegex)
+Deno.test('contextId should return a correct uuid', () => {
+  assertMatch(contextId(), uuidRegex)
 })
 
 Deno.test('cleanRoute should return the correct route', () => {

@@ -1,4 +1,4 @@
-import type { MiddlewareInternalInterceptor } from 'typings/middlewares.ts'
+import type { MiddlewareInterceptor } from 'typings/middlewares.ts'
 import type { HandlerFunction } from 'typings/router.ts'
 
 import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
@@ -17,14 +17,22 @@ import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
  *      - If the handler returns a `Response`, it uses it directly.
  *      - Otherwise, it serializes the return value to JSON and sets `Content-Type: application/json`.
  */
-export const getResponseInterceptor = (
+export const getResponseInterceptor: MiddlewareInterceptor = async (
+  context,
+  _,
   handler: HandlerFunction,
-): MiddlewareInternalInterceptor => {
-  return async (ctx) => {
-    const handlerResponse = await handler(ctx)
+) => {
+  const handlerResponse = await handler(context)
+  if (typeof handlerResponse === 'string') return new Response(handlerResponse)
+  if (handlerResponse instanceof Response) return handlerResponse
+  const json = JSON.stringify(handlerResponse)
+  return new Response(json, { headers: JSON_CONTENT_HEADER })
+}
 
-    if (typeof handlerResponse === 'string') return new Response(handlerResponse)
-    if (handlerResponse instanceof Response) return handlerResponse
-    return new Response(JSON.stringify(handlerResponse), { headers: JSON_CONTENT_HEADER })
+/** Plain response interceptor */
+export const plainResponseInterceptor: MiddlewareInterceptor = (_, response) => {
+  if (response.headers.get('Content-Type') === JSON_CONTENT_HEADER['Content-Type']) {
+    return response.json()
   }
+  return response.text()
 }

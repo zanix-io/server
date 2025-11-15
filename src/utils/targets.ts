@@ -1,4 +1,17 @@
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
+import type { CoreConnectors, CoreProviders } from 'typings/program.ts'
+import type {
+  ZanixConnectorClass,
+  ZanixConnectorsGetter,
+  ZanixInteractorClass,
+  ZanixInteractorGeneric,
+  ZanixInteractorsGetter,
+  ZanixProviderClass,
+  ZanixProviderGeneric,
+  ZanixProvidersGetter,
+} from 'typings/targets.ts'
+
+import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
 
 // WeakMap to associate each class constructor with its unique ID.
@@ -80,3 +93,61 @@ export const connectorModuleInitialization = (instance: ZanixConnector) => {
       .catch(reject)
   })
 }
+
+export const getInteractors: (ctxId: string) => ZanixInteractorsGetter = (ctxId) => ({
+  get: <T extends ZanixInteractorGeneric>(
+    Interactor: ZanixInteractorClass<T>,
+  ): T => ProgramModule.targets.getInteractor<T>(getTargetKey(Interactor), { contextId: ctxId }),
+})
+
+/**
+ * Retrieves a provider from the `ProgramModule` based on the provided context ID.
+ *
+ * This function creates an object with a `get` method that allows fetching a provider using either
+ * a class type (`ZanixProviderClass<D>`) or a string identifier (`CoreProviders`). The `get` method
+ * returns the provider associated with the provided key.
+ * If a context ID (`ctxId`) is provided, it is passed to the `getProvider` method to scope the provider retrieval.
+ *
+ * @param {string} [ctxId] - An optional context ID to specify the scope or context of the provider. If not provided,
+ *                            the provider is retrieved globally.
+ *
+ * @returns {ZanixProvidersGetter} An object with a `get` method that retrieves the requested provider.
+ *
+ * @example
+ * const providers = getProviders('myContextId');
+ * const provider = providers.get(MyProviderClass);
+ */
+export const getProviders: (ctxId?: string) => ZanixProvidersGetter = (ctxId) => ({
+  get: <D extends ZanixProviderGeneric>(
+    Provider: ZanixProviderClass<D> | CoreProviders,
+  ): D => {
+    const key = typeof Provider === 'string' ? Provider : getTargetKey(Provider)
+    return ProgramModule.targets.getProvider<D>(key, { contextId: ctxId })
+  },
+})
+
+/**
+ * Retrieves a connector from the `ProgramModule` based on the provided context ID.
+ *
+ * This function creates an object with a `get` method that allows fetching a connector using either
+ * a class type (`ZanixConnectorClass<D>`) or a string identifier (`CoreConnectors`). The `get` method
+ * returns the connector associated with the provided key.
+ * If a context ID (`ctxId`) is provided, it is passed to the `getConnector` method to scope the connector retrieval.
+ *
+ * @param {string} [ctxId] - An optional context ID to specify the scope or context of the connector. If not provided,
+ *                            the connector is retrieved globally.
+ *
+ * @returns {ZanixConnectorsGetter} An object with a `get` method that retrieves the requested connector.
+ *
+ * @example
+ * const connectors = getConnectors('myContextId');
+ * const connector = connectors.get(MyConnectorClass);
+ */
+export const getConnectors: (ctxId?: string) => ZanixConnectorsGetter = (ctxId) => ({
+  get: <D extends ZanixConnector>(
+    Connector: ZanixConnectorClass<D> | CoreConnectors,
+  ): D => {
+    const key = typeof Connector === 'string' ? Connector : getTargetKey(Connector)
+    return ProgramModule.targets.getConnector<D>(key, { contextId: ctxId })
+  },
+})

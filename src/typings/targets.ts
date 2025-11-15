@@ -2,6 +2,7 @@
 import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 import type { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
+import type { CoreCacheConnectors, CoreConnectors, CoreProviders } from './program.ts'
 import type { ZanixCacheProvider } from 'providers/core/cache.ts'
 import type { ZanixWorkerProvider } from 'providers/core/worker.ts'
 import type { ZanixInteractor } from 'interactors/base.ts'
@@ -60,10 +61,10 @@ export type ZanixConnectorGeneric = ZanixConnector
 
 export type ZanixProviderGeneric = ZanixProvider<any>
 
-export type ZanixCacheConnectorGeneric<A extends 'sync' | 'async' = 'async'> = ZanixCacheConnector<
+export type ZanixCacheConnectorGeneric<P extends CoreCacheConnectors> = ZanixCacheConnector<
   any,
   any,
-  A
+  P
 >
 export type ZanixProviderClass<T extends ZanixProvider = ZanixProvider> = new (
   contextId: string,
@@ -77,11 +78,11 @@ export type ZanixInteractorsGetter = {
 }
 
 export type ZanixConnectorsGetter = {
-  get: <D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D>) => D
+  get: <D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D> | CoreConnectors) => D
 }
 
 export type ZanixProvidersGetter = {
-  get: <D extends ZanixProviderGeneric>(Connector: ZanixProviderClass<D>) => D
+  get: <D extends ZanixProviderGeneric>(Provider: ZanixProviderClass<D> | CoreProviders) => D
 }
 /**
  * Defines the available types for the different connectors in the Zanix system.

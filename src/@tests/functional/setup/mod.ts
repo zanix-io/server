@@ -28,7 +28,9 @@ globalThis.fetch = (url, options = {}) => {
 }
 
 try {
-  const id1 = webServerManager.create('rest', { server: { globalPrefix: '/api//' } })
+  const id1 = webServerManager.create('rest', {
+    server: { globalPrefix: '/api//', cors: { origins: ['*'] } },
+  })
   const id2 = webServerManager.create('socket', {
     server: { port: SOCKET_PORT, globalPrefix: 'sock', cors: { origins: ['*'] } },
   })
@@ -58,14 +60,14 @@ try {
   assert(!Object.keys(Program.routes).length)
 
   // All instantiated classes
-  assertEquals(Object.keys(Program.targets).length, 17)
+  assertEquals(Object.keys(Program.targets).length, 18)
 
   await Promise.all(Program.targets.getTargetsByStartMode('postBoot').map(startConnection))
 
   Program.cleanupMetadata('postBoot')
 
   // Persisted instances
-  assertEquals(Object.keys(Program.targets).length, 14)
+  assertEquals(Object.keys(Program.targets).length, 15)
 } catch (e) {
   logger.debug('An error ocurred', e)
   // ignore
