@@ -1,3 +1,4 @@
+import type { RedisClientType } from 'npm:redis@^5.9.0'
 import type { ClassConstructor } from './targets.ts'
 
 /**
@@ -51,6 +52,15 @@ export type GenericTargets = 'custom'
  * - `GenericTargets`: Allows the inclusion of other generic cache connectors.
  */
 export type CoreCacheConnectors = 'local' | 'memcached' | 'redis' | GenericTargets
+
+export type CoreCacheTypes<K> = {
+  redis: Promise<RedisClientType>
+  // deno-lint-ignore no-explicit-any
+  local: Map<K, any>
+  memcached: object
+  // deno-lint-ignore no-explicit-any
+  custom: any
+}
 
 /**
  * Defines the available connectors for worker systems.

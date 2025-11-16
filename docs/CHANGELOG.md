@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-11-16
+
+### Changed
+
+- The `Cache` abstract namespace is now deprecated.
+- The `Cache` abstract `client` are adapted to diffetent caches.
+
 ## [1.1.5] - 2025-11-15
 
 ## [1.1.4] - 2025-11-15

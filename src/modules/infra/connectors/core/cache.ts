@@ -1,6 +1,5 @@
 import type { ConnectorOptions } from 'typings/targets.ts'
-import type { CoreCacheConnectors } from 'typings/program.ts'
-import type { RedisClientType } from 'npm:redis@^5.9.0'
+import type { CoreCacheConnectors, CoreCacheTypes } from 'typings/program.ts'
 import type { Async } from 'typings/general.ts'
 
 import { ZanixConnector } from '../base.ts'
@@ -27,30 +26,31 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
   extends ZanixConnector {
   /** TTL (in seconds) */
   public readonly ttl: number
-  protected readonly namespace?: string
 
   /**
    * Creates an instance of ZanixCache Base.
    * @param ttl Optional TTL (in seconds). If set, each entry expires after this duration.
-   * @param namespace Key prefix to segment data on cloud caching
    */
   constructor(
-    { ttl, namespace, ...opts }: ConnectorOptions & { ttl: number; namespace?: string },
+    { ttl, ...opts }: ConnectorOptions & { ttl: number; namespace?: string },
   ) {
     super(opts)
 
     this.ttl = ttl
-    this.namespace = namespace
   }
 
   /**
    * Returns the underlying cache client instance.
    *
+   * This method provides direct access to the low-level cache client
+   * (e.g., Redis) already initialized and connected by this service.
+   * Useful for executing raw commands or advanced operations not exposed
+   * by the high-level API.
+   *
    * @template T - The type of the cache client.
-   * @returns {T} The cache client instance used by the implementation.
+   * @returns {T | object} The cache client instance used by the implementation.
    */
-  public abstract get client(): P extends 'redis' ? RedisClientType
-    : object
+  public abstract getClient<T = CoreCacheTypes<K>[P]>(): T
 
   /**
    * Inserts or updates a value in the cache.
@@ -117,11 +117,4 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    * @returns An array of values.
    */
   public abstract values<O = V>(): Async<O[]>['local' extends P ? 'sync' : 'async']
-
-  /**
-   * Generate key with namespace (prefix)
-   */
-  protected getKey<K>(key: K): K {
-    return this.namespace ? key : this.namespace + ':' + key as K
-  }
 }
