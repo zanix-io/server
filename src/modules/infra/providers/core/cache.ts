@@ -187,7 +187,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    *
    * @abstract
    */
-  public withLock(_key: string, _fn: () => Promise<void>) {
+  public withLock<T>(_key: string, _fn: () => Promise<T>): Promise<T> {
     throw this['methodNotImplementedError']('withLock')
   }
 }

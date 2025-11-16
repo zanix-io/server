@@ -1,5 +1,6 @@
 import type { ConnectorOptions } from 'typings/targets.ts'
 import type { CoreCacheConnectors } from 'typings/program.ts'
+import type { RedisClientType } from 'npm:redis@^5.9.0'
 import type { Async } from 'typings/general.ts'
 
 import { ZanixConnector } from '../base.ts'
@@ -48,7 +49,7 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    * @template T - The type of the cache client.
    * @returns {T} The cache client instance used by the implementation.
    */
-  public abstract get client(): P extends 'redis' ? import('npm:redis@^5.9.0').RedisClientType
+  public abstract get client(): P extends 'redis' ? RedisClientType
     : object
 
   /**

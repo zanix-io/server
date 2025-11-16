@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.5] - 2025-11-15
+
 ## [1.1.4] - 2025-11-15
 
 ### Changed
