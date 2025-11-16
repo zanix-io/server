@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.4] - 2025-11-15
+
+### Changed
+
+- The `Cache` abstract class now supports **typed clients**, allowing for better type safety and
+  easier integration with different cache providers.
+- The `Cache` abstract provider has been updated to include support for **`withLock`**
+  functionality, enabling efficient locking mechanisms for resource access control, preventing race
+  conditions in concurrent environments.
+
 ## [1.1.3] - 2025-11-14
 
 ### Changed

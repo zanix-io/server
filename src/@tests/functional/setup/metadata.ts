@@ -101,7 +101,7 @@ class Connectors extends ZanixConnector {
 
 @Connector('cache:local')
 class _CacheClass extends ZanixCacheConnector {
-  public override getClient<T>(): T {
+  public get client(): any {
     throw new Error('Method not implemented.')
   }
   public override set(_: any, __: any): Promise<void> {

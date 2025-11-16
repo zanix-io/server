@@ -48,7 +48,8 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    * @template T - The type of the cache client.
    * @returns {T} The cache client instance used by the implementation.
    */
-  public abstract getClient<T>(): T
+  public abstract get client(): P extends 'redis' ? import('npm:redis@^5.9.0').RedisClientType
+    : object
 
   /**
    * Inserts or updates a value in the cache.

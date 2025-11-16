@@ -14,6 +14,7 @@ export const contextSettingPipe: MiddlewarePipe = (context) => {
   ProgramModule.context.addContext<ScopedContext>({
     id: context.id,
     payload: processScopedPayload(context.payload),
+    session: context.session,
   })
 }
 

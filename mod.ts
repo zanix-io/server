@@ -88,6 +88,8 @@ export { errorResponses } from 'webserver/helpers/errors.ts'
 // Types
 export type {
   CoreCacheConnectors,
+  CoreConnectors,
+  CoreWorkerConnectors,
   GeneralTargetTypes,
   ModuleTypes,
   StartMode,

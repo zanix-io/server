@@ -39,8 +39,39 @@ export type ModuleTypes =
   | GeneralTargetTypes
 
 export type GenericTargets = 'custom'
+
+/**
+ * Defines the available connectors for cache systems.
+ *
+ * These connectors represent different types of cache systems that can be used with the application.
+ *
+ * - `'local'`: Represents a local in-memory cache.
+ * - `'memcached'`: Represents the Memcached caching system.
+ * - `'redis'`: Represents the Redis caching system.
+ * - `GenericTargets`: Allows the inclusion of other generic cache connectors.
+ */
 export type CoreCacheConnectors = 'local' | 'memcached' | 'redis' | GenericTargets
+
+/**
+ * Defines the available connectors for worker systems.
+ *
+ * These connectors represent different types of worker systems that can be used for background jobs or task processing.
+ *
+ * - `'local'`: Represents a local worker system for task execution.
+ * - `'bull'`: Represents the Bull queue system for job management.
+ * - `GenericTargets`: Allows the inclusion of other generic worker connectors.
+ */
 export type CoreWorkerConnectors = 'local' | 'bull' | GenericTargets
+
+/**
+ * Defines the available connectors in the system, including cache, worker, async message queues, and database systems.
+ *
+ * This type includes connectors for different system components:
+ * - `cache:{CoreCacheConnectors}`: Represents cache connectors, such as Redis or Memcached.
+ * - `worker:{CoreWorkerConnectors}`: Represents worker connectors, such as Bull or local worker systems.
+ * - `'asyncmq'`: Represents an asynchronous message queue system.
+ * - `'database'`: Represents a generic database connector.
+ */
 export type CoreConnectors =
   | `cache:${CoreCacheConnectors}`
   | `worker:${CoreWorkerConnectors}`
