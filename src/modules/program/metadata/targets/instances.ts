@@ -47,7 +47,7 @@ export abstract class BaseInstancesContainer extends BaseContainer {
     type: ModuleTypes,
     options: InstanceOptions = {},
   ): T {
-    const { useExistingInstance, keyId, params } = options
+    const { useExistingInstance, keyId, params, verbose = true } = options
 
     const key = this.#getKey(type, baseKey)
     const Target = this.getTarget(key)
@@ -91,7 +91,7 @@ export abstract class BaseInstancesContainer extends BaseContainer {
           message: 'An error ocurred on trying to instance the class',
           targetName: Target ? `${Target.name}` : "'unknown': there is no metadata information",
         },
-        shouldLog: true,
+        shouldLog: verbose,
         cause: e,
       })
     }

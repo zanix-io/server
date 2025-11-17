@@ -155,22 +155,23 @@ export class TargetContainer extends BaseInstancesContainer {
    */
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
-    options?: { contextId?: string },
+    options?: { contextId?: string; verbose?: boolean },
   ): T
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
-    options: { useExistingInstance?: true },
+    options: { useExistingInstance?: true; verbose?: boolean },
   ): T | undefined
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
-    options: { contextId?: string; useExistingInstance?: boolean } = {},
+    options: { contextId?: string; useExistingInstance?: boolean; verbose?: boolean } = {},
   ): T | undefined {
-    const { contextId, useExistingInstance } = options
+    const { contextId, useExistingInstance, verbose } = options
 
     return this.getInstance<T>(key, 'connector', {
       params: contextId || asyncContext.getId(),
       keyId: contextId,
       useExistingInstance,
+      verbose,
     })
   }
 
@@ -179,14 +180,15 @@ export class TargetContainer extends BaseInstancesContainer {
    */
   public getProvider<T extends ZanixProviderGeneric>(
     key: string,
-    options: { contextId?: string; useExistingInstance?: boolean } = {},
+    options: { contextId?: string; useExistingInstance?: boolean; verbose?: boolean } = {},
   ): T {
-    const { contextId, useExistingInstance } = options
+    const { contextId, useExistingInstance, verbose } = options
 
     return this.getInstance<T>(key, 'provider', {
       params: contextId || asyncContext.getId(),
       keyId: contextId,
       useExistingInstance,
+      verbose,
     })
   }
 
@@ -195,14 +197,15 @@ export class TargetContainer extends BaseInstancesContainer {
    */
   public getInteractor<T extends ZanixInteractorGeneric>(
     key: string,
-    options: { contextId?: string; useExistingInstance?: boolean } = {},
+    options: { contextId?: string; useExistingInstance?: boolean; verbose?: boolean } = {},
   ): T {
-    const { contextId, useExistingInstance } = options
+    const { contextId, useExistingInstance, verbose } = options
 
     return this.getInstance<T>(key, 'interactor', {
       params: contextId || asyncContext.getId(),
       keyId: contextId,
       useExistingInstance,
+      verbose,
     })
   }
 }

@@ -41,6 +41,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * Retrieves a specific cache connector by identifier.
    *
    * @param {CoreCacheConnectors} cache - The identifier for the desired cache.
+   * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `false`
    * @returns {ZanixCacheConnectorGeneric<P> } - A connector of the specified type`ZanixCacheConnectorGeneric`.
    *
    * @remarks
@@ -48,6 +49,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    */
   public use<P extends CoreCacheConnectors>(
     cache: P,
+    verbose: boolean = false,
   ): ZanixCacheConnectorGeneric<P> {
     const cacheId = `cache:${cache}` as const
     return this.checkInstance(
@@ -56,9 +58,11 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
           ConnectorCoreModules[cacheId].key,
           {
             contextId: this.#contextId,
+            verbose: false,
           },
         ),
       cacheId,
+      verbose,
     )
   }
 

@@ -22,6 +22,7 @@ export type InstanceOptions = {
   params?: InstanceContext
   keyId?: string
   useExistingInstance?: boolean
+  verbose?: boolean
 }
 
 /** Zanix base context for all target types */

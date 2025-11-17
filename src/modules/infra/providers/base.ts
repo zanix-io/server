@@ -34,7 +34,7 @@ export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
    * in the current context before executing the provided callback function.
    * If the instance is not available, it throws a `TargetError`.
    */
-  protected checkInstance<T>(fn: () => T, connector: CoreConnectors): T {
+  protected checkInstance<T>(fn: () => T, connector: CoreConnectors, verbose?: boolean): T {
     const { startMode } = this[ZANIX_PROPS]
     try {
       return fn()
@@ -42,6 +42,7 @@ export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
       throw new TargetError('An error occurred in the system', startMode, {
         code: 'CONNECTOR_INSTANCE_NOT_FOUND',
         cause: `The "${connector}" instance is not available in this context.`,
+        shouldLog: verbose,
         meta: {
           connector,
           target: 'provider',

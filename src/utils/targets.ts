@@ -110,6 +110,7 @@ export const getInteractors: (ctxId: string) => ZanixInteractorsGetter = (ctxId)
  *
  * @param {string} [ctxId] - An optional context ID to specify the scope or context of the provider. If not provided,
  *                            the provider is retrieved globally.
+ * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `true`
  *
  * @returns {ZanixProvidersGetter} An object with a `get` method that retrieves the requested provider.
  *
@@ -117,12 +118,15 @@ export const getInteractors: (ctxId: string) => ZanixInteractorsGetter = (ctxId)
  * const providers = getProviders('myContextId');
  * const provider = providers.get(MyProviderClass);
  */
-export const getProviders: (ctxId?: string) => ZanixProvidersGetter = (ctxId) => ({
+export const getProviders: (ctxId?: string, verbose?: boolean) => ZanixProvidersGetter = (
+  ctxId,
+  verbose,
+) => ({
   get: <D extends ZanixProviderGeneric>(
     Provider: ZanixProviderClass<D> | CoreProviders,
   ): D => {
     const key = typeof Provider === 'string' ? Provider : getTargetKey(Provider)
-    return ProgramModule.targets.getProvider<D>(key, { contextId: ctxId })
+    return ProgramModule.targets.getProvider<D>(key, { contextId: ctxId, verbose })
   },
 })
 
@@ -136,6 +140,7 @@ export const getProviders: (ctxId?: string) => ZanixProvidersGetter = (ctxId) =>
  *
  * @param {string} [ctxId] - An optional context ID to specify the scope or context of the connector. If not provided,
  *                            the connector is retrieved globally.
+ * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `true`
  *
  * @returns {ZanixConnectorsGetter} An object with a `get` method that retrieves the requested connector.
  *
@@ -143,11 +148,14 @@ export const getProviders: (ctxId?: string) => ZanixProvidersGetter = (ctxId) =>
  * const connectors = getConnectors('myContextId');
  * const connector = connectors.get(MyConnectorClass);
  */
-export const getConnectors: (ctxId?: string) => ZanixConnectorsGetter = (ctxId) => ({
+export const getConnectors: (ctxId?: string, verbose?: boolean) => ZanixConnectorsGetter = (
+  ctxId,
+  verbose,
+) => ({
   get: <D extends ZanixConnector>(
     Connector: ZanixConnectorClass<D> | CoreConnectors,
   ): D => {
     const key = typeof Connector === 'string' ? Connector : getTargetKey(Connector)
-    return ProgramModule.targets.getConnector<D>(key, { contextId: ctxId })
+    return ProgramModule.targets.getConnector<D>(key, { contextId: ctxId, verbose })
   },
 })
