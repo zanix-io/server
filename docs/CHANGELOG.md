@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.1] - 2025-11-16
+
+### Added
+
+- **cache ttl offset**: custom function `getTTLWithOffset` to process maximum random offset in
+  seconds to add.
+
 ## [1.2.0] - 2025-11-16
 
 ### Changed

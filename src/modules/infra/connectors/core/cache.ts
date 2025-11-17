@@ -26,17 +26,68 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
   extends ZanixConnector {
   /** TTL (in seconds) */
   public readonly ttl: number
+  /** Maximum random offset in seconds to add. */
+  public readonly maxOffsetSeconds: number
+  /** Minimum TTL in seconds required for the offset to be applied. */
+  public readonly minTTLForOffset: number
 
   /**
    * Creates an instance of ZanixCache Base.
    * @param ttl Optional TTL (in seconds). If set, each entry expires after this duration.
    */
   constructor(
-    { ttl, ...opts }: ConnectorOptions & { ttl: number; namespace?: string },
+    { ttl, maxOffsetSeconds = 9, minTTLForOffset = 5, ...opts }: ConnectorOptions & {
+      /** TTL (in seconds) */
+      ttl: number
+      /**
+       * Maximum random offset in seconds to add.
+       * Defaults to `9`
+       */
+      maxOffsetSeconds?: number
+      /**
+       * Minimum TTL in seconds required for the offset to be applied.
+       * Defaults to `5`
+       */
+      minTTLForOffset?: number
+    },
   ) {
     super(opts)
 
     this.ttl = ttl
+    this.minTTLForOffset = minTTLForOffset
+    this.maxOffsetSeconds = maxOffsetSeconds
+  }
+
+  /**
+   * Calculates the TTL (time-to-live) in milliseconds with an optional random offset.
+   *
+   * This function adds variability to the cache entry lifetime to prevent
+   * multiple entries from expiring at the exact same time.
+   *
+   * If the base TTL (`ttlValue`) is less than `minTTLForOffset`, no offset
+   * is applied and the TTL in milliseconds is returned directly.
+   *
+   * @param {number} ttlValue - Base time-to-live in seconds.
+   * @param {number} [maxOffsetSeconds] - Maximum random offset in seconds to add.
+   * @param {number} [minTTLForOffset] - Minimum TTL in seconds required for the offset to be applied.
+   * @returns {number} Total TTL in seconds, including the random offset.
+   */
+  protected getTTLWithOffset(
+    ttlValue: number,
+    maxOffsetSeconds?: number,
+    minTTLForOffset?: number,
+  ): number {
+    const maxOffset = maxOffsetSeconds || this.maxOffsetSeconds
+    const minTTL = minTTLForOffset || this.minTTLForOffset
+    if (ttlValue < minTTL && maxOffset > 0) return ttlValue
+
+    const relativeOffset = Math.floor(ttlValue * 0.2) // 20% del TTL
+    const effectiveOffset = Math.min(maxOffset, relativeOffset)
+
+    const randomOffset = Math.floor(Math.random() * (effectiveOffset + 1)) // 0 a effectiveOffset
+
+    const ttl = ttlValue + randomOffset
+    return ttl
   }
 
   /**
@@ -57,15 +108,23 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    *
    * @param key The key used to store the value.
    * @param value The value to store.
-   * @param exp The optional expiration (in seconds) or KEEPTTL if already exists
-   * @param schedule The optional flag indicating whether to save in the background
-   *                (using pipeline or scheduler strategies).
+   * @param {number} [options.exp] The optional expiration (in seconds) or KEEPTTL if already exists
+   * @param {boolean} [options.schedule] The optional flag indicating whether to save in the background
+   *                                     (using pipeline or scheduler strategies).
+   * @param {number} [options.maxTTLOffset]  Maximum random offset in seconds to add.
+   *                                             Defaults to `9` or defined in constructor.
+   * @param {number} [options.minTTLForOffset]  Maximum random offset in seconds to add.
+   *                                             Defaults to `9` or defined in constructor.
    */
   public abstract set(
     key: K,
     value: V,
-    exp?: number | 'KEEPTTL',
-    schedule?: boolean,
+    options: {
+      exp?: number | 'KEEPTTL'
+      schedule?: boolean
+      maxTTLOffset?: number
+      minTTLForOffset?: number
+    },
   ): Async<void>['local' extends P ? 'sync' : 'async']
 
   /**
