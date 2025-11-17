@@ -1,5 +1,6 @@
-import type { CoreCacheConnectors } from 'typings/program.ts'
 import type { CoreConnectorTemplates, ZanixCacheConnectorGeneric } from 'typings/targets.ts'
+import type { CacheProviderSetOptions, CacheSetOptions } from 'typings/general.ts'
+import type { CoreCacheConnectors } from 'typings/program.ts'
 
 import ConnectorCoreModules from 'connectors/core/all.ts'
 import ProgramModule from 'modules/program/mod.ts'
@@ -102,11 +103,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
   public getCachedOrFetch<V, K = string>(
     _provider: Exclude<CoreCacheConnectors, 'local'>,
     _key: K,
-    _options: {
-      fetcher?: () => V | Promise<V>
-      /** expiration time en seconds */
-      exp?: number | 'KEEPTTL'
-    } = {},
+    _options: CacheProviderSetOptions<V> = {},
   ): Promise<V> {
     throw this['methodNotImplementedError']('getCachedOrFetch')
   }
@@ -130,12 +127,9 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
     _provider: Exclude<CoreCacheConnectors, 'local'>,
     _key: K,
     _options: {
-      fetcher?: () => V | Promise<V>
-      /** expiration time en seconds */
-      exp?: number | 'KEEPTTL'
       /** Soft TTL in seconds. After this time, the cache is refreshed in background. */
       softTtl?: number
-    } = {},
+    } & CacheProviderSetOptions<V> = {},
   ): Promise<V> {
     throw this['methodNotImplementedError']('getCachedOrRevalidate')
   }
@@ -150,21 +144,18 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * @param {Extract<CoreCacheConnectors, 'redis'>} _options.provider - Cache provider or connector to use (e.g., `'redis'`).
    * @param {K} _options.key - Key under which the value will be stored.
    * @param {V} _options.value - Value to store in the cache.
-   * @param {number | 'KEEPTTL'} [_options.exp] - Expiration time in seconds, or `'KEEPTTL'` to keep the existing TTL.
-   * @param {boolean} [_options.schedule] - The optional flag indicating whether to save in the background
-   *                (using pipeline or scheduler strategies).
    *
    * @throws {Error} Always throws an error since this method is abstract and must be implemented by subclasses.
    *
    * @returns {Promise<void>} A promise that resolves when the save operation completes (or in this case, never, since it throws).
    */
-  public saveToCaches<K, V>(_options: {
-    provider: Extract<CoreCacheConnectors, 'redis'>
-    key: K
-    value: V
-    exp?: number | 'KEEPTTL'
-    schedule?: boolean
-  }): Promise<void> {
+  public saveToCaches<K, V>(
+    _options: CacheSetOptions & {
+      provider: Extract<CoreCacheConnectors, 'redis'>
+      key: K
+      value: V
+    },
+  ): Promise<void> {
     throw this['methodNotImplementedError']('getCachedOrRevalidate')
   }
 

@@ -1,6 +1,6 @@
 import type { ConnectorOptions } from 'typings/targets.ts'
 import type { CoreCacheConnectors, CoreCacheTypes } from 'typings/program.ts'
-import type { Async } from 'typings/general.ts'
+import type { Async, CacheSetOptions } from 'typings/general.ts'
 
 import { ZanixConnector } from '../base.ts'
 
@@ -108,23 +108,12 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    *
    * @param key The key used to store the value.
    * @param value The value to store.
-   * @param {number} [options.exp] The optional expiration (in seconds) or KEEPTTL if already exists
-   * @param {boolean} [options.schedule] The optional flag indicating whether to save in the background
-   *                                     (using pipeline or scheduler strategies).
-   * @param {number} [options.maxTTLOffset]  Maximum random offset in seconds to add.
-   *                                             Defaults to `9` or defined in constructor.
-   * @param {number} [options.minTTLForOffset]  Maximum random offset in seconds to add.
-   *                                             Defaults to `9` or defined in constructor.
+   * @param {CacheSetOptions} [options] The optional set configuration
    */
   public abstract set(
     key: K,
     value: V,
-    options: {
-      exp?: number | 'KEEPTTL'
-      schedule?: boolean
-      maxTTLOffset?: number
-      minTTLForOffset?: number
-    },
+    options?: CacheSetOptions,
   ): Async<void>['local' extends P ? 'sync' : 'async']
 
   /**

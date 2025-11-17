@@ -94,7 +94,12 @@ export type {
   ModuleTypes,
   StartMode,
 } from 'typings/program.ts'
-export type { ConnectionStatusHandler, Seeders } from 'typings/general.ts'
+export type {
+  CacheProviderSetOptions,
+  CacheSetOptions,
+  ConnectionStatusHandler,
+  Seeders,
+} from 'typings/general.ts'
 export type {
   BootstrapServerOptions,
   ServerID,

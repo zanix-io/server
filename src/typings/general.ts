@@ -52,3 +52,25 @@ export type GzipSettings = {
  * or an object with optional settings.
  */
 export type GzipOptions = false | GzipSettings
+
+/**
+ * Options for setting a value in the cache.
+ */
+export type CacheSetOptions = {
+  /** Expiration in seconds, or `'KEEPTTL'` to preserve existing TTL. */
+  exp?: number | 'KEEPTTL'
+  /** Maximum random offset in seconds to add. Defaults to `9` or defined in constructor. */
+  maxTTLOffset?: number
+  /** Minimum TTL in seconds required for the offset to be applied. Defaults to `5` or defined in constructor. */
+  minTTLForOffset?: number
+  /** If `true`, schedule the external write (e.g. enqueue or perform in background) instead of performing it synchronously (use for redis). */
+  schedule?: boolean
+}
+
+/**
+ * Options for setting a value in the cache through a provider.
+ */
+export type CacheProviderSetOptions<V> = {
+  /** A fallback fetch function if the cache miss occurs. */
+  fetcher?: () => V | Promise<V>
+} & CacheSetOptions
