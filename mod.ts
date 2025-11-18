@@ -119,7 +119,13 @@ export type {
   MiddlewarePipe,
 } from 'typings/middlewares.ts'
 export type { HandlerContext, ScopedContext, Session } from 'typings/context.ts'
-export type { ConnectorOptions, CoreConnectorTemplates } from 'typings/targets.ts'
+export type {
+  ConnectorOptions,
+  CoreConnectorTemplates,
+  ZanixConnectorClass,
+  ZanixInteractorClass,
+  ZanixProviderClass,
+} from 'typings/targets.ts'
 export type { HttpMethods } from 'typings/router.ts'
 export type {
   ZanixClassDecorator,

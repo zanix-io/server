@@ -3,7 +3,6 @@ import type { CoreConnectorTemplates } from 'typings/targets.ts'
 import type { CoreWorkerConnectors } from 'typings/program.ts'
 import ConnectorCoreModules from 'connectors/core/all.ts'
 
-import ProgramModule from 'modules/program/mod.ts'
 import { ZanixProvider } from '../base.ts'
 
 /**
@@ -22,14 +21,6 @@ import { ZanixProvider } from '../base.ts'
  */
 export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = object>
   extends ZanixProvider<T> {
-  #contextId
-
-  constructor(contextId?: string) {
-    super(contextId)
-
-    this.#contextId = contextId
-  }
-
   /**
    * **Note:** use `this` to access the instance instead.
    */
@@ -41,20 +32,16 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
    * Retrieves a different worker connector based on the given `worker` identifier.
    *
    * @param {CoreWorkerConnectors} worker - The identifier for the desired worker.
+   * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `false`
+   *
    * @returns {T} - A connector of the specified type `T`, which extends `ZanixWorkerConnector`.
    *
    * @remarks
    * This method dynamically retrieves a worker connector based on the provided `worker` key
    */
-  public use<T extends ZanixWorkerConnector>(worker: CoreWorkerConnectors): T {
+  public use<T extends ZanixWorkerConnector>(worker: CoreWorkerConnectors, verbose?: false): T {
     const workerId = `worker:${worker}` as const
-    return this.checkInstance(
-      () =>
-        ProgramModule.targets.getConnector<T>(ConnectorCoreModules[workerId].key, {
-          contextId: this.#contextId,
-        }),
-      workerId,
-    )
+    return this.getProviderConnector<T>(ConnectorCoreModules[workerId].key, verbose)
   }
 
   /**

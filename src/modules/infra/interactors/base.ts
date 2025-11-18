@@ -37,7 +37,6 @@ export abstract class ZanixInteractor<
 > extends CoreBaseClass<T> {
   #connector
   #provider
-  #contextId
   #key
 
   constructor(contextId?: string) {
@@ -46,7 +45,6 @@ export abstract class ZanixInteractor<
     this.#connector = data.connector as string
     this.#provider = data.provider as string
     this.#key = key as string
-    this.#contextId = contextId
   }
 
   /**
@@ -61,9 +59,7 @@ export abstract class ZanixInteractor<
   protected get connector(): T['Connector'] extends ZanixConnectorGeneric ? T['Connector'] : never {
     return ProgramModule.targets.getConnector<
       T['Connector'] extends ZanixConnectorGeneric ? T['Connector'] : never
-    >(this.#connector, {
-      contextId: this.#contextId,
-    })
+    >(this.#connector, { contextId: this.contextId })
   }
 
   /**
@@ -78,9 +74,7 @@ export abstract class ZanixInteractor<
   protected get provider(): T['Provider'] extends ZanixProviderGeneric ? T['Provider'] : never {
     return ProgramModule.targets.getProvider<
       T['Provider'] extends ZanixProviderGeneric ? T['Provider'] : never
-    >(this.#provider, {
-      contextId: this.#contextId,
-    })
+    >(this.#provider, { contextId: this.contextId })
   }
 
   /**
@@ -100,7 +94,7 @@ export abstract class ZanixInteractor<
         const key = getTargetKey(Interactor)
         // Check if the interactor is not circular, in which case return the same instance
         if (this.#key === key) return this as unknown as T
-        return ProgramModule.targets.getInteractor<T>(key, { contextId: this.#contextId })
+        return ProgramModule.targets.getInteractor<T>(key, { contextId: this.contextId })
       },
     }
   }

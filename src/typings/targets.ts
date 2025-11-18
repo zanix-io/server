@@ -54,10 +54,6 @@ export type ZanixHandlerGeneric = HandlerBaseClass<any, any>
 
 export type ZanixInteractorGeneric = ZanixInteractor<any>
 
-export type ZanixInteractorClass<T extends ZanixInteractorGeneric = ZanixInteractorGeneric> = new (
-  contextId: string,
-) => T
-
 export type ZanixConnectorGeneric = ZanixConnector
 
 export type ZanixProviderGeneric = ZanixProvider<any>
@@ -67,12 +63,6 @@ export type ZanixCacheConnectorGeneric<P extends CoreCacheConnectors> = ZanixCac
   any,
   P
 >
-export type ZanixProviderClass<T extends ZanixProvider = ZanixProvider> = new (
-  contextId: string,
-) => T
-export type ZanixConnectorClass<T extends ZanixConnector = ZanixConnector> = new (
-  contextId: string,
-) => T
 
 export type ZanixInteractorsGetter = {
   get: <D extends ZanixInteractorGeneric>(Interactor: ZanixInteractorClass<D>) => D
@@ -85,6 +75,43 @@ export type ZanixConnectorsGetter = {
 export type ZanixProvidersGetter = {
   get: <D extends ZanixProviderGeneric>(Provider: ZanixProviderClass<D> | CoreProviders) => D
 }
+
+/**
+ * Represents a constructor type for a Zanix Interactor class.
+ *
+ * The class receives an optional `contextId` and must return an instance
+ * of a type extending `ZanixInteractorGeneric`.
+ *
+ * @template T extends ZanixInteractorGeneric
+ */
+export type ZanixInteractorClass<
+  T extends ZanixInteractorGeneric = ZanixInteractorGeneric,
+> = new (contextId?: string) => T
+
+/**
+ * Represents a constructor type for a Zanix Provider class.
+ *
+ * The class receives an optional `contextId` and must return an instance
+ * of a type extending `ZanixProvider`.
+ *
+ * @template T extends ZanixProvider
+ */
+export type ZanixProviderClass<
+  T extends ZanixProvider = ZanixProvider,
+> = new (contextId?: string) => T
+
+/**
+ * Represents a constructor type for a Zanix Connector class.
+ *
+ * The class receives an optional `contextId` and must return an instance
+ * of a type extending `ZanixConnector`.
+ *
+ * @template T extends ZanixConnector
+ */
+export type ZanixConnectorClass<
+  T extends ZanixConnector = ZanixConnector,
+> = new (contextId?: string) => T
+
 /**
  * Defines the available types for the different connectors in the Zanix system.
  *

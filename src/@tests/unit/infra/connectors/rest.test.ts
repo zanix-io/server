@@ -116,5 +116,7 @@ Deno.test('cleans route URLs with double slashes and can be rewrited by options'
     baseUrl: 'https://api.example.com',
   })
 
-  assertSpyCalls(mockFetch, 2)
+  await new MyApiClient().http.get('https://api.example.com//users//1')
+
+  assertSpyCalls(mockFetch, 3)
 })

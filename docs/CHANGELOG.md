@@ -7,6 +7,17 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.7] - 2025-11-18
+
+### Changed
+
+- Provider instance check replaced with `getProviderConnector`.
+
+### Fixed
+
+- **`RestClient`**: Endpoints without a base URL now work correctly when the full URL is provided in
+  the `endpoint` parameter.
+
 ## [1.2.6] - 2025-11-18
 
 ### 🚀 **Added**

@@ -13,7 +13,6 @@ import { getConnectors, getProviders } from 'utils/targets.ts'
 import ConnectorCoreModules from 'connectors/core/all.ts'
 import ProviderCoreModules from 'providers/core/all.ts'
 import { ContextualBaseClass } from './contextual.ts'
-import ProgramModule from 'modules/program/mod.ts'
 
 /**
  * Abstract base class that provides access to core connectors such as worker, asyncmq, cache, and database.
@@ -34,104 +33,6 @@ import ProgramModule from 'modules/program/mod.ts'
  */
 export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
   extends ContextualBaseClass {
-  #contextId
-
-  /**
-   * Creates an instance of `CoreBaseClass`.
-   *
-   * @param {string} [contextId] - Optional context ID for the instance. If not provided, the context ID will be retrieved from Async Local Storage (ALS) if available.
-   */
-  constructor(contextId?: string) {
-    super(contextId)
-    this.#contextId = contextId
-  }
-
-  // TODO: process public instances properties to restrict it for security issues
-
-  /**
-   * Retrieves the asyncmq connector associated with the instance.
-   * Connectors to message brokers such as RabbitMQ, Kafka, MQTT, etc.
-   *
-   * If the `asyncmq` connector is specified in the generic type `T`, it will return that specific connector type.
-   * Otherwise, it defaults to returning a `ZanixAsyncmqConnector`.
-   *
-   * @protected
-   * @returns {T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq'] : ZanixAsyncmqConnector} The asyncmq connector instance associated with the current context.
-   */
-  protected get asyncmq(): T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq']
-    : ZanixAsyncmqConnector {
-    return ProgramModule.targets.getConnector<
-      T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq'] : ZanixAsyncmqConnector
-    >(ConnectorCoreModules.asyncmq.key, { contextId: this.#contextId })
-  }
-
-  /**
-   * Retrieves the key-value local store connector associated with the instance.
-   *
-   * If the `kvLocal` connector is specified in the generic type `T`, it will return that specific connector type.
-   * Otherwise, it defaults to returning a `ZanixKVConnector`.
-   *
-   * @protected
-   * @returns {T['kvLocal'] extends ZanixKVConnector ? T['kvLocal'] : ZanixKVConnector} The kv connector instance associated with the current context.
-   */
-  protected get kvLocal(): T['kvLocal'] extends ZanixKVConnector ? T['kvLocal']
-    : ZanixKVConnector {
-    return ProgramModule.targets.getConnector<
-      T['kvLocal'] extends ZanixKVConnector ? T['kvLocal'] : ZanixKVConnector
-    >(ConnectorCoreModules.kvLocal.key, { contextId: this.#contextId })
-  }
-
-  /**
-   * Retrieves the database connector associated with the instance.
-   * Connectors to relational or non-relational databases, such as
-   * PostgreSQL, MySQL, MongoDB, or SQLite.
-   *
-   * If the `database` connector is specified in the generic type `T`, it will return that specific connector type.
-   * Otherwise, it defaults to returning a `ZanixDatabaseConnector`.
-   *
-   * @protected
-   * @returns {T['database'] extends ZanixDatabaseConnector ? T['database'] : ZanixDatabaseConnector} The database connector instance associated with the current context.
-   */
-  protected get database(): T['database'] extends ZanixDatabaseConnector ? T['database']
-    : ZanixDatabaseConnector {
-    return ProgramModule.targets.getConnector<
-      T['database'] extends ZanixDatabaseConnector ? T['database'] : ZanixDatabaseConnector
-    >(ConnectorCoreModules.database.key, { contextId: this.#contextId })
-  }
-
-  /**
-   * Retrieves the cache `provider` associated with the instance.
-   * Target to caching backends such as Redis, Memcached, or in-memory stores.
-   *
-   * If the `cache` provider is specified in the generic type `T`, it will return that specific provider type.
-   * Otherwise, it defaults to returning a `ZanixCacheProvider`.
-   *
-   * @protected
-   * @returns {T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider} The cache provider instance associated with the current context.
-   */
-  protected get cache(): T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider {
-    return ProgramModule.targets.getProvider<
-      T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider
-    >(ProviderCoreModules.cache.key, { contextId: this.#contextId })
-  }
-
-  /**
-   * Retrieves the worker provider associated with the instance,
-   * Target to interact with connectors as BullMQ, Agenda, Temporal, or custom job queues.
-   *
-   * If the `worker` provider is specified in the generic type `T`, it will return that specific provider type.
-   * Otherwise, it defaults to returning a `ZanixWorkerProvider`.
-   *
-   * @protected
-   * @returns {T['worker'] extends ZanixWorkerProvider ? T['worker'] : ZanixWorkerProvider} The worker provider instance associated with the current context.
-   */
-  protected get worker(): T['worker'] extends ZanixWorkerProvider ? T['worker']
-    : ZanixWorkerProvider {
-    return ProgramModule.targets.getProvider<
-      T['worker'] extends ZanixWorkerProvider ? T['worker'] : ZanixWorkerProvider
-    >(ProviderCoreModules.worker.key, { contextId: this.#contextId })
-  }
-
   /**
    * Accesses the connectors registered within the system.
    *
@@ -145,7 +46,7 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * @returns {ZanixConnectorsGetter} A utility for retrieving and interacting with other connectors.
    */
   protected get connectors(): ZanixConnectorsGetter {
-    return getConnectors(this.#contextId)
+    return getConnectors(this.contextId)
   }
 
   /**
@@ -163,6 +64,92 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * @returns {ZanixProvidersGetter} A utility for retrieving and interacting with other providers.
    */
   protected get providers(): ZanixProvidersGetter {
-    return getProviders(this.#contextId)
+    return getProviders(this.contextId)
+  }
+
+  // TODO: process public instances properties to restrict it for security issues
+
+  /**
+   * Retrieves the asyncmq connector associated with the instance.
+   * Connectors to message brokers such as RabbitMQ, Kafka, MQTT, etc.
+   *
+   * If the `asyncmq` connector is specified in the generic type `T`, it will return that specific connector type.
+   * Otherwise, it defaults to returning a `ZanixAsyncmqConnector`.
+   *
+   * @protected
+   * @returns {T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq'] : ZanixAsyncmqConnector} The asyncmq connector instance associated with the current context.
+   */
+  protected get asyncmq(): T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq']
+    : ZanixAsyncmqConnector {
+    return this.connectors.get<
+      T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq'] : ZanixAsyncmqConnector
+    >(ConnectorCoreModules.asyncmq.key)
+  }
+
+  /**
+   * Retrieves the key-value local store connector associated with the instance.
+   *
+   * If the `kvLocal` connector is specified in the generic type `T`, it will return that specific connector type.
+   * Otherwise, it defaults to returning a `ZanixKVConnector`.
+   *
+   * @protected
+   * @returns {T['kvLocal'] extends ZanixKVConnector ? T['kvLocal'] : ZanixKVConnector} The kv connector instance associated with the current context.
+   */
+  protected get kvLocal(): T['kvLocal'] extends ZanixKVConnector ? T['kvLocal']
+    : ZanixKVConnector {
+    return this.connectors.get<
+      T['kvLocal'] extends ZanixKVConnector ? T['kvLocal'] : ZanixKVConnector
+    >(ConnectorCoreModules.kvLocal.key)
+  }
+
+  /**
+   * Retrieves the database connector associated with the instance.
+   * Connectors to relational or non-relational databases, such as
+   * PostgreSQL, MySQL, MongoDB, or SQLite.
+   *
+   * If the `database` connector is specified in the generic type `T`, it will return that specific connector type.
+   * Otherwise, it defaults to returning a `ZanixDatabaseConnector`.
+   *
+   * @protected
+   * @returns {T['database'] extends ZanixDatabaseConnector ? T['database'] : ZanixDatabaseConnector} The database connector instance associated with the current context.
+   */
+  protected get database(): T['database'] extends ZanixDatabaseConnector ? T['database']
+    : ZanixDatabaseConnector {
+    return this.connectors.get<
+      T['database'] extends ZanixDatabaseConnector ? T['database'] : ZanixDatabaseConnector
+    >(ConnectorCoreModules.database.key)
+  }
+
+  /**
+   * Retrieves the cache `provider` associated with the instance.
+   * Target to caching backends such as Redis, Memcached, or in-memory stores.
+   *
+   * If the `cache` provider is specified in the generic type `T`, it will return that specific provider type.
+   * Otherwise, it defaults to returning a `ZanixCacheProvider`.
+   *
+   * @protected
+   * @returns {T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider} The cache provider instance associated with the current context.
+   */
+  protected get cache(): T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider {
+    return this.providers.get<
+      T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider
+    >(ProviderCoreModules.cache.key)
+  }
+
+  /**
+   * Retrieves the worker provider associated with the instance,
+   * Target to interact with connectors as BullMQ, Agenda, Temporal, or custom job queues.
+   *
+   * If the `worker` provider is specified in the generic type `T`, it will return that specific provider type.
+   * Otherwise, it defaults to returning a `ZanixWorkerProvider`.
+   *
+   * @protected
+   * @returns {T['worker'] extends ZanixWorkerProvider ? T['worker'] : ZanixWorkerProvider} The worker provider instance associated with the current context.
+   */
+  protected get worker(): T['worker'] extends ZanixWorkerProvider ? T['worker']
+    : ZanixWorkerProvider {
+    return this.providers.get<
+      T['worker'] extends ZanixWorkerProvider ? T['worker'] : ZanixWorkerProvider
+    >(ProviderCoreModules.worker.key)
   }
 }

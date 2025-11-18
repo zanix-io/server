@@ -187,7 +187,7 @@ class ProviderClass extends ZanixProvider<{ cache: any }> {
 /** Interactors */
 @Interactor({ Connector: Connectors, Provider: ProviderClass })
 class InteractorX extends ZanixInteractor<{ Connector: Connectors; Provider: ProviderClass }> {
-  constructor(contextId: string) {
+  constructor(contextId?: string) {
     super(contextId)
     this.interactors.get(InteractorD).interactorDMessage
   }
@@ -214,7 +214,7 @@ class InteractorX extends ZanixInteractor<{ Connector: Connectors; Provider: Pro
 @Interactor()
 class InteractorD extends ZanixInteractor<{ cache: any }> {
   public interactorDMessage = 'interactor D'
-  constructor(contextId: string) {
+  constructor(contextId?: string) {
     super(contextId)
 
     assertEquals(this.kvLocal.get(''), 'my kv local value')

@@ -30,7 +30,7 @@ import { TargetError } from 'utils/errors.ts'
  * @extends TargetBaseClass
  */
 export abstract class ContextualBaseClass extends TargetBaseClass {
-  #contextId
+  protected accessor contextId: string | undefined
 
   /**
    * Creates an instance of the `ContextualBaseClass` with an optional `contextId`.
@@ -47,7 +47,7 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
    */
   constructor(contextId?: string) {
     super()
-    this.#contextId = contextId
+    this.contextId = contextId
   }
   /**
    * Provides access to the environment configuration for the current execution context.
@@ -78,9 +78,9 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
   protected get context(): ScopedContext {
     const { lifetime, startMode } = this[ZANIX_PROPS]
 
-    this.#contextId = asyncContext.getId() || this.#contextId
+    this.contextId = asyncContext.getId() || this.contextId
 
-    if (!this.#contextId) {
+    if (!this.contextId) {
       throw new TargetError(
         `The system could not find the required information to proceed`,
         startMode,
@@ -94,7 +94,7 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
       )
     }
 
-    if (this.#contextId === DEFAULT_CONTEXT_ID) {
+    if (this.contextId === DEFAULT_CONTEXT_ID) {
       throw new TargetError(
         `The system could not find the required information to proceed`,
         startMode,
@@ -113,6 +113,6 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
       )
     }
 
-    return ProgramModule.context.getContext<ScopedContext>(this.#contextId)
+    return ProgramModule.context.getContext<ScopedContext>(this.contextId)
   }
 }
