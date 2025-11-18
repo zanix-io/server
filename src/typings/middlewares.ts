@@ -10,8 +10,32 @@ import type {
 } from './targets.ts'
 
 type GuardResponse = { response?: Response; headers?: Record<string, string> }
+type GuardContext = HandlerContext & {
+  interactors: ZanixInteractorsGetter
+  providers: ZanixProvidersGetter
+  connectors: ZanixConnectorsGetter
+}
+type GlobalMidContext = HandlerContext & { interactors: ZanixInteractorsGetter }
 
 export type GlobalMiddlewareContext = ZanixGlobalExports<{ server: (WebServerTypes | 'all')[] }>
+
+export type MiddlewareInternalGuard<A extends unknown[] = any[]> = (
+  context: HandlerContext,
+  ...args: A
+) => GuardResponse | Promise<GuardResponse>
+
+/**
+ * Represents a middleware guard function that performs side effects after request handling.
+ *
+ * It receives the `GuardContext` and any number of additional arguments, and may return
+ * `void` or a `Promise<void>`. Guards are typically used for rate limit, authentication, etc.
+ *
+ * @template A - Tuple of additional argument types passed to the middleware.
+ */
+export type MiddlewareGuard<A extends unknown[] = any[]> = (
+  context: GuardContext,
+  ...args: A
+) => GuardResponse | Promise<GuardResponse>
 
 /**
  * Represents a middleware pipe function that performs side effects during request handling.
@@ -28,53 +52,6 @@ export type MiddlewarePipe<A extends unknown[] = any[]> = (
 ) => void | Promise<void>
 
 /**
- * Represents a middleware guard function that performs side effects after request handling.
- *
- * It receives the `HandlerContext` and any number of additional arguments, and may return
- * `void` or a `Promise<void>`. Guards are typically used for rate limit, authentication, etc.
- *
- * @template A - Tuple of additional argument types passed to the middleware.
- */
-export type MiddlewareGuard<A extends unknown[] = any[]> = (
-  context: HandlerContext,
-  ...args: A
-) => GuardResponse | Promise<GuardResponse>
-
-/**
- * A global middleware pipe function that performs side effects across all requests, with access to global context.
- *
- * Combines `GlobalMiddlewareContext` with a pipe function that also receives the `ZanixInteractorsGetter`
- * and any additional arguments. Useful for global cross-cutting concerns like analytics or tracing.
- *
- * @template A - Tuple of additional argument types passed to the middleware.
- */
-export type MiddlewareGlobalPipe<A extends unknown[] = any[]> =
-  & GlobalMiddlewareContext
-  & ((
-    context: HandlerContext & { interactors: ZanixInteractorsGetter },
-    ...args: A
-  ) => void | Promise<void>)
-
-/**
- * A global middleware pipe function that performs side effects across all requests, with access to global context.
- *
- * Combines `GlobalMiddlewareContext` with a pipe function that also receives the `ZanixInteractorsGetter`
- * and any additional arguments. Useful for global cross-cutting concerns like analytics or tracing.
- *
- * @template A - Tuple of additional argument types passed to the middleware.
- */
-export type MiddlewareGlobalGuard<A extends unknown[] = any[]> =
-  & GlobalMiddlewareContext
-  & ((
-    context: HandlerContext & {
-      interactors: ZanixInteractorsGetter
-      providers: ZanixProvidersGetter
-      connectors: ZanixConnectorsGetter
-    },
-    ...args: A
-  ) => GuardResponse | Promise<GuardResponse>)
-
-/**
  * Represents a middleware interceptor that processes a `Response` after a request is handled.
  *
  * This middleware receives the `HandlerContext`, the current `Response`, and any additional arguments.
@@ -87,6 +64,36 @@ export type MiddlewareInterceptor<A extends unknown[] = any[]> = (
 ) => Response | Promise<Response>
 
 /**
+ * A global middleware pipe function that performs side effects across all requests, with access to global context.
+ *
+ * Combines `GlobalMiddlewareContext` with a pipe function that also receives the `ZanixInteractorsGetter`
+ * and any additional arguments. Useful for global cross-cutting concerns like analytics or tracing.
+ *
+ * @template A - Tuple of additional argument types passed to the middleware.
+ */
+export type MiddlewareGlobalGuard<A extends unknown[] = any[]> =
+  & GlobalMiddlewareContext
+  & ((
+    context: GuardContext,
+    ...args: A
+  ) => GuardResponse | Promise<GuardResponse>)
+
+/**
+ * A global middleware pipe function that performs side effects across all requests, with access to global context.
+ *
+ * Combines `GlobalMiddlewareContext` with a pipe function that also receives the `ZanixInteractorsGetter`
+ * and any additional arguments. Useful for global cross-cutting concerns like analytics or tracing.
+ *
+ * @template A - Tuple of additional argument types passed to the middleware.
+ */
+export type MiddlewareGlobalPipe<A extends unknown[] = any[]> =
+  & GlobalMiddlewareContext
+  & ((
+    context: GlobalMidContext,
+    ...args: A
+  ) => void | Promise<void>)
+
+/**
  * A global middleware interceptor that combines `GlobalMiddlewareContext` with a response-handling function.
  *
  * This variant of middleware has access to application-level context, including `ZanixInteractorsGetter`.
@@ -95,20 +102,10 @@ export type MiddlewareInterceptor<A extends unknown[] = any[]> = (
 export type MiddlewareGlobalInterceptor<A extends unknown[] = any[]> =
   & GlobalMiddlewareContext
   & ((
-    context: HandlerContext & { interactors: ZanixInteractorsGetter },
+    context: GlobalMidContext,
     response: Response,
     ...args: A
   ) => Response | Promise<Response>)
-
-/**
- * An internal-only middleware interceptor that handles requests at a lower level.
- *
- * This middleware has access only to the `HandlerContext` and returns a `Response` directly or via a `Promise`.
- * Typically used for internal logic like authentication or request validation.
- */
-export type MiddlewareInternalInterceptor = (
-  context: HandlerContext,
-) => Response | Promise<Response>
 
 export type MiddlewareTypes = 'guard' | 'pipe' | 'interceptor'
 

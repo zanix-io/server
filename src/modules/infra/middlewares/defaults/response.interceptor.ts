@@ -10,7 +10,7 @@ import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
  * @param handler - The handler function to execute for a route. It receives the current context (`ctx`)
  *   and can return a string, a `Response` object, or any serializable data.
  *
- * @returns A `MiddlewareInternalInterceptor` function that:
+ * @returns A `MiddlewareInterceptor` function that:
  *   1. Executes the provided `handler` with the current context.
  *   2. Converts the handler's return value into a valid `Response` object:
  *      - If the handler returns a string, it creates a `Response` with the string body.

@@ -137,6 +137,11 @@ export const getInteractors: (ctxId: string) => ZanixInteractorsGetter = (ctxId)
  * returns the provider associated with the provided key.
  * If a context ID (`ctxId`) is provided, it is passed to the `getProvider` method to scope the provider retrieval.
  *
+ * @warning ⚠️ **Important: Use this accessor carefully.**
+ * Misusing direct provider retrieval can break dependency injection patterns, bypass lifecycle rules,
+ * or lead to unintended singleton/multi-instance behaviors.
+ * Prefer relying on framework-managed injection whenever possible.
+ *
  * @param {string} [ctxId] - An optional context ID to specify the scope or context of the provider. If not provided,
  *                            the provider is retrieved globally.
  * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `true`
@@ -166,6 +171,11 @@ export const getProviders: (ctxId?: string, verbose?: boolean) => ZanixProviders
  * a class type (`ZanixConnectorClass<D>`) or a string identifier (`CoreConnectors`). The `get` method
  * returns the connector associated with the provided key.
  * If a context ID (`ctxId`) is provided, it is passed to the `getConnector` method to scope the connector retrieval.
+ *
+ * @warning ⚠️ **Important: Use this accessor carefully.**
+ * Misusing direct provider retrieval can break dependency injection patterns, bypass lifecycle rules,
+ * or lead to unintended singleton/multi-instance behaviors.
+ * Prefer relying on framework-managed injection whenever possible.
  *
  * @param {string} [ctxId] - An optional context ID to specify the scope or context of the connector. If not provided,
  *                            the connector is retrieved globally.

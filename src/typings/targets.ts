@@ -64,14 +64,47 @@ export type ZanixCacheConnectorGeneric<P extends CoreCacheConnectors> = ZanixCac
   P
 >
 
+/**
+ * Represents an accessor for retrieving instantiated Zanix Interactors.
+ *
+ * The `get` method receives an Interactor class (constructor) and returns
+ * its corresponding instantiated Interactor, ensuring correct typing through
+ * the generic parameter.
+ *
+ * @typedef {Object} ZanixInteractorsGetter
+ * @property {<D extends ZanixInteractorGeneric>(Interactor: ZanixInteractorClass<D>) => D} get
+ *   Retrieves an instance of the given Interactor class.
+ */
 export type ZanixInteractorsGetter = {
   get: <D extends ZanixInteractorGeneric>(Interactor: ZanixInteractorClass<D>) => D
 }
 
+/**
+ * Represents an accessor for retrieving instantiated Zanix Connectors.
+ *
+ * The `get` method accepts either a Connector class (constructor) or a
+ * predefined connector from `CoreConnectors`, returning a correctly typed
+ * connector instance.
+ *
+ * @typedef {Object} ZanixConnectorsGetter
+ * @property {<D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D> | CoreConnectors) => D} get
+ *   Retrieves an instance of the given Connector.
+ */
 export type ZanixConnectorsGetter = {
   get: <D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D> | CoreConnectors) => D
 }
 
+/**
+ * Represents an accessor for retrieving instantiated Zanix Providers.
+ *
+ * The `get` method accepts either a Provider class (constructor) or a
+ * predefined provider from `CoreProviders`, returning a correctly typed
+ * provider instance.
+ *
+ * @typedef {Object} ZanixProvidersGetter
+ * @property {<D extends ZanixProviderGeneric>(Provider: ZanixProviderClass<D> | CoreProviders) => D} get
+ *   Retrieves an instance of the given Provider.
+ */
 export type ZanixProvidersGetter = {
   get: <D extends ZanixProviderGeneric>(Provider: ZanixProviderClass<D> | CoreProviders) => D
 }

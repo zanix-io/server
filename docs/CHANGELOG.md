@@ -12,6 +12,7 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 ### Changed
 
 - Provider instance check replaced with `getProviderConnector`.
+- All Guard Middlewares can access to `interactors`, `providers` and `connectors`.
 
 ### Fixed
 

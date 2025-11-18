@@ -115,7 +115,6 @@ export type {
   MiddlewareGlobalPipe,
   MiddlewareGuard,
   MiddlewareInterceptor,
-  MiddlewareInternalInterceptor,
   MiddlewarePipe,
 } from 'typings/middlewares.ts'
 export type { HandlerContext, ScopedContext, Session } from 'typings/context.ts'

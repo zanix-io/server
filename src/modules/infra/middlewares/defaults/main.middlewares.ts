@@ -7,24 +7,34 @@ import type {
 import type { HandlerFunction, HttpMethods } from 'typings/router.ts'
 import type { GzipOptions } from 'typings/general.ts'
 import type { WebServerTypes } from 'typings/server.ts'
+import type { HandlerContext } from '@zanix/server'
 import type { HttpError } from '@zanix/errors'
 
+import { getConnectors, getInteractors, getProviders } from 'utils/targets.ts'
 import { getResponseInterceptor } from './response.interceptor.ts'
 import { errorResponses } from 'webserver/helpers/errors.ts'
 import { cleanUpPipe, contextSettingPipe } from './context.pipe.ts'
 import { validateMethodsPipe } from './methods.pipe.ts'
-import logger from '@zanix/logger'
 import { gzipResponseFromResponse } from 'utils/gzip.ts'
 import { corsGuard } from './cors.guard.ts'
+import logger from '@zanix/logger'
 
 /**
  * Guards that must be executed across all types of HTTP web servers.
  * This ensures consistent behavior regardless of the server implementation.
  */
-export const mainGuard: MiddlewareGuard = async (context, guards: MiddlewareGuard[]) => {
+export const mainGuard = async (context: HandlerContext, guards: MiddlewareGuard[]) => {
   let baseHeaders: Record<string, string> = {}
+
+  const guardContext = {
+    ...context,
+    interactors: getInteractors(context.id),
+    providers: getProviders(context.id),
+    connectors: getConnectors(context.id),
+  }
+
   for await (const guard of guards) {
-    const { response, headers } = await guard(context)
+    const { response, headers } = await guard(guardContext)
     baseHeaders = { ...baseHeaders, ...headers }
     if (response) {
       return { response }
@@ -68,7 +78,7 @@ export const mainInterceptor: MiddlewareInterceptor = async (context, _, options
 /**
  * Main Guard that must be executed across all routes of HTTP web servers.
  */
-export const routerGuard: MiddlewareGuard = (context, options: {
+export const routerGuard = (context: HandlerContext, options: {
   type: WebServerTypes
   cors?: CorsOptions
   guards?: MiddlewareGuard[]

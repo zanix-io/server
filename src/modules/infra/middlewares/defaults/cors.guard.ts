@@ -1,5 +1,5 @@
 import type { HandlerContext } from 'typings/context.ts'
-import type { CorsOptions, MiddlewareGuard } from 'typings/middlewares.ts'
+import type { CorsOptions, MiddlewareInternalGuard } from 'typings/middlewares.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { HttpMethods } from 'typings/router.ts'
 
@@ -75,7 +75,7 @@ import { validateMethodsPipe } from './methods.pipe.ts'
 export const corsGuard = <Credential extends boolean>(
   options?: CorsOptions<Credential>,
   type: WebServerTypes = 'rest',
-): MiddlewareGuard => {
+): MiddlewareInternalGuard => {
   if (!options) return () => ({})
 
   const methodMap: Record<WebServerTypes, HttpMethods[]> = {
