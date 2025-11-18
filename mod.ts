@@ -39,6 +39,7 @@ export { Interactor } from 'interactors/decorators/base.ts'
 
 // Connectors
 export { ZanixConnector } from 'connectors/base.ts'
+export { ZanixKVConnector } from 'connectors/core/kv.ts'
 export { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 export { ZanixCacheConnector } from 'connectors/core/cache.ts'
 export { ZanixDatabaseConnector } from 'connectors/core/database.ts'
