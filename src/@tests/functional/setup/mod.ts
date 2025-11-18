@@ -60,14 +60,14 @@ try {
   assert(!Object.keys(Program.routes).length)
 
   // All instantiated classes
-  assertEquals(Object.keys(Program.targets).length, 18)
+  assertEquals(Object.keys(Program.targets).length, 19)
 
   await Promise.all(Program.targets.getTargetsByStartMode('postBoot').map(startConnection))
 
   Program.cleanupMetadata('postBoot')
 
   // Persisted instances
-  assertEquals(Object.keys(Program.targets).length, 15)
+  assertEquals(Object.keys(Program.targets).length, 16)
 } catch (e) {
   logger.debug('An error ocurred', e)
   // ignore

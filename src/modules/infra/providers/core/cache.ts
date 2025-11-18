@@ -173,8 +173,8 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * @param _key - The key that identifies the resource to lock. The type can vary depending
    *               on the system (e.g., a string, number, or object).
    *
-   * @param _fn - A callback function that returns a Promise and represents the operation
-   *              that should be executed while holding the lock. The lock will be acquired
+   * @param _fn - A callback function that represent the operation that should be executed
+   *              while holding the lock. The lock will be acquired
    *              before executing the function and released once it completes.
    *
    * @throws {Error} Throws a methodNotImplementedError if this method is called directly,
@@ -182,7 +182,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    *
    * @abstract
    */
-  public withLock<T>(_key: string, _fn: () => Promise<T>): Promise<T> {
+  public withLock<T>(_key: string, _fn: () => T | Promise<T>): Promise<T> {
     throw this['methodNotImplementedError']('withLock')
   }
 }

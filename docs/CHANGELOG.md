@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.4] - 2025-11-17
+
+### Added
+
+- **Key-value store connectors**: support for key-value store core connectors
+
 ## [1.2.3] - 2025-11-16
 
 ## [1.2.2] - 2025-11-16

@@ -81,12 +81,14 @@ export type CoreWorkerConnectors = 'local' | 'bull' | GenericTargets
  * - `worker:{CoreWorkerConnectors}`: Represents worker connectors, such as Bull or local worker systems.
  * - `'asyncmq'`: Represents an asynchronous message queue system.
  * - `'database'`: Represents a generic database connector.
+ * - `'kvLocal'`: Represents a generic key-value store connector.
  */
 export type CoreConnectors =
   | `cache:${CoreCacheConnectors}`
   | `worker:${CoreWorkerConnectors}`
   | 'asyncmq'
   | 'database'
+  | 'kvLocal'
 
 export type CoreProviders = 'cache' | 'worker'
 

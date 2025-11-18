@@ -32,6 +32,7 @@ import { ZanixProvider } from 'providers/base.ts'
 import { ZanixCacheProvider } from 'providers/core/cache.ts'
 import { ZanixCacheConnector } from 'modules/infra/connectors/core/cache.ts'
 import { Guard } from 'modules/infra/middlewares/decorators/guard.ts'
+import { ZanixKVConnector } from 'modules/infra/connectors/core/kv.ts'
 
 /** RTOS */
 class C extends BaseRTO {
@@ -96,6 +97,35 @@ class Connectors extends ZanixConnector {
 
   public def() {
     return 465
+  }
+}
+
+@Connector({ type: 'kvLocal', startMode: 'lazy' })
+class _KVLocal extends ZanixKVConnector {
+  public override get<O = any>(_: string): O | undefined {
+    return 'my kv local value' as any
+  }
+  public override set(_: string, __: any, ___?: number | 'KEEPTTL'): void {
+    throw new Error('Method not implemented.')
+  }
+  public override delete(_?: string): void {
+    throw new Error('Method not implemented.')
+  }
+  public override clear(): void {
+    throw new Error('Method not implemented.')
+  }
+  public override getClient<T = any>(): T {
+    throw new Error('Method not implemented.')
+  }
+  public override withLock<T>(_: string, _fn: () => T | Promise<T>): Promise<T> {
+    throw new Error('Method not implemented.')
+  }
+  protected override initialize(): Promise<void> | void {
+  }
+  protected override close() {
+  }
+  public override isHealthy(): Promise<boolean> | boolean {
+    return true
   }
 }
 
@@ -187,6 +217,7 @@ class InteractorD extends ZanixInteractor<{ cache: any }> {
   constructor(contextId: string) {
     super(contextId)
 
+    assertEquals(this.kvLocal.get(''), 'my kv local value')
     this.interactorDMessage = 'interactor D message'
   }
 }

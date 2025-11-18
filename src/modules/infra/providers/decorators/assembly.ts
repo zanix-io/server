@@ -15,7 +15,7 @@ export function defineProviderDecorator<L extends Exclude<Lifetime, 'TRANSIENT'>
 ): ZanixClassDecorator {
   let key: string
   let type: ProviderTypes = 'custom'
-  let startMode: StartMode = 'postBoot'
+  let startMode: StartMode = 'lazy'
   let lifetime: Lifetime = 'SINGLETON'
 
   if (typeof options === 'string') {

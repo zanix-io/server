@@ -13,6 +13,7 @@ export const ConnectorCoreModules: Record<
   'worker:bull': { key: 'worker:bull', Target: {} as Function },
   'worker:local': { key: 'worker:local', Target: {} as Function },
   'worker:custom': { key: 'worker:custom', Target: {} as Function },
+  kvLocal: { key: 'kvLocal', Target: {} as Function },
   asyncmq: { key: 'asyncmq', Target: {} as Function },
   database: { key: 'database', Target: {} as Function },
 }

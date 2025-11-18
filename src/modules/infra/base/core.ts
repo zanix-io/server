@@ -1,5 +1,6 @@
 import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 import type { ZanixDatabaseConnector } from 'connectors/core/database.ts'
+import type { ZanixKVConnector } from 'connectors/core/kv.ts'
 import type { ZanixWorkerProvider } from 'providers/core/worker.ts'
 import type { ZanixCacheProvider } from 'providers/core/cache.ts'
 import type {
@@ -45,7 +46,7 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
     this.#contextId = contextId
   }
 
-  // TODO: process public instance properties to restrict it for security issues
+  // TODO: process public instances properties to restrict it for security issues
 
   /**
    * Retrieves the asyncmq connector associated with the instance.
@@ -62,6 +63,22 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
     return ProgramModule.targets.getConnector<
       T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq'] : ZanixAsyncmqConnector
     >(ConnectorCoreModules.asyncmq.key, { contextId: this.#contextId })
+  }
+
+  /**
+   * Retrieves the key-value local store connector associated with the instance.
+   *
+   * If the `kvLocal` connector is specified in the generic type `T`, it will return that specific connector type.
+   * Otherwise, it defaults to returning a `ZanixKVConnector`.
+   *
+   * @protected
+   * @returns {T['kvLocal'] extends ZanixKVConnector ? T['kvLocal'] : ZanixKVConnector} The kv connector instance associated with the current context.
+   */
+  protected get kvLocal(): T['kvLocal'] extends ZanixKVConnector ? T['kvLocal']
+    : ZanixKVConnector {
+    return ProgramModule.targets.getConnector<
+      T['kvLocal'] extends ZanixKVConnector ? T['kvLocal'] : ZanixKVConnector
+    >(ConnectorCoreModules.kvLocal.key, { contextId: this.#contextId })
   }
 
   /**

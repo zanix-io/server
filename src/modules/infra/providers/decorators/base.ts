@@ -11,7 +11,7 @@ import { defineProviderDecorator } from 'providers/decorators/assembly.ts'
  *
  * @param {ProviderTypes} type - The type of the interactor provider.
  *
- * Defaults: `type`='custom', `startMode`='postBoot', `lifetime`='SINGLETON'
+ * Defaults: `type`='custom', `startMode`='lazy', `lifetime`='SINGLETON'
  *
  * @returns {ZanixClassDecorator} The class decorator function.
  */
@@ -24,7 +24,7 @@ export function Provider(type?: ProviderTypes): ZanixClassDecorator
  *
  * @param {Object} options - Configuration options for the provider.
  * @param {CoreProviders} options.type - The generic provider type (e.g., 'custom'). Defaults to 'custom'
- * @param {StartMode} [options.startMode='postBoot'] - The instance initialization mode.
+ * @param {StartMode} [options.startMode='lazy'] - The instance initialization mode.
  *                                                Determines when the provider instance is started.
  * @param {Lifetime} [options.lifetime='SINGLETON'] - The provider's lifetime scope,
  *                                                    specifying the dependency injection strategy.
