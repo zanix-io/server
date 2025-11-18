@@ -178,25 +178,59 @@ import { Interactor, ZanixInteractor } from 'jsr:@zanix/server@[version]'
 Connectors help integrate external services, databases, and communication layers into your
 application. You can import connectors based on the service you need to integrate:
 
-- **Database Connector**
+- **Database Connector** Provides a standardized foundation for implementing connectors to
+  relational or non-relational databases.
 
   ```typescript
   import { ZanixDatabaseConnector } from 'jsr:@zanix/server@[version]'
   ```
 
-- **Async Message Queue Connector**
+- **Async Message Queue Connector** Serves as a specialized foundation for implementing connectors
+  to message brokers such as RabbitMQ, Kafka, MQTT, etc.
 
   ```typescript
   import { ZanixAsyncmqConnector } from 'jsr:@zanix/server@[version]'
   ```
 
-- **Cache Connector**
+- **Cache Connector** Is intended to be used as the foundation for implementing connectors to
+  caching backends such as Redis, Memcached, or in-memory stores.
 
   ```typescript
   import { ZanixCacheConnector } from 'jsr:@zanix/server@[version]'
   ```
 
-### 4. **Middlewares**
+- **Worker Connector** Is designed to be the foundation for implementing connectors to background
+  processing tools such as BullMQ, Agenda, Temporal, or custom job queues.
+
+  ```typescript
+  import { ZanixWorkerConnector } from 'jsr:@zanix/server@[version]'
+  ```
+
+- **KV Store Connector** For connectors that integrate key-value stores, with optional TTL
+  (Time-To-Live) support.
+
+  ```typescript
+  import { ZanixKVConnector } from 'jsr:@zanix/server@[version]'
+  ```
+
+- **Client Connectors** Provides a unified foundation for implementing connectors that operate as
+  clients, including REST and GraphQL.
+
+  ```typescript
+  import { GraphQLClient, RestClient } from 'jsr:@zanix/server@[version]'
+  ```
+
+### 4. **Providers**
+
+Providers act as a technical orchestration layer, connecting interactors with connectors. They can
+combine repository and data service responsibilities, managing multiple connectors while keeping
+domain logic separate.
+
+```typescript
+import { ZanixCacheProvider, ZanixProvider, ZanixWorkerProvider } from 'jsr:@zanix/server@[version]'
+```
+
+### 5. **Middlewares**
 
 Middlewares provide hooks for managing requests, validation, or transformations. You can import
 global middlewares or specific decorators to apply functionality to your server:
@@ -213,7 +247,7 @@ global middlewares or specific decorators to apply functionality to your server:
   import { Interceptor, Pipe, RequestValidation } from 'jsr:@zanix/server@[version]'
   ```
 
-### 5. **Constants**
+### 6. **Constants**
 
 You may also need constants for specific configurations like GraphQL ports, socket ports, and
 content headers. Here’s how you can import them:
@@ -222,7 +256,7 @@ content headers. Here’s how you can import them:
 import { GRAPHQL_PORT, JSON_CONTENT_HEADER, SOCKET_PORT } from 'jsr:@zanix/server@[version]'
 ```
 
-### 6. **WebServerManager**
+### 7. **WebServerManager**
 
 The `webServerManager` instance helps you manage different types of web servers dynamically. You can
 import and use it to create, start, stop, and retrieve information about your servers:

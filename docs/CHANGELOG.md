@@ -7,6 +7,28 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.6] - 2025-11-18
+
+### 🚀 **Added**
+
+- **New abstract base classes for HTTP and GraphQL clients**
+
+  - **`RestClient`**: Provides a standardized layer for performing REST operations (`GET`, `POST`,
+    `PUT`, `PATCH`, `DELETE`) with:
+
+    - Automatic base URL resolution
+    - Default header handling
+    - JSON request/response serialization
+    - Unified error handling via `HttpError`
+  - **`GraphQLClient`**: Extends `RestClient` to simplify sending GraphQL queries using:
+
+    - Automatic `POST` requests
+    - GraphQL-specific payload handling
+    - Inherited header management, JSON parsing, and error handling
+
+These classes enable easier, more consistent, and reusable implementations of specialized REST and
+GraphQL API clients.
+
 ## [1.2.5] - 2025-11-17
 
 ## [1.2.4] - 2025-11-17

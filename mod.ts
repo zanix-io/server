@@ -44,6 +44,8 @@ export { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 export { ZanixCacheConnector } from 'connectors/core/cache.ts'
 export { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 export { ZanixWorkerConnector } from 'connectors/core/worker.ts'
+export { GraphQLClient } from 'connectors/core/graphql.ts'
+export { RestClient } from 'connectors/core/rest.ts'
 export { Connector } from 'connectors/decorators/base.ts'
 
 // Providers
