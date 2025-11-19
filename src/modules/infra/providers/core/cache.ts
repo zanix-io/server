@@ -4,6 +4,7 @@ import type { CoreCacheConnectors } from 'typings/program.ts'
 
 import ConnectorCoreModules from 'connectors/core/all.ts'
 import { ZanixProvider } from '../base.ts'
+import { InternalError } from '@zanix/errors'
 
 /**
  * Abstract base class for providers that integrate with caching systems.
@@ -24,8 +25,8 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
   /**
    * **Note**: Use `this` to access the instance instead.
    */
-  protected override get cache(): this {
-    return this
+  protected override get cache(): never {
+    throw new InternalError('Direct access to `cache` is not allowed. Use `this` instead.')
   }
 
   /**

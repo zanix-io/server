@@ -32,8 +32,8 @@ export type GeneralTargetTypes =
  * ℹ️ These are **instantiated** modules
  *
  * Can be any of:
- * - `HandlerTypes`: `'controller'`, `'socket'`, `'resolver'`
- * - `GeneralTargetTypes`: `'connector'`, `'interactor'`, `'subscriber'`, `'job'`
+ * - `HandlerTypes`: `'controller'`, `'socket'`, `'resolver'`, `'subscriber'`,
+ * - `GeneralTargetTypes`: `'connector'`, `'interactor'`
  */
 export type ModuleTypes =
   | HandlerTypes

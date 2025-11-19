@@ -10,10 +10,6 @@ import { Get } from 'modules/infra/handlers/rest/decorators/get.ts'
 import { ZanixInteractor } from 'interactors/base.ts'
 import { Interactor } from 'interactors/decorators/base.ts'
 import { Connector } from 'connectors/decorators/base.ts'
-import {
-  defineGlobalInterceptorHOC,
-  defineGlobalPipeHOC,
-} from 'modules/infra/middlewares/hocs/base.ts'
 import { ZanixWebSocket } from 'handlers/sockets/base.ts'
 import { Socket } from 'handlers/sockets/decorators/base.ts'
 import { ZanixResolver } from 'handlers/graphql/base.ts'
@@ -33,6 +29,8 @@ import { ZanixCacheProvider } from 'providers/core/cache.ts'
 import { ZanixCacheConnector } from 'modules/infra/connectors/core/cache.ts'
 import { Guard } from 'modules/infra/middlewares/decorators/guard.ts'
 import { ZanixKVConnector } from 'modules/infra/connectors/core/kv.ts'
+import { registerGlobalPipe } from 'modules/infra/middlewares/defs/pipes.ts'
+import { registerGlobalInterceptor } from 'modules/infra/middlewares/defs/interceptors.ts'
 
 /** RTOS */
 class C extends BaseRTO {
@@ -239,7 +237,7 @@ const globalMid: MiddlewareGlobalPipe = function MiddlewareGlobalPipe(ctx) {
 globalMid.exports = {
   server: ['rest'], // this pipe is only for rest servers
 }
-defineGlobalPipeHOC(globalMid)
+registerGlobalPipe(globalMid)
 
 const globalGQL: MiddlewareGlobalPipe = function MiddlewareGlobalPipe(ctx) {
   ctx.interactors.get(InteractorD).interactorDMessage
@@ -252,7 +250,7 @@ const globalGQL: MiddlewareGlobalPipe = function MiddlewareGlobalPipe(ctx) {
 globalGQL.exports = {
   server: ['graphql'], // this pipe is only for gql servers
 }
-defineGlobalPipeHOC(globalGQL)
+registerGlobalPipe(globalGQL)
 
 const globalInt: MiddlewareGlobalInterceptor = function MiddlewareGlobalPipe(_, response) {
   response.headers.set('global-header', 'global interceptor header')
@@ -262,7 +260,7 @@ const globalInt: MiddlewareGlobalInterceptor = function MiddlewareGlobalPipe(_, 
 globalInt.exports = {
   server: ['rest', 'graphql'],
 }
-defineGlobalInterceptorHOC(globalInt)
+registerGlobalInterceptor(globalInt)
 
 /** Sockets */
 @Socket({ route: 'mysock/:qparam', Interactor: InteractorD, rto: { Body: C, Params: S } })

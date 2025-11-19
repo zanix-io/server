@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.9] - 2025-11-19
+
+### Changed
+
+- Replaced Higher-Order Component (HOC) files with `defs` files to unify module definitions and
+  centralize DSL-based declarations, metadata, and foundational structures. This improves
+  consistency and simplifies the architecture for components like handlers, interactors, providers,
+  and connectors.
+
 ## [1.2.8] - 2025-11-18
 
 ### Fixed
@@ -98,8 +107,8 @@ GraphQL API clients.
 
 ### Added
 
-- **Guard Middleware Support**: Added support for middleware decorators and HOC in
-  [Guard](../src/modules/infra/middlewares/hocs/guards.ts).
+- **Guard Middleware Support**: Added support for middleware decorators and DSLs in
+  [Guard](../src/modules/infra/middlewares/defs/guards.ts).
 
 ## [1.1.2] - 2025-11-11
 

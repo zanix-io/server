@@ -4,6 +4,7 @@ import type { CoreWorkerConnectors } from 'typings/program.ts'
 import ConnectorCoreModules from 'connectors/core/all.ts'
 
 import { ZanixProvider } from '../base.ts'
+import { InternalError } from '@zanix/errors'
 
 /**
  * Abstract base class for providers that integrate with background job or worker systems.
@@ -24,8 +25,8 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
   /**
    * **Note:** use `this` to access the instance instead.
    */
-  protected override get worker(): this {
-    return this
+  protected override get worker(): never {
+    throw new InternalError('Direct access to `worker` is not allowed. Use `this` instead.')
   }
 
   /**

@@ -56,10 +56,10 @@ export { Provider } from 'providers/decorators/base.ts'
 
 // Middlewares
 export {
-  defineGlobalGuardHOC,
-  defineGlobalInterceptorHOC,
-  defineGlobalPipeHOC,
-} from 'middlewares/hocs/base.ts'
+  registerGlobalGuard,
+  registerGlobalInterceptor,
+  registerGlobalPipe,
+} from 'middlewares/defs/base.ts'
 export { Pipe } from 'middlewares/decorators/pipe.ts'
 export { Guard } from 'middlewares/decorators/guard.ts'
 export { Interceptor } from 'middlewares/decorators/interceptor.ts'

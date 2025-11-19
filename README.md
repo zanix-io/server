@@ -70,7 +70,7 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
                  |             |
                  |             |
 +----------------+-------------+------------------+
-|             DEPENDENCIES (HOCs)                 |  <- *.hoc.ts
+|             DEPENDENCIES (DSL/Defs)             |  <- *.defs.ts
 |  Middleware, Jobs, Models, Auth Guards, etc.    |
 +-------------------------------------------------+
 ```
@@ -95,20 +95,23 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
   (databases, caches, APIs, queues, etc.). They are pure infrastructure components with no domain
   logic.
 
-- **Dependencies / HOCs** (`*.hoc.ts`): Shared reusable building blocks (Higher-Order Components)
-  that enhance or wrap components, such as middlewares, jobs, auth guards, or model utilities.
+- **Dependencies /Definitions / DSL** (`*.defs.ts`): Contain domain definitions, metadata
+  structures, and DSL-based declarations used to define, create, or register entities within the
+  module. These files establish the foundational contracts, schemas, and configurable behaviors—such
+  as middleware pipes, jobs, auth guards, or model utilities—that other components (handlers,
+  interactors, providers, and connectors) depend on.
 
 ---
 
 ### **File Naming Conventions**
 
-| Component Type               | File Suffix      | Example                |
-| ---------------------------- | ---------------- | ---------------------- |
-| Handler                      | `.handler.ts`    | `user.handler.ts`      |
-| Interactor                   | `.interactor.ts` | `auth.interactor.ts`   |
-| Provider                     | `.provider.ts`   | `user.provider.ts`     |
-| Connector                    | `.connector.ts`  | `payment.connector.ts` |
-| Higher-Order Component (HOC) | `.hoc.ts`        | `model.hoc.ts`         |
+| Component Type           | File Suffix      | Example                |
+| ------------------------ | ---------------- | ---------------------- |
+| Handler                  | `.handler.ts`    | `user.handler.ts`      |
+| Interactor               | `.interactor.ts` | `auth.interactor.ts`   |
+| Provider                 | `.provider.ts`   | `user.provider.ts`     |
+| Connector                | `.connector.ts`  | `payment.connector.ts` |
+| Definitions (DSL/Domain) | `.defs.ts`       | `model.defs.ts`        |
 
 ---
 
@@ -235,16 +238,20 @@ import { ZanixCacheProvider, ZanixProvider, ZanixWorkerProvider } from 'jsr:@zan
 Middlewares provide hooks for managing requests, validation, or transformations. You can import
 global middlewares or specific decorators to apply functionality to your server:
 
-- **Global Interceptors and Pipes**
+- **Global Interceptors, Guards and Pipes**
 
   ```typescript
-  import { defineGlobalInterceptorHOC, defineGlobalPipeHOC } from 'jsr:@zanix/server@[version]'
+  import {
+    registerGlobalGuard,
+    registerGlobalInterceptor,
+    registerGlobalPipe,
+  } from 'jsr:@zanix/server@[version]'
   ```
 
 - **Specific Middlewares (Validation, Interceptors, etc.)**
 
   ```typescript
-  import { Interceptor, Pipe, RequestValidation } from 'jsr:@zanix/server@[version]'
+  import { Guard, Interceptor, Pipe, RequestValidation } from 'jsr:@zanix/server@[version]'
   ```
 
 ### 6. **Constants**

@@ -5,7 +5,7 @@ import ProgramModule from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 
 /**
- * Defines and registers a **global middleware interceptor** as a Higher-Order Component (HOC).
+ * Defines and registers a **global middleware interceptor** as a DSL definition.
  *
  * This utility allows you to attach a middleware-like function that executes
  * **after the request has been processed but before the response is returned**.
@@ -37,14 +37,14 @@ import { getTargetKey } from 'utils/targets.ts'
  *                     // If `exports` is not defined, the interceptor applies to all servers by default.
  * };
  *
- * defineGlobalInterceptorHOC(globalInterceptor);
+ * registerGlobalInterceptor(globalInterceptor);
  * ```
  *
  * @param {MiddlewareGlobalInterceptor} target - The global interceptor function to register.
  *   It wraps the response and must return a valid `Response` instance.
  * @returns {void}
  */
-export function defineGlobalInterceptorHOC(
+export function registerGlobalInterceptor(
   target: MiddlewareGlobalInterceptor,
 ): void {
   const { exports: { server = ['all' as const] } = {} } = target

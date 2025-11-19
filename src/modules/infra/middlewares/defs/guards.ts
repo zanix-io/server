@@ -5,7 +5,7 @@ import ProgramModule from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 
 /**
- * Defines and registers a **global middleware guard** as a Higher-Order Component (HOC).
+ * Defines and registers a **global middleware guard** as a DSL definition.
  *
  * This utility allows you to attach a middleware-like function that executes
  * **before a request reaches its final handler** across one or more server types.
@@ -36,14 +36,14 @@ import { getTargetKey } from 'utils/targets.ts'
  *                     // If `exports` is not defined, the guard applies to all servers by default.
  * };
  *
- * defineGlobalGuardHOC(globalMid);
+ * registerGlobalGuard(globalMid);
  * ```
  *
  * @param {MiddlewareGlobalGuard} target - The global guard function to register.
  *   This function is called before all middlewares and can modify the response context.
  * @returns {void}
  */
-export function defineGlobalGuardHOC(
+export function registerGlobalGuard(
   target: MiddlewareGlobalGuard,
 ): void {
   const { exports: { server = ['all' as const] } = {} } = target

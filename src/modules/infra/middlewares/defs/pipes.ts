@@ -5,7 +5,7 @@ import ProgramModule from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 
 /**
- * Defines and registers a **global middleware pipe** as a Higher-Order Component (HOC).
+ * Defines and registers a **global middleware pipe** as a DSL definition.
  *
  * This utility allows you to attach a middleware-like function that executes
  * **before a request reaches its final handler** across one or more server types.
@@ -33,14 +33,14 @@ import { getTargetKey } from 'utils/targets.ts'
  *                     // If `exports` is not defined, the pipe applies to all servers by default.
  * };
  *
- * defineGlobalPipeHOC(globalMid);
+ * registerGlobalPipe(globalMid);
  * ```
  *
  * @param {MiddlewareGlobalPipe} target - The global pipe function to register.
  *   This function is called before the final handler and can modify the request context.
  * @returns {void}
  */
-export function defineGlobalPipeHOC(
+export function registerGlobalPipe(
   target: MiddlewareGlobalPipe,
 ): void {
   const { exports: { server = ['all' as const] } = {} } = target

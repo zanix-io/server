@@ -4,12 +4,10 @@ import { assertSpyCalls, spy } from '@std/testing/mock'
 
 // Mocks
 import Program from 'modules/program/mod.ts'
-import {
-  defineGlobalInterceptorHOC,
-  defineGlobalPipeHOC,
-} from 'modules/infra/middlewares/hocs/base.ts'
+import { registerGlobalPipe } from 'modules/infra/middlewares/defs/pipes.ts'
+import { registerGlobalInterceptor } from 'modules/infra/middlewares/defs/interceptors.ts'
 
-Deno.test('defineGlobalPipeHOC should register global pipe with interactors', () => {
+Deno.test('registerGlobalPipe should register global pipe with interactors', () => {
   const mockAddGlobalPipe = spy((_pipe, _server) => {})
   Program.middlewares.addGlobalPipe = mockAddGlobalPipe
 
@@ -17,7 +15,7 @@ Deno.test('defineGlobalPipeHOC should register global pipe with interactors', ()
   const server = Symbol('server')
   targetMiddleware.exports = { server }
 
-  defineGlobalPipeHOC(targetMiddleware)
+  registerGlobalPipe(targetMiddleware)
 
   assertSpyCalls(mockAddGlobalPipe, 1)
 
@@ -32,7 +30,7 @@ Deno.test('defineGlobalPipeHOC should register global pipe with interactors', ()
   assertEquals(serverArg, server)
 })
 
-Deno.test('defineGlobalInterceptorHOC should register interceptor with interactors', async () => {
+Deno.test('registerGlobalInterceptor should register interceptor with interactors', async () => {
   const mockAddGlobalInterceptor = spy((_interceptor, _server) => {})
   Program.middlewares.addGlobalInterceptor = mockAddGlobalInterceptor
 
@@ -40,7 +38,7 @@ Deno.test('defineGlobalInterceptorHOC should register interceptor with interacto
   const server = Symbol('server')
   targetInterceptor.exports = { server }
 
-  defineGlobalInterceptorHOC(targetInterceptor)
+  registerGlobalInterceptor(targetInterceptor)
 
   assertSpyCalls(mockAddGlobalInterceptor, 1)
 

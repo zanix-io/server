@@ -58,7 +58,8 @@ export const ZANIX_PROPS = '_znx_props_'
  * These modules are responsible for different layers of the server architecture, including:
  * - `.handler.ts`: Manages request handling logic.
  * - `.interactor.ts`: Contains business logic and interactions.
- * - `.hoc.ts`: Higher-order components for enhancing functionality.
+ * - `.defs.ts`: Declares domain entities, metadata structures, and DSL-based definitions
+ *               (including creation and registration logic) that form the foundation of the module.
  * - `.connector.ts`: Defines connectors for external services or databases.
  * - `.provider.ts`: Manages providers that supply various services to the application.
  *
@@ -67,7 +68,7 @@ export const ZANIX_PROPS = '_znx_props_'
 export const ZANIX_SERVER_MODULES = [
   '.handler.ts',
   '.interactor.ts',
-  '.hoc.ts',
+  '.defs.ts',
   '.connector.ts',
   '.provider.ts',
 ]
