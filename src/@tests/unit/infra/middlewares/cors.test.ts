@@ -22,6 +22,7 @@ Deno.test('Cors validation pipe', async () => {
     },
     id: '',
     url: baseUrl,
+    locals: {},
   }
 
   assertThrows(

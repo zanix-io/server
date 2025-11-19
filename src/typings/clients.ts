@@ -31,9 +31,8 @@ export type RequestOptions = Omit<RequestInit, 'method' | 'body'> & ConnectorOpt
  *
  * @property {string} [baseUrl] - Optional base URL to prepend to request paths.
  */
-export type RestFullOptions = Omit<RequestInit, 'method' | 'body'> & {
+export type RestFullOptions = Omit<RequestInit, 'method'> & {
   baseUrl?: string
-  body?: Record<string, unknown> | unknown[]
 }
 
 /**

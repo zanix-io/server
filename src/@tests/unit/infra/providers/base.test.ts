@@ -1,8 +1,8 @@
 import { ZanixProvider } from 'providers/base.ts'
-import { ZanixConnector } from '@zanix/server'
 import { assert } from '@std/assert'
 import { getTargetKey } from 'utils/targets.ts'
 import Program from 'modules/program/mod.ts'
+import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 
 class TestProvider extends ZanixProvider {
   public override use(_: unknown): ZanixConnector {

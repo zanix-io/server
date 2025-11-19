@@ -1,5 +1,8 @@
+import type { ServerID } from 'typings/server.ts'
+
+import { bootstrapServers, webServerManager } from 'webserver/mod.ts'
+
 import { assert } from '@std/assert'
-import { bootstrapServers, type ServerID, webServerManager } from '@zanix/server'
 import { stub } from '@std/testing/mock'
 
 stub(console, 'info')

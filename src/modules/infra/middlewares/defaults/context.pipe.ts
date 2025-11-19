@@ -11,10 +11,14 @@ import ProgramModule from 'modules/program/mod.ts'
  *  2. Processes the incoming payload through `processScopedPayload` before storing it.
  */
 export const contextSettingPipe: MiddlewarePipe = (context) => {
+  const session = Object.freeze(context.locals.session)
+  delete context.locals.session
+
   ProgramModule.context.addContext<ScopedContext>({
-    id: context.id,
     payload: processScopedPayload(context.payload),
-    session: context.session,
+    id: Object.freeze(context.id),
+    locals: context.locals,
+    session,
   })
 }
 

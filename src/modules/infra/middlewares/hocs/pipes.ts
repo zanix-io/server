@@ -1,7 +1,8 @@
 import type { MiddlewareGlobalPipe, MiddlewarePipe } from 'typings/middlewares.ts'
 
-import { getInteractors, getTargetKey } from 'utils/targets.ts'
+import { getInteractors } from 'modules/program/public.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { getTargetKey } from 'utils/targets.ts'
 
 /**
  * Defines and registers a **global middleware pipe** as a Higher-Order Component (HOC).

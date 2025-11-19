@@ -1,10 +1,10 @@
 import type { ScopedContext } from 'typings/context.ts'
 
 import { DEFAULT_CONTEXT_ID, ZANIX_PROPS } from 'utils/constants.ts'
-import { asyncContext } from 'modules/program/public.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { TargetBaseClass } from './target.ts'
 import { TargetError } from 'utils/errors.ts'
+import { asyncContext } from './storage.ts'
 
 /**
  * Abstract base class that extends `TargetBaseClass` and provides contextual information for
@@ -63,7 +63,10 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
   }
 
   /**
-   * Provides access to a scoped context for the current component.
+   * Provides access to the scoped context for the current component.
+   *
+   * The scoped context exists only for the lifetime of a single request,
+   * and a new isolated `ScopedContext` is created for every incoming request.
    *
    * The `contextId` is determined as follows:
    * - If **Async Local Storage (ALS)** is available, the `contextId` will be resolved using `asyncContext.getId()`.

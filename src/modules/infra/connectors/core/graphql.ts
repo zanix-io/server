@@ -65,6 +65,9 @@ export abstract class GraphQLClient extends RestClient {
     options: { variables?: Record<string, unknown>; request?: GqlOptions } = {},
   ): Promise<{ data: T }> {
     const { request, variables } = options
-    return this.http.post<{ data: T }>('', { ...request, body: { query, variables } })
+    return this.http.post<{ data: T }>('', {
+      ...request,
+      body: JSON.stringify({ query, variables }),
+    })
   }
 }

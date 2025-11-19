@@ -1,7 +1,7 @@
 import { assertThrows } from '@std/assert/assert-throws'
 import { getTargetKey } from 'utils/targets.ts'
-import { ZanixInteractor } from '@zanix/server'
 import ProgramModule from 'modules/program/mod.ts'
+import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 
 class OtherInteractor extends ZanixInteractor {
   public v = 3

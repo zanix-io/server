@@ -5,7 +5,7 @@ import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 
 import { assertEquals } from '@std/assert/assert-equals'
 import Program from 'modules/program/mod.ts'
-import { webServerManager } from '@zanix/server'
+import { webServerManager } from 'webserver/mod.ts'
 import { stub } from '@std/testing/mock'
 import { assert } from '@std/assert/assert'
 import logger from '@zanix/logger'

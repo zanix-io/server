@@ -5,13 +5,13 @@ import type { CorsOptions } from 'typings/middlewares.ts'
 import type { GzipOptions } from 'typings/general.ts'
 
 import { bodyPayloadProperty, cleanRoute, findMatchingRoute } from 'utils/routes.ts'
+import { contextId, payloadAccessorDefinition } from 'utils/context.ts'
 import { getGraphqlHandler } from 'handlers/graphql/handler.ts'
 import { searchParamsPropertyDescriptor } from '@zanix/helpers'
-import { contextId, payloadAccessorDefinition } from 'utils/context.ts'
-import { HttpError } from '@zanix/errors'
-import { asyncContext } from 'modules/program/public.ts'
-import { routeProcessor } from './routes.ts'
+import { asyncContext } from 'modules/infra/base/storage.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { routeProcessor } from './routes.ts'
+import { HttpError } from '@zanix/errors'
 import {
   routerGuard,
   routerInterceptor,
@@ -69,7 +69,7 @@ export const getMainHandler = (
     const url = new URL(req.url)
 
     // Context definition
-    const context = { id: contextId(), payload: {}, req, url } as HandlerContext
+    const context = { id: contextId(), payload: {}, req, url, locals: {} } as HandlerContext
 
     Object.assign(context.payload, { body: await bodyPayloadProperty(req) })
 

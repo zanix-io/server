@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import type { MiddlewareGlobalInterceptor, MiddlewareGlobalPipe } from 'typings/middlewares.ts'
-import type { HandlerContext } from 'typings/context.ts'
+import type { HandlerContext, ScopedContext } from 'typings/context.ts'
 
 import { BaseRTO, IsEmail, IsNumber, IsString, isUUID } from '@zanix/validator'
 import { ZanixController } from 'modules/infra/handlers/rest/base.ts'
@@ -93,6 +93,10 @@ class Connectors extends ZanixConnector {
         resolve(true)
       }, 500)
     })
+  }
+
+  public changeLocals(context: ScopedContext) {
+    context.locals['data'] = 'local data'
   }
 
   public def() {
@@ -203,6 +207,7 @@ class InteractorX extends ZanixInteractor<{ Connector: Connectors; Provider: Pro
   }
 
   public connectorMessage() {
+    this.connector.changeLocals(this.context)
     return `this connector is ${
       this.connector.getConnected() && 'connected' || 'disconnected'
     } over def ${this.connector.def()} by ${
@@ -356,6 +361,10 @@ class _Controller extends ZanixController<InteractorX> {
   @Get(':email', { Params: C, Search: S })
   @Pipe((ctx) => {
     ctx.url.searchParams.append('searchParamByPipe', 'Pipe search param')
+  })
+  @Interceptor((ctx, response) => {
+    assertEquals(ctx.locals.data, 'local data')
+    return response
   })
   public welcome(ctx: HandlerContext<{ params: C; search: S & { searchParamByMid: string } }>) {
     assert(this.context.id)

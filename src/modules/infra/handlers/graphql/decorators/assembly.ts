@@ -11,7 +11,7 @@ import type {
 
 import { applyMiddlewaresToTarget } from 'middlewares/decorators/assembly.ts'
 import { buildGqlInput, scalarTypes } from 'handlers/graphql/types.ts'
-import { asyncContext } from 'modules/program/public.ts'
+import { asyncContext } from 'modules/infra/base/storage.ts'
 import { gqlSchemaDefinitions } from '../schema.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { ZanixResolver } from '../base.ts'

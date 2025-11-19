@@ -40,3 +40,8 @@ export class AsyncContext extends AsyncLocalStorage<BaseContext & Record<string,
     return this.run<R>({ id: contextId }, callback)
   }
 }
+
+/**
+ * Default singleton instance
+ */
+export const asyncContext: AsyncContext = new AsyncContext()

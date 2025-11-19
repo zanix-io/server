@@ -1,6 +1,6 @@
-import type { HttpMethods } from '@zanix/server'
 import type { CorsOptions } from './middlewares.ts'
 import type { GzipOptions } from './general.ts'
+import type { HttpMethods } from './router.ts'
 
 /**
  * Represents the various types of web servers that can be managed by the system.

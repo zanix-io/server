@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.8] - 2025-11-18
+
+### Fixed
+
+- `RestClient` body support for all content types.
+
+### Added
+
+- Ephemeral per-request context store (`locals`).
+
 ## [1.2.7] - 2025-11-18
 
 ### Changed

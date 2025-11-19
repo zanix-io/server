@@ -6,10 +6,10 @@ import type {
 import type { ZanixConnector } from 'connectors/base.ts'
 import type { CoreConnectors } from 'typings/program.ts'
 
+import { getConnectors } from 'modules/program/public.ts'
 import { CoreBaseClass } from '../base/core.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
 import { TargetError } from 'utils/errors.ts'
-import { getConnectors } from 'utils/targets.ts'
 
 /**
  * Abstract base class for implementing **providers** and the technical orchestration layer in the Zanix framework.

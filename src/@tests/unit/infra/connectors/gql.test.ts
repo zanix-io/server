@@ -14,8 +14,7 @@ class MyGraphQLClient extends GraphQLClient {
 
 Deno.test('query() calls http.post with correct GraphQL payload', async () => {
   const mockPost = spy((_endpoint: string, opts: any) => {
-    assertEquals(opts.body.query, 'query { user { id name } }')
-    assertEquals(opts.body.variables, undefined)
+    assertEquals(opts.body, '{"query":"query { user { id name } }"}')
     return Promise.resolve({ data: { user: { id: '1', name: 'Alice' } } })
   })
 
@@ -31,8 +30,11 @@ Deno.test('query() calls http.post with correct GraphQL payload', async () => {
 
 Deno.test('query() includes variables when provided', async () => {
   const mockPost = spy((_endpoint: string, opts: any) => {
-    assertEquals(opts.body.query, 'query ($id: ID!) { user(id: $id) { id name } }')
-    assertEquals(opts.body.variables, { id: '123' })
+    assertEquals(
+      opts.body,
+      '{"query":"query ($id: ID!) { user(id: $id) { id name } }","variables":{"id":"123"}}',
+    )
+
     return Promise.resolve({ data: { user: { id: '123', name: 'Bob' } } })
   })
 
@@ -51,7 +53,7 @@ Deno.test('query() includes variables when provided', async () => {
 Deno.test('query() merges custom request options', async () => {
   const mockPost = spy((_endpoint: string, opts: any) => {
     assertEquals(opts.headers.Authorization, 'Bearer token123')
-    assertEquals(opts.body.query, 'query { ping }')
+    assertEquals(opts.body, '{"query":"query { ping }"}')
     return Promise.resolve({ data: { ping: 'pong' } })
   })
 

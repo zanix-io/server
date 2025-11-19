@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertSpyCalls, spy } from '@std/testing/mock'
-import { assertEquals, assertRejects } from '@std/assert'
+import { assert, assertEquals, assertRejects } from '@std/assert'
 import { HttpError } from '@zanix/errors'
 import { RestClient } from 'modules/infra/connectors/core/rest.ts'
 
@@ -52,7 +52,7 @@ Deno.test('POST includes JSON body and default headers', async () => {
   globalThis.fetch = mockFetch as unknown as typeof fetch
 
   const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
-  const result = await client.http.post('/users', { body: { name: 'Alice' } })
+  const result = await client.http.post('/users', { body: JSON.stringify({ name: 'Alice' }) })
 
   assertEquals(result, { id: 1 })
   assertSpyCalls(mockFetch, 1)
@@ -119,4 +119,26 @@ Deno.test('cleans route URLs with double slashes and can be rewrited by options'
   await new MyApiClient().http.get('https://api.example.com//users//1')
 
   assertSpyCalls(mockFetch, 3)
+})
+
+Deno.test('POST url encoded params', async () => {
+  const mockFetch = spy((_url: string, opts: any) => {
+    assertEquals(opts.method, 'POST')
+    assert(opts.body instanceof URLSearchParams)
+    return Promise.resolve(
+      new Response('Post', {
+        status: 200,
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    )
+  })
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.post('/users/1', {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ param: 'my param' }),
+  })
+
+  assertEquals(result, 'Post')
 })

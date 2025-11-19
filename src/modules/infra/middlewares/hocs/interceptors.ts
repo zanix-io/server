@@ -1,7 +1,8 @@
 import type { MiddlewareGlobalInterceptor, MiddlewareInterceptor } from 'typings/middlewares.ts'
 
-import { getInteractors, getTargetKey } from 'utils/targets.ts'
+import { getInteractors } from 'modules/program/public.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { getTargetKey } from 'utils/targets.ts'
 
 /**
  * Defines and registers a **global middleware interceptor** as a Higher-Order Component (HOC).

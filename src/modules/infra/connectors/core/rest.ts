@@ -89,11 +89,7 @@ export class RestClient extends ZanixConnector {
     const url = `${protocol}:/${cleanRoute(restOfUrl)}`
 
     try {
-      const response = await fetch(url, {
-        method,
-        ...options,
-        body: JSON.stringify(options.body),
-      })
+      const response = await fetch(url, { method, ...options })
       if (!response.ok) {
         const text = await response.text()
         throw new Error(`[HTTP ${response.status}] ${response.statusText}\n${text}`)

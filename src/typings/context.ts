@@ -49,10 +49,53 @@ export type Session = {
   scope?: string[]
 } & Record<string, any>
 
-/** Interface context for general scoped process */
+/**
+ * Context object scoped to the lifetime of a single request.
+ *
+ * Extends {@link BaseContext} and provides request-specific data such as:
+ * - Typed payload accessors (params, query, body)
+ * - Session information (if authenticated)
+ * - Mutable per-request storage (`locals`)
+ *
+ * Every request receives a new isolated `ScopedContext`.
+ */
 export interface ScopedContext extends BaseContext {
+  /**
+   * Provides typed accessors to different parts of the incoming request payload,
+   * including:
+   * - Route parameters
+   * - URL search/query parameters
+   * - Request body fields
+   *
+   * Useful for ensuring type-safe extraction of client input.
+   */
   readonly payload: Payload
+  /**
+   * Session information associated with the current request.
+   *
+   * May represent:
+   * - An authenticated user session
+   * - An API session (machine-to-machine)
+   * - An anonymous/guest session
+   *
+   * Includes identifying information, roles, permissions, and
+   * additional session-related configuration.
+   *
+   * Undefined **when not defined or authenticated**.
+   */
   readonly session?: Session
+  /**
+   * A per-request mutable container.
+   *
+   * Can be used by middlewares, handlers to store ephemeral
+   * data during the lifetime of the request.
+   *
+   * Extensions or even singleton services can also make use of this container
+   * when they receive the `context` as a parameter,
+   * allowing them to attach request-specific data without sharing state
+   * across requests.
+   */
+  locals: Record<string, unknown>
 }
 
 /**
@@ -68,18 +111,47 @@ export interface ScopedContext extends BaseContext {
  *
  * @interface HandlerContext
  * @extends BaseContext
- *
- * @property {Request} req - The HTTP request object that contains details about the incoming request.
- * @property {URL} url - The URL associated with the incoming request, providing information
- *                        about the requested resource.
- * @property {P} payload - The payload of the request, which contains any relevant data.
- *                          This is a generic property, allowing flexibility in what data
- *                          is passed within handlers or middlewares.
  */
 export interface HandlerContext<P extends Partial<GenericPayload> = GenericPayload>
   extends BaseContext {
+  /** The HTTP request object that contains details about the incoming request. */
   req: Request
+  /**
+   * The URL associated with the incoming request, providing information
+   * about the requested resource.
+   */
   url: URL
+  /**
+   * The payload of the request, which contains any relevant data.
+   * This is a generic property, allowing flexibility in what data
+   * is passed within handlers or middlewares.
+   */
   payload: P
-  session?: Session
+  /**
+   * A per-request mutable container.
+   *
+   * Can be used by middlewares, handlers to store ephemeral
+   * data during the lifetime of the request.
+   *
+   * Extensions or even singleton services can also make use of this container
+   * when they receive the `context` as a parameter,
+   * allowing them to attach request-specific data without sharing state
+   * across requests.
+   */
+  locals: Record<string, unknown> & {
+    /**
+     * Session information associated with the current request.
+     *
+     * May represent:
+     * - An authenticated user session
+     * - An API session (machine-to-machine)
+     * - An anonymous/guest session
+     *
+     * Includes identifying information, roles, permissions, and
+     * additional session-related configuration.
+     *
+     * Undefined **when not defined**.
+     */
+    session?: Session
+  }
 }

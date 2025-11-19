@@ -1,7 +1,8 @@
 import type { MiddlewareGlobalGuard, MiddlewareGuard } from 'typings/middlewares.ts'
 
-import { getConnectors, getInteractors, getProviders, getTargetKey } from 'utils/targets.ts'
+import { getConnectors, getInteractors, getProviders } from 'modules/program/public.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { getTargetKey } from 'utils/targets.ts'
 
 /**
  * Defines and registers a **global middleware guard** as a Higher-Order Component (HOC).

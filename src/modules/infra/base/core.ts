@@ -9,7 +9,7 @@ import type {
   ZanixProvidersGetter,
 } from 'typings/targets.ts'
 
-import { getConnectors, getProviders } from 'utils/targets.ts'
+import { getConnectors, getProviders } from 'modules/program/public.ts'
 import ConnectorCoreModules from 'connectors/core/all.ts'
 import ProviderCoreModules from 'providers/core/all.ts'
 import { ContextualBaseClass } from './contextual.ts'

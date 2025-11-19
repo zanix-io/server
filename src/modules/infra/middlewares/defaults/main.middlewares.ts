@@ -7,10 +7,10 @@ import type {
 import type { HandlerFunction, HttpMethods } from 'typings/router.ts'
 import type { GzipOptions } from 'typings/general.ts'
 import type { WebServerTypes } from 'typings/server.ts'
-import type { HandlerContext } from '@zanix/server'
+import type { HandlerContext } from 'typings/context.ts'
 import type { HttpError } from '@zanix/errors'
 
-import { getConnectors, getInteractors, getProviders } from 'utils/targets.ts'
+import { getConnectors, getInteractors, getProviders } from 'modules/program/public.ts'
 import { getResponseInterceptor } from './response.interceptor.ts'
 import { errorResponses } from 'webserver/helpers/errors.ts'
 import { cleanUpPipe, contextSettingPipe } from './context.pipe.ts'
