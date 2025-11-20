@@ -33,7 +33,7 @@ export type GeneralTargetTypes =
  *
  * Can be any of:
  * - `HandlerTypes`: `'controller'`, `'socket'`, `'resolver'`, `'subscriber'`,
- * - `GeneralTargetTypes`: `'connector'`, `'interactor'`
+ * - `GeneralTargetTypes`: `'connector'`, `'interactor'`, `'provider'`
  */
 export type ModuleTypes =
   | HandlerTypes

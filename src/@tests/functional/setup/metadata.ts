@@ -174,7 +174,7 @@ class _CacheClass extends ZanixCacheConnector {
 class _CacheProviderClass extends ZanixCacheProvider<{ cache: any }> {
 }
 
-@Provider()
+@Provider({ startMode: 'postBoot' })
 class ProviderClass extends ZanixProvider<{ cache: any }> {
   constructor() {
     super()

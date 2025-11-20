@@ -68,7 +68,15 @@ Deno.test('cleanupMetadata calls resetContainer on post boot', () => {
   assertEquals(calledWithPostBoot, [
     'type:connector',
     'type:resolver',
-    'startMode:postBoot',
+    'provider:startMode:postBoot',
+    'connector:startMode:postBoot',
+    'interactor:startMode:postBoot',
+    'provider:startMode:onBoot',
+    'connector:startMode:onBoot',
+    'interactor:startMode:onBoot',
+    'provider:startMode:onSetup',
+    'connector:startMode:onSetup',
+    'interactor:startMode:onSetup',
   ])
 
   // Restore stubs

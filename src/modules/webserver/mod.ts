@@ -21,9 +21,14 @@ const targetModuleInit = (key: string) => {
 /** Catch all module errors */
 self.addEventListener('unhandledrejection', async (event) => {
   event.preventDefault()
-  const error = await event.promise.catch((err) => err)
-  error.code = 'UNHANDLED_PROMISE_REJECTION'
-  error.meta = { source: 'zanix' }
+  const error = await event.promise.catch((err) => {
+    const extendedError = Object.assign({}, err, {
+      code: 'UNHANDLED_PROMISE_REJECTION',
+      meta: { source: 'zanix' },
+    })
+    return extendedError
+  })
+
   logger.error(event.reason?.message || 'Uncaught (in promise) Error', error)
 })
 
@@ -113,12 +118,18 @@ export const bootstrapServers = async (
   const serveRest = ProgramModule.routes.getRoutes('rest')
   const serveSocket = ProgramModule.routes.getRoutes('socket')
   const serveGraphql = ProgramModule.targets.getTargetsByType('resolver').length
+  const types: ModuleTypes[] = ['connector', 'provider', 'interactor']
 
   if (!(serveRest || serveSocket || serveGraphql)) {
     return servers
   }
 
-  await Promise.all(ProgramModule.targets.getTargetsByStartMode('onSetup').map(targetModuleInit))
+  // Prioritize connectors first, then providers, with the interactor as the last option.
+  for await (const type of types) {
+    await Promise.all(
+      ProgramModule.targets.getTargetsByStartMode('onSetup', type).map(targetModuleInit),
+    )
+  }
 
   // REST initialization
   if (serveRest) {
@@ -157,11 +168,21 @@ export const bootstrapServers = async (
     servers.push(id)
   }
 
-  await Promise.all(ProgramModule.targets.getTargetsByStartMode('onBoot').map(targetModuleInit))
+  // Prioritize connectors first, then providers, with the interactor as the last option.
+  for await (const type of types) {
+    await Promise.all(
+      ProgramModule.targets.getTargetsByStartMode('onBoot', type).map(targetModuleInit),
+    )
+  }
 
   webServerManager.start(servers)
 
-  await Promise.all(ProgramModule.targets.getTargetsByStartMode('postBoot').map(targetModuleInit))
+  // Prioritize connectors first, then providers, with the interactor as the last option.
+  for await (const type of types) {
+    await Promise.all(
+      ProgramModule.targets.getTargetsByStartMode('postBoot', type).map(targetModuleInit),
+    )
+  }
 
   return servers
 }

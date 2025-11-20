@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.2.10] - 2025-11-20
+
+### **Fixed**
+
+- **Handled unhandledrejection error**: Resolved an issue with unhandled promise rejections,
+  preventing unexpected behavior due to unhandled asynchronous exceptions.
+- **Connector initialization order**: Corrected the initialization order of connectors and
+  providers, ensuring providers are initialized **after** connectors are fully ready for use,
+  preventing potential inconsistencies.
+
 ## [1.2.9] - 2025-11-19
 
 ### Changed

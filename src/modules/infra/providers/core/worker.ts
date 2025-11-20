@@ -40,7 +40,10 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
    * @remarks
    * This method dynamically retrieves a worker connector based on the provided `worker` key
    */
-  public use<T extends ZanixWorkerConnector>(worker: CoreWorkerConnectors, verbose?: false): T {
+  public override use<T extends ZanixWorkerConnector>(
+    worker: CoreWorkerConnectors,
+    verbose?: false,
+  ): T {
     const workerId = `worker:${worker}` as const
     return this.getProviderConnector<T>(ConnectorCoreModules[workerId].key, verbose)
   }

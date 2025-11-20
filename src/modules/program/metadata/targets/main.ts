@@ -49,7 +49,7 @@ export class TargetContainer extends BaseInstancesContainer {
     const { startMode = 'lazy', type, Target } = opts
     const { key } = this.toBeInstantiated(baseKey, { ...opts, startMode })
 
-    this.setTargetByStartMode(key, startMode)
+    this.setTargetByStartMode(key, startMode, type)
     this.setTargetByType(baseKey, type)
     this.setTarget(key, Target)
   }
@@ -58,20 +58,23 @@ export class TargetContainer extends BaseInstancesContainer {
    * Registers a key under a specific start mode.
    * @param key The key to register.
    * @param startMode The start mode identifier.
+   * @param type The module type.
    * @param container Optional container object (defaults to `this`).
    * @protected
    */
   protected setTargetByStartMode(
     key: string,
     startMode: StartMode,
+    type: ModuleTypes,
     container: object = this,
   ): void {
     if (startMode === 'lazy') return // exclude, it is not necessary to save (yet)
-
-    const targets = this.getTargetsByStartMode(startMode)
+    const dataKey = `${type}:startMode:${startMode}`
+    const targets = this.getData<string[]>(dataKey, container) || []
 
     if (!targets.includes(key)) targets.push(key)
-    this.setData(`startMode:${startMode}`, targets, container)
+
+    this.setData(dataKey, targets, container)
   }
 
   /**
@@ -86,7 +89,7 @@ export class TargetContainer extends BaseInstancesContainer {
     type: ModuleTypes,
     container: object = this,
   ) {
-    if (!(type === 'connector' || type === 'resolver')) return // is not neccesary (yet) to save other types
+    if (type !== 'connector' && type !== 'resolver') return // is not neccesary (yet) to save other types
 
     const targets = this.getTargetsByType(type)
 
@@ -97,14 +100,16 @@ export class TargetContainer extends BaseInstancesContainer {
   /**
    * Gets all registered keys for a specific start mode.
    * @param startMode The start mode identifier.
+   * @param type The module type.
    * @param container Optional container object (defaults to `this`).
    * @returns An array of registered keys.
    */
   public getTargetsByStartMode(
     startMode: Exclude<StartMode, 'lazy'>,
+    type: ModuleTypes,
     container: object = this,
   ): string[] {
-    return this.getData<string[]>(`startMode:${startMode}`, container) || []
+    return this.getData<string[]>(`${type}:startMode:${startMode}`, container) || []
   }
 
   /**

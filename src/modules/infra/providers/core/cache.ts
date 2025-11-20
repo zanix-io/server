@@ -39,7 +39,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * @remarks
    * This method dynamically retrieves a cache connector based on the provided `cache` key
    */
-  public use<P extends CoreCacheConnectors>(
+  public override use<P extends CoreCacheConnectors>(
     cache: P,
     verbose: boolean = false,
   ): ZanixCacheConnectorGeneric<P> {

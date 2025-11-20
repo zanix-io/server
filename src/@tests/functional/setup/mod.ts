@@ -1,6 +1,6 @@
 import './metadata.ts'
 
-import type { ModuleTypes } from 'typings/program.ts'
+import type { ModuleTypes, StartMode } from 'typings/program.ts'
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 
 import { assertEquals } from '@std/assert/assert-equals'
@@ -11,6 +11,7 @@ import { assert } from '@std/assert/assert'
 import logger from '@zanix/logger'
 import { connectorModuleInitialization } from 'utils/targets.ts'
 import { INSTANCE_KEY_SEPARATOR } from 'utils/constants.ts'
+import { assertFalse } from '@std/assert'
 
 /** mocks */
 stub(console, 'info')
@@ -48,8 +49,17 @@ try {
     return connectorModuleInitialization(instance)
   }
 
-  await Promise.all(Program.targets.getTargetsByStartMode('onSetup').map(startConnection))
-  await Promise.all(Program.targets.getTargetsByStartMode('onBoot').map(startConnection))
+  // Prioritize connectors first, then providers, with the interactor as the last option.
+  const types: ModuleTypes[] = ['connector', 'provider', 'interactor']
+  const modes: Exclude<StartMode, 'lazy'>[] = ['onSetup', 'onBoot']
+
+  for (const mode of modes) {
+    for await (const type of types) {
+      await Promise.all(
+        Program.targets.getTargetsByStartMode(mode, type).map(startConnection),
+      )
+    }
+  }
 
   webServerManager.start([id1, id2, id3])
 
@@ -60,11 +70,26 @@ try {
   assert(!Object.keys(Program.routes).length)
 
   // All instantiated classes
-  assertEquals(Object.keys(Program.targets).length, 19)
+  assertEquals(Object.keys(Program.targets).length, 22)
 
-  await Promise.all(Program.targets.getTargetsByStartMode('postBoot').map(startConnection))
+  // Prioritize connectors first, then providers, with the interactor as the last option.
+  for await (const type of types) {
+    await Promise.all(
+      Program.targets.getTargetsByStartMode('postBoot', type).map(startConnection),
+    )
+  }
 
   Program.cleanupMetadata('postBoot')
+
+  assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'connector').length)
+  assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'interactor').length)
+  assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'provider').length)
+  assertFalse(Program.targets.getTargetsByStartMode('onBoot', 'connector').length)
+  assertFalse(Program.targets.getTargetsByStartMode('onBoot', 'interactor').length)
+  assertFalse(Program.targets.getTargetsByStartMode('onBoot', 'provider').length)
+  assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'connector').length)
+  assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'interactor').length)
+  assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'provider').length)
 
   // Persisted instances
   assertEquals(Object.keys(Program.targets).length, 16)

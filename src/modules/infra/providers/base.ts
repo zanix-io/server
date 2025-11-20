@@ -79,8 +79,10 @@ export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
   /**
    * Retrieves a different connector based on the given identifier.
    *
-   * @param { unknown } target - The identifier for the desired connector.
+   * @param { unknown } _target - The identifier for the desired connector.
    * @returns {ZanixConnector} - A `ZanixConnector`.
    */
-  public abstract use(target: unknown): ZanixConnector
+  public use(_target: unknown): ZanixConnector {
+    throw this['methodNotImplementedError']('use')
+  }
 }

@@ -49,10 +49,18 @@ export class InternalProgram {
   public cleanupMetadata(mode: Extract<StartMode, 'postBoot' | 'onBoot'> = 'onBoot'): void {
     if (mode === 'postBoot') {
       /** Clean metadata postBoot */
-      const removeTargets: (`type:${ModuleTypes}` | `startMode:${StartMode}`)[] = [
+      const removeTargets: (`type:${ModuleTypes}` | `${ModuleTypes}:startMode:${StartMode}`)[] = [
         'type:connector',
         'type:resolver',
-        'startMode:postBoot',
+        'provider:startMode:postBoot',
+        'connector:startMode:postBoot',
+        'interactor:startMode:postBoot',
+        'provider:startMode:onBoot',
+        'connector:startMode:onBoot',
+        'interactor:startMode:onBoot',
+        'provider:startMode:onSetup',
+        'connector:startMode:onSetup',
+        'interactor:startMode:onSetup',
       ]
 
       this.targets.resetContainer(removeTargets)
