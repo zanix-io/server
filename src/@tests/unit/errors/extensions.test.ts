@@ -1,6 +1,6 @@
 import { assertEquals, assertExists, assertFalse, assertNotEquals } from '@std/assert'
-import { PermissionDenied } from '@zanix/errors'
-import { getExtendedErrorResponse } from 'modules/webserver/helpers/errors.ts'
+import { HttpError, PermissionDenied } from '@zanix/errors'
+import { getExtendedErrorResponse, httpErrorResponse } from 'modules/webserver/helpers/errors.ts'
 
 Deno.test('getExtendedErrorResponse should generate a new id if none exists', () => {
   const error = { message: 'Test error' }
@@ -52,16 +52,36 @@ Deno.test('getExtendedErrorResponse should create new object to override it', ()
   assertFalse('contextId' in response)
 })
 
-Deno.test('getExtendedErrorResponse should create new object to override it', () => {
-  const error = Object.freeze(
-    new PermissionDenied('Token signature is invalid', {
-      code: 'INVALID_TOKEN_SIGNATURE',
-      cause: 'The provided token signature does not match the expected signature',
-      meta: { source: 'zanix' },
+Deno.test('getExtendedErrorResponse should create new object to override it', async () => {
+  let error = Object.freeze(
+    new HttpError('BAD_REQUEST', {
+      cause: 'cause message',
     }),
   )
 
-  const response = getExtendedErrorResponse(error)
+  let response = getExtendedErrorResponse(error)
+  assertEquals(
+    response.cause,
+    'cause message',
+  )
 
-  assertEquals(response.cause, 'The provided token signature does not match the expected signature')
+  error = Object.freeze(
+    new HttpError('BAD_REQUEST', {
+      cause: new PermissionDenied('Token signature is invalid', {
+        code: 'INVALID_TOKEN_SIGNATURE',
+        cause: new PermissionDenied('Token signature is invalid', {
+          code: 'INVALID_TOKEN_SIGNATURE',
+          cause: 'The provided token signature does not match the expected signature',
+          meta: { source: 'zanix' },
+        }),
+        meta: { source: 'zanix' },
+      }),
+    }),
+  )
+  response = await httpErrorResponse(error).json()
+
+  assertEquals(
+    response.cause.cause.cause,
+    'The provided token signature does not match the expected signature',
+  )
 })
