@@ -42,6 +42,7 @@ export function defineResolverDecorator(
     if (!(Target.prototype instanceof ZanixResolver)) {
       throw new InternalError(
         `The class '${Target.name}' is not a valid Resolver. Please extend ${ZanixResolver.name}`,
+        { meta: { target: Target.name, baseTarget: ZanixResolver.name } },
       )
     }
 

@@ -16,16 +16,11 @@ Deno.test('shouldNotLogError - unknown error', () => {
   assertFalse(result, 'It should return false because the error is not known')
 })
 
-// Test: shouldNotLogError with a known error without status
+// Test: shouldNotLogError with a critic error
 Deno.test('shouldNotLogError - known error without status', () => {
-  const knownError = new InternalError('BAD_GATEWAY')
+  const knownError = new InternalError('BAD_GATEWAY', { shouldLog: false })
   const result = shouldNotLogError(knownError)
-  const errorStatus = getStatusError(knownError)
-  assertFalse(errorStatus)
-  assertFalse(
-    result,
-    'It should return false because the error is known and _logged is true as default',
-  )
+  assert(result, 'It should return true because critic error already are logged')
 })
 
 // Test: shouldNotLogError with a known error with status 500
@@ -54,7 +49,7 @@ Deno.test('shouldNotLogError - known error with no valid status error', () => {
 Deno.test('shouldNotLogError - known error already logged', () => {
   const knownError = { _logged: true }
   const result = shouldNotLogError(knownError)
-  assertFalse(result, 'It should return false because the error was already logged')
+  assert(result, 'It should return true because the error was already logged')
 })
 
 // Test: shouldNotLogError with a known error with status and less than 50 errors

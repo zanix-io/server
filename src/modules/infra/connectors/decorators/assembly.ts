@@ -35,6 +35,7 @@ export function defineConnectorDecorator<L extends Lifetime>(
     if (!(Target.prototype instanceof ZanixConnector)) {
       throw new InternalError(
         `The class '${Target.name}' is not a valid Connector. Please extend '${ZanixConnector.name}'`,
+        { meta: { target: Target.name, baseTarget: ZanixConnector.name } },
       )
     }
 
@@ -44,6 +45,7 @@ export function defineConnectorDecorator<L extends Lifetime>(
       if (!(Target.prototype instanceof BaseTarget)) {
         throw new InternalError(
           `The class '${Target.name}' is not a valid '${type}' Connector. Please extend '${BaseTarget.name}'`,
+          { meta: { target: Target.name, baseTarget: ZanixConnector.name } },
         )
       }
     } else {

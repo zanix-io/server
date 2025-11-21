@@ -30,11 +30,11 @@ function validateCoreDependency(
 
   const coreMatch = coreItems[type].find(({ Target }) => Dependency.prototype instanceof Target)
   if (!dependencyType && coreMatch) {
+    const [property] = coreMatch.key.split(':')
     throw new InternalError(
       `Invalid dependency injection: '${Dependency.name}' is a core ${type} that can be overridden but should not be manually injected into '${target}'. ` +
-        `Access it through 'this.${
-          coreMatch.key.split(':')[0]
-        }' inside your class, and remove it from the Interactor decorator configuration.`,
+        `Access it through 'this.${property}' inside your class, and remove it from the Interactor decorator configuration.`,
+      { meta: { dependency: Dependency.name, targetType: type, target, property } },
     )
   }
 }
@@ -60,6 +60,7 @@ export function defineInteractorDecorator<
     if (!(Target.prototype instanceof ZanixInteractor)) {
       throw new InternalError(
         `The class '${Target.name}' is not a valid Interactor. Please extend ${ZanixInteractor.name}`,
+        { meta: { target: Target.name, baseTarget: ZanixInteractor.name } },
       )
     }
 

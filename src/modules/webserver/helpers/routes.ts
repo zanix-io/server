@@ -15,7 +15,9 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
   const serverName = capitalize(server)
 
   if (!routes || !Object.keys(routes).length) {
-    throw new InternalError(`Not routes defined for ${serverName} sever`)
+    throw new InternalError(`Not routes defined for ${serverName} sever`, {
+      meta: { source: 'zanix', serverName },
+    })
   }
 
   globalPrefix = cleanRoute(globalPrefix).replace(/\/$/g, '').replace(/^\//g, '')

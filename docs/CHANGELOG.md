@@ -7,7 +7,11 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [1.3.2] - 2025-11-20
+## [1.3.3] - 2025-11-20
+
+### Fixed
+
+- Resolved internal errors metadata and issues caused by serialization.
 
 ## [1.3.1] - 2025-11-20
 

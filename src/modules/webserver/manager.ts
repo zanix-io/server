@@ -129,12 +129,22 @@ export class WebServerManager {
               : ` by ${addInUseType} server with ID ${serverInUse[0]}.`
             throw new InternalError(
               `Port ${opts.port} is already in use and cannot be assigned to the ${this.type.toUpperCase()} server with ID ${serverID}. Please choose a different port.`,
-              { cause: error },
+              {
+                cause: error,
+                meta: {
+                  source: 'zanix',
+                  port: opts.port,
+                  serverID,
+                  serverName,
+                  serverType: this.type,
+                },
+              },
             )
           }
 
           throw new InternalError(`An error ocurred on starting ${serverName} server`, {
             cause: error,
+            meta: { source: 'zanix', serverName, serverType: this.type },
           })
         }
       },

@@ -42,6 +42,7 @@ export class RouteContainer extends BaseContainer {
         const targetMessage = target ? ` in "${target.name}"` : ''
         throw new InternalError(
           `Route path "${type}=>${savedPath}" is already defined${targetMessage}. Please ensure that each route has a unique path.`,
+          { meta: { source: 'zanix', serverType: type, path: savedPath, target: target?.name } },
         )
       }
 

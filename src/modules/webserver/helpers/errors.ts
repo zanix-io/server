@@ -38,7 +38,8 @@ export const shouldNotLogError = (e: unknown): boolean => {
   const isKnownError = e && typeof e === 'object' && '_logged' in e &&
     typeof e._logged === 'boolean'
 
-  if (!isKnownError || e._logged === true) return false
+  if (!isKnownError) return false
+  if (e._logged === true) return true
 
   const errorStatus = getStatusError(e)
 

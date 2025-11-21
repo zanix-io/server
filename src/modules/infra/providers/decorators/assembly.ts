@@ -32,6 +32,7 @@ export function defineProviderDecorator<L extends Exclude<Lifetime, 'TRANSIENT'>
     if (!(Target.prototype instanceof ZanixProvider)) {
       throw new InternalError(
         `The class '${Target.name}' is not a valid Provider. Please extend '${ZanixProvider.name}'`,
+        { meta: { source: 'zanix', targetName: Target.name, baseTarget: ZanixProvider.name } },
       )
     }
 
@@ -41,6 +42,14 @@ export function defineProviderDecorator<L extends Exclude<Lifetime, 'TRANSIENT'>
       if (!(Target.prototype instanceof BaseTarget)) {
         throw new InternalError(
           `The class '${Target.name}' is not a valid '${type}' Provider. Please extend '${BaseTarget.name}'`,
+          {
+            meta: {
+              source: 'zanix',
+              providerType: type,
+              targetName: Target.name,
+              baseTarget: BaseTarget.name,
+            },
+          },
         )
       }
     } else {

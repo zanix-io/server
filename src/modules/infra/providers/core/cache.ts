@@ -26,7 +26,9 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
    * **Note**: Use `this` to access the instance instead.
    */
   protected override get cache(): never {
-    throw new InternalError('Direct access to `cache` is not allowed. Use `this` instead.')
+    throw new InternalError('Direct access to `cache` is not allowed. Use `this` instead.', {
+      meta: { source: 'zanix', provider: this.constructor.name },
+    })
   }
 
   /**

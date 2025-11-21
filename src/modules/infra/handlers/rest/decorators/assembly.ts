@@ -36,6 +36,7 @@ export function defineControllerDecorator(
     if (!targetInstance) {
       throw new InternalError(
         `The class '${Target.name}' is not a valid Controller. Please extend ${ZanixController.name}`,
+        { meta: { target: Target.name, baseTarget: ZanixController.name } },
       )
     }
 

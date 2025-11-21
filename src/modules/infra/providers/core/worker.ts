@@ -26,7 +26,9 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
    * **Note:** use `this` to access the instance instead.
    */
   protected override get worker(): never {
-    throw new InternalError('Direct access to `worker` is not allowed. Use `this` instead.')
+    throw new InternalError('Direct access to `worker` is not allowed. Use `this` instead.', {
+      meta: { source: 'zanix', provider: this.constructor.name },
+    })
   }
 
   /**

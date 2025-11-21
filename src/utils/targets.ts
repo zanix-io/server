@@ -46,6 +46,7 @@ export const getTargetKey = (target?: { name: string }): string => {
   if (name.startsWith('_Zanix')) {
     throw new InternalError(
       "Class names starting with '_Zanix' are reserved and cannot be used. Please choose a different class name.",
+      { meta: { source: 'zanix', className: name } },
     )
   }
 
@@ -84,6 +85,7 @@ export const connectorModuleInitialization = (instance: ZanixConnector) => {
                 method: 'isHealthy',
                 timeoutDuration: timeout,
                 retryInterval: retryInterval,
+                source: 'zanix',
               },
             }),
           )

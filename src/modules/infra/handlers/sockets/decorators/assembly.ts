@@ -33,6 +33,7 @@ export function defineSocketDecorator(
     if (!(Target.prototype instanceof ZanixWebSocket)) {
       throw new InternalError(
         `The class '${Target.name}' is not a valid WebSocket. Please extend ${ZanixWebSocket.name}`,
+        { meta: { target: Target.name, baseTarget: ZanixWebSocket.name } },
       )
     }
 
