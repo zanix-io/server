@@ -77,6 +77,7 @@ export const shouldNotLogError = (e: unknown): boolean => {
 export const getExtendedErrorResponse = (error: any, contextId?: string) => {
   const props: Record<string, unknown> = {
     id: error?.id || generateUUID(),
+    cause: error?.cause,
   }
   if (contextId) props.contextId = contextId
 

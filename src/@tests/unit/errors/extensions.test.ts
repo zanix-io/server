@@ -1,4 +1,5 @@
 import { assertEquals, assertExists, assertFalse, assertNotEquals } from '@std/assert'
+import { PermissionDenied } from '@zanix/errors'
 import { getExtendedErrorResponse } from 'modules/webserver/helpers/errors.ts'
 
 Deno.test('getExtendedErrorResponse should generate a new id if none exists', () => {
@@ -49,4 +50,18 @@ Deno.test('getExtendedErrorResponse should create new object to override it', ()
   assertEquals(response.meta.source, 'my-app')
   assertEquals(response.message, 'Test error')
   assertFalse('contextId' in response)
+})
+
+Deno.test('getExtendedErrorResponse should create new object to override it', () => {
+  const error = Object.freeze(
+    new PermissionDenied('Token signature is invalid', {
+      code: 'INVALID_TOKEN_SIGNATURE',
+      cause: 'The provided token signature does not match the expected signature',
+      meta: { source: 'zanix' },
+    }),
+  )
+
+  const response = getExtendedErrorResponse(error)
+
+  assertEquals(response.cause, 'The provided token signature does not match the expected signature')
 })
