@@ -2,11 +2,11 @@ import type { BootstrapServerOptions, ServerID } from 'typings/server.ts'
 import type { ModuleTypes } from 'typings/program.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 
-import { connectorModuleInitialization } from 'utils/targets.ts'
 import { GRAPHQL_PORT, INSTANCE_KEY_SEPARATOR, SOCKET_PORT } from 'utils/constants.ts'
+import { connectorModuleInitialization } from 'utils/targets.ts'
+import { logServerError } from './helpers/errors.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { WebServerManager } from './manager.ts'
-import logger from '@zanix/logger'
 
 /** Target module setup startup initialization */
 const targetModuleInit = (key: string) => {
@@ -21,15 +21,12 @@ const targetModuleInit = (key: string) => {
 /** Catch all module errors */
 self.addEventListener('unhandledrejection', async (event) => {
   event.preventDefault()
-  const error = await event.promise.catch((err) => {
-    const extendedError = Object.assign({}, err, {
+  await event.promise.catch((err) => {
+    logServerError(err, {
+      message: event.reason?.message || 'Uncaught (in promise) Error',
       code: 'UNHANDLED_PROMISE_REJECTION',
-      meta: { source: 'zanix' },
     })
-    return extendedError
   })
-
-  logger.error(event.reason?.message || 'Uncaught (in promise) Error', error)
 })
 
 /** Disconnect all current connectors */

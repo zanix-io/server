@@ -1,14 +1,15 @@
 import type { ServerOptions } from 'typings/server.ts'
 
-import { errorResponses } from './errors.ts'
+import { httpErrorResponse, logServerError } from './errors.ts'
 import logger from '@zanix/logger'
 
 export const onErrorListener =
   (currentErrorHandler: ServerOptions['onError'], serverName: string) =>
   async (error: unknown): Promise<Response> => {
-    logger.error(`An error occurred on ${serverName} server`, error, {
-      meta: { serverName, source: 'zanix' },
+    logServerError(error, {
+      message: `An error occurred on ${serverName} server`,
       code: 'SERVER_ERROR',
+      meta: { serverName },
     })
 
     try {
@@ -16,7 +17,7 @@ export const onErrorListener =
       if (response) return response
     } catch { /** ignore */ }
 
-    return errorResponses(error)
+    return httpErrorResponse(error)
   }
 
 export const onListen =

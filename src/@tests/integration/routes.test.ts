@@ -2,16 +2,18 @@ import { assert, assertEquals, assertExists, assertFalse, assertThrows } from '@
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import { routeProcessor } from 'modules/webserver/helpers/routes.ts'
 import Program from 'modules/program/mod.ts'
+import { InternalError } from '@zanix/errors'
 
 //Mocks
 console.info = () => {}
+console.error = () => {}
 
 Deno.test('routeProcessor should throw', () => {
   Program.routes.defineRoute('rest', {} as never)
 
   assertThrows(
     () => routeProcessor('rest'),
-    Deno.errors.Interrupted,
+    InternalError,
     'Not routes defined for Rest sever',
   )
 })
@@ -39,7 +41,7 @@ Deno.test('routeProcessor should return default adapted routes', () => {
 
   assertThrows(
     () => routeProcessor('rest'),
-    Deno.errors.Interrupted,
+    InternalError,
     'Not routes defined for Rest sever',
   )
 })
@@ -114,7 +116,7 @@ Deno.test('routeProcessor should throw because of douplicate routes', () => {
 
   assertThrows(
     () => Program.routes.defineRoute('rest', Target2),
-    Deno.errors.Interrupted,
+    InternalError,
     'Route path "rest=>/route-2" is already defined in "Target"',
   )
 })

@@ -7,6 +7,36 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.0] - 2025-11-20
+
+### Added
+
+- **Advanced Error Logging System**:
+
+  - Introduced a new error logging mechanism based on `ZanixLogger` to efficiently manage and track
+    errors in the server.
+  - Errors are now validated by the `status` property (`{ value: number }`) to identify server-side
+    errors (HTTP status 500+), which will always be logged.
+  - **Concurrency control**: Errors caused by high concurrency (more than 50 occurrences within the
+    last hour) will no longer flood the logs, ensuring a clean log history.
+  - Critical errors (HTTP status >= 500) are logged automatically, regardless of the `_logged`
+    property.
+  - Customizable error codes and messages in critical error classes, helping developers manage
+    server exceptions more efficiently.
+
+### Changed
+
+- **Error Handling Workflow**:
+
+  - The logging system now checks for the `status` and `status.value` properties in error objects to
+    determine if the error should be treated as a server error.
+  - Added a validation mechanism for errors with `status: { value: number }` to ensure proper
+    logging of server errors.
+
+### Fixed
+
+- Minor bug fixes related to error logging concurrency handling.
+
 ## [1.2.10] - 2025-11-20
 
 ### **Fixed**

@@ -1,13 +1,18 @@
+import type { HandlerFunction } from 'typings/router.ts'
 import type { ZanixWebSocket } from './base.ts'
 import type { RtoTypes } from '@zanix/types'
-import type { HandlerFunction } from 'typings/router.ts'
+import type { HandlerContext } from '@zanix/server'
 
+import { getSerializedErrorResponse, logServerError } from 'modules/webserver/helpers/errors.ts'
 import { cleanUpPipe, contextSettingPipe } from 'middlewares/defaults/context.pipe.ts'
-import { baseErrorResponses } from 'modules/webserver/helpers/errors.ts'
 import { HttpError } from '@zanix/errors'
-import logger from '@zanix/logger'
 
-const catcher = async (socket: WebSocket, event: Event, callback: () => unknown) => {
+const catcher = async (
+  ctx: HandlerContext,
+  socket: WebSocket,
+  event: Event,
+  callback: () => unknown,
+) => {
   try {
     let response
     const cb = callback()
@@ -15,11 +20,12 @@ const catcher = async (socket: WebSocket, event: Event, callback: () => unknown)
     else response = cb
     return response
   } catch (e) {
-    logger.error('An error occurred on socket', e, {
-      meta: { event: event.type, source: 'zanix' },
+    logServerError(e, {
+      message: 'An error occurred on socket',
+      meta: { event: event.type },
       code: 'SOCKET_ERROR',
     })
-    socket.send(baseErrorResponses(e))
+    socket.send(getSerializedErrorResponse(e, ctx.id))
   }
 }
 
@@ -34,11 +40,11 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
 
       socket.onopen = (event) => {
         contextSettingPipe(ctx)
-        return catcher(socket, event, () => this['onopen'](event))
+        return catcher(ctx, socket, event, () => this['onopen'](event))
       }
 
       socket.onerror = (event) => {
-        return catcher(socket, event, () => this['onerror'](event))
+        return catcher(ctx, socket, event, () => this['onerror'](event))
       }
 
       socket.onmessage = (event) => {
@@ -49,10 +55,10 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
             message: `"${event.data}" should be a valid JSON`,
           })
 
-          return socket.send(baseErrorResponses(error))
+          return socket.send(getSerializedErrorResponse(error, ctx.id))
         }
 
-        return catcher(socket, event, async () => {
+        return catcher(ctx, socket, event, async () => {
           if (rto) await this.requestValidation(rto, ctx)
           return this['onmessage'](event)
         })
@@ -60,7 +66,7 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
 
       socket.onclose = (event) => {
         cleanUpPipe(ctx)
-        return catcher(socket, event, () => this['onclose'](event))
+        return catcher(ctx, socket, event, () => this['onclose'](event))
       }
 
       return response

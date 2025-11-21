@@ -85,7 +85,7 @@ export { TargetError } from 'utils/errors.ts'
 export { cleanRoute } from 'utils/routes.ts'
 export { processUrlParams } from 'utils/params.ts'
 export { gzipResponse, gzipResponseFromResponse } from 'utils/gzip.ts'
-export { errorResponses } from 'webserver/helpers/errors.ts'
+export { httpErrorResponse } from 'webserver/helpers/errors.ts'
 
 // Types
 export type {

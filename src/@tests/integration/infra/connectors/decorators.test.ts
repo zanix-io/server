@@ -5,7 +5,9 @@ import Program from 'modules/program/mod.ts'
 import { defineConnectorDecorator } from 'modules/infra/connectors/decorators/assembly.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import ConnectorCoreModules from 'modules/infra/connectors/core/all.ts'
+import { InternalError } from '@zanix/errors'
 
+console.error = () => {}
 class CacheConnector extends ZanixConnector {
   protected override initialize(): Promise<void> | void {
     throw new Error('Method not implemented.')
@@ -100,7 +102,7 @@ Deno.test("defineConnectorDecorator: throws if class doesn't extend ZanixConnect
 
   assertThrows(() => {
     decorator(InvalidConnector as any)
-  }, Deno.errors.Interrupted)
+  }, InternalError)
 })
 
 Deno.test("defineConnectorDecorator: throws if core connector doesn't extend required base", () => {
@@ -120,7 +122,7 @@ Deno.test("defineConnectorDecorator: throws if core connector doesn't extend req
 
   assertThrows(() => {
     decorator(WrongHttpBase as any)
-  }, Deno.errors.Interrupted)
+  }, InternalError)
 })
 
 Deno.test('defineConnectorDecorator: supports short string syntax', () => {

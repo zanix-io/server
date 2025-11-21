@@ -66,6 +66,8 @@ Deno.test('should return error message on data validation', async () => {
   const jsonMessage = JSON.parse(message)
   assert(isUUID(jsonMessage.id))
   delete jsonMessage.id
+  delete jsonMessage.contextId
+
   assertEquals(
     jsonMessage,
     {
@@ -82,16 +84,17 @@ Deno.test('should return error message on data validation', async () => {
   const jsonMessage2 = JSON.parse(message2)
   assert(isUUID(jsonMessage2.id))
   delete jsonMessage2.id
+  delete jsonMessage2.contextId
   assertEquals(
     jsonMessage2,
     {
-      'message': 'BAD_REQUEST',
-      'name': 'HttpError',
-      'status': { 'code': 'BAD_REQUEST', 'value': 400 },
-      'cause': {
-        'message': 'Request validation error',
-        'properties': { 'email': [{ 'constraints': ["'email' must be a valid email address."] }] },
-        'target': 'C',
+      message: 'BAD_REQUEST',
+      name: 'HttpError',
+      status: { code: 'BAD_REQUEST', value: 400 },
+      cause: {
+        message: 'Request validation error',
+        properties: { 'email': [{ 'constraints': ["'email' must be a valid email address."] }] },
+        target: 'C',
       },
     },
   )

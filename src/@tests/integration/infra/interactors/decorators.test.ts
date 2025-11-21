@@ -6,6 +6,9 @@ import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
 import { ZANIX_PROPS } from 'utils/constants.ts'
 import { ZanixWorkerConnector } from 'modules/infra/connectors/core/worker.ts'
+import { InternalError } from '@zanix/errors'
+
+console.error = () => {}
 
 const originalDefineTarget = Program.targets.defineTarget
 
@@ -48,7 +51,7 @@ Deno.test('should throw error if class is not an interactor', () => {
 
   assertThrows(
     () => Decorator(NotAnInteractor as never),
-    Deno.errors.Interrupted,
+    InternalError,
     `'NotAnInteractor' is not a valid Interactor. Please extend ZanixInteractor`,
   )
 })
@@ -85,7 +88,7 @@ Deno.test('should throw error if using core connector directly', () => {
 
   assertThrows(
     () => Decorator(MyInteractor),
-    Deno.errors.Interrupted,
+    InternalError,
     `Invalid dependency injection: 'BadConnector' is a core connector that can be overridden but should not be manually injected into 'MyInteractor'. Access it through 'this.worker' inside your class, and remove it from the Interactor decorator configuration.`,
   )
 })

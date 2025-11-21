@@ -3,6 +3,7 @@ import { assertEquals, assertThrows } from '@std/assert'
 import { assertSpyCalls, spy, stub } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
 import { DEFAULT_CONTEXT_ID, ZANIX_PROPS } from 'utils/constants.ts'
+import { InternalError } from '@zanix/errors'
 
 // mocks
 stub(console, 'error')
@@ -42,7 +43,7 @@ Deno.test('ContextualBaseClass.testContext throws in SINGLETON mode', () => {
 
   assertThrows(
     () => instance.testContext,
-    Deno.errors.Interrupted,
+    InternalError,
     'The system could not find the required information to proceed',
   )
 })

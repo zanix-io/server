@@ -115,6 +115,12 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
 
 ---
 
+### Error Handling and Logging
+
+Zanix Server provides an advanced mechanism for managing and tracking errors. For a detailed guide
+on how errors are logged and handled in the system, check out the full documentation
+[here](./docs/ERRORS.md).
+
 ## Installation
 
 To install **Zanix Server** in your project, use [Deno](https://deno.com/) with the following
@@ -124,13 +130,13 @@ imports:
 import * as server from 'jsr:@zanix/server@[version]'
 ```
 
-## Importing Features
+### Importing Features
 
 To use specific features from **Zanix Server** in your project, you can import various handlers,
 interactors, connectors, middlewares, and constants as needed. Below is an example of how to import
 different components:
 
-### 1. **Handlers**
+#### 1. **Handlers**
 
 Handlers allow you to define the behavior of different types of servers, such as REST, GraphQL, and
 WebSocket. You can import them individually based on your needs:
@@ -167,7 +173,7 @@ WebSocket. You can import them individually based on your needs:
   import { Socket, ZanixWebSocket } from 'jsr:@zanix/server@[version]'
   ```
 
-### 2. **Interactors**
+#### 2. **Interactors**
 
 Interactors handle the business logic of your application. You can import them to integrate complex
 operations seamlessly:
@@ -176,7 +182,7 @@ operations seamlessly:
 import { Interactor, ZanixInteractor } from 'jsr:@zanix/server@[version]'
 ```
 
-### 3. **Connectors**
+#### 3. **Connectors**
 
 Connectors help integrate external services, databases, and communication layers into your
 application. You can import connectors based on the service you need to integrate:
@@ -223,7 +229,7 @@ application. You can import connectors based on the service you need to integrat
   import { GraphQLClient, RestClient } from 'jsr:@zanix/server@[version]'
   ```
 
-### 4. **Providers**
+#### 4. **Providers**
 
 Providers act as a technical orchestration layer, connecting interactors with connectors. They can
 combine repository and data service responsibilities, managing multiple connectors while keeping
@@ -233,7 +239,7 @@ domain logic separate.
 import { ZanixCacheProvider, ZanixProvider, ZanixWorkerProvider } from 'jsr:@zanix/server@[version]'
 ```
 
-### 5. **Middlewares**
+#### 5. **Middlewares**
 
 Middlewares provide hooks for managing requests, validation, or transformations. You can import
 global middlewares or specific decorators to apply functionality to your server:
@@ -254,7 +260,7 @@ global middlewares or specific decorators to apply functionality to your server:
   import { Guard, Interceptor, Pipe, RequestValidation } from 'jsr:@zanix/server@[version]'
   ```
 
-### 6. **Constants**
+#### 6. **Constants**
 
 You may also need constants for specific configurations like GraphQL ports, socket ports, and
 content headers. Here’s how you can import them:
@@ -263,7 +269,7 @@ content headers. Here’s how you can import them:
 import { GRAPHQL_PORT, JSON_CONTENT_HEADER, SOCKET_PORT } from 'jsr:@zanix/server@[version]'
 ```
 
-### 7. **WebServerManager**
+#### 7. **WebServerManager**
 
 The `webServerManager` instance helps you manage different types of web servers dynamically. You can
 import and use it to create, start, stop, and retrieve information about your servers:

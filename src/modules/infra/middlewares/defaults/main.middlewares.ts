@@ -8,16 +8,14 @@ import type { HandlerFunction, HttpMethods } from 'typings/router.ts'
 import type { GzipOptions } from 'typings/general.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { HandlerContext } from 'typings/context.ts'
-import type { HttpError } from '@zanix/errors'
 
 import { getConnectors, getInteractors, getProviders } from 'modules/program/public.ts'
+import { httpErrorResponse, logServerError } from 'webserver/helpers/errors.ts'
 import { getResponseInterceptor } from './response.interceptor.ts'
-import { errorResponses } from 'webserver/helpers/errors.ts'
 import { cleanUpPipe, contextSettingPipe } from './context.pipe.ts'
 import { validateMethodsPipe } from './methods.pipe.ts'
 import { gzipResponseFromResponse } from 'utils/gzip.ts'
 import { corsGuard } from './cors.guard.ts'
-import logger from '@zanix/logger'
 
 /**
  * Guards that must be executed across all types of HTTP web servers.
@@ -128,13 +126,13 @@ export const routerInterceptor: MiddlewareInterceptor = async (context, _, optio
 
     return acceptsGzip ? gzipResponseFromResponse(response, gzip) : response
   } catch (e) {
-    const error = e as HttpError
-    error.id = error.id || context.id
-    logger.error(`An error occurred on route '${context.url.pathname}'`, error, {
-      meta: { route: context.url.pathname, source: 'zanix' },
+    logServerError(e, {
+      message: `An error occurred on route '${context.url.pathname}'`,
+      meta: { route: context.url.pathname },
+      contextId: context.id,
       code: 'ROUTE_ERROR',
     })
 
-    return errorResponses(e)
+    return httpErrorResponse(e, { contextId: context.id })
   }
 }

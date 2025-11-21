@@ -3,6 +3,7 @@ import { WebServerManager } from 'modules/webserver/manager.ts'
 import { assert, assertEquals, assertMatch, assertThrows } from '@std/assert'
 import { stub } from '@std/testing/mock'
 import { getTemporaryFolder } from '@zanix/helpers'
+import { InternalError } from '@zanix/errors'
 
 stub(console, 'info')
 stub(console, 'error')
@@ -73,7 +74,7 @@ Deno.test('Web server manager should start multiple servers', async () => {
 
   const err = assertThrows(
     () => webServerManager.start(id2),
-    Deno.errors.Interrupted,
+    InternalError,
     `Port 9183 is already in use and cannot be assigned to the REST server with ID ${id2}. Please choose a different port.`,
   ) // cannot start with the same port
   assertMatch(
