@@ -93,14 +93,15 @@ export const getExtendedErrorResponse = (
   error: any,
   contextId?: string,
   withStackTrace = false,
-) => {
+  // deno-lint-ignore no-explicit-any
+): Record<string, any> => {
+  if (!error) error = {}
   const props: Record<string, unknown> = {
     id: error?.id || generateUUID(),
   }
-  if (error?.cause) props.cause = serializeError(error?.cause, { withStackTrace })
   if (contextId) props.contextId = contextId
 
-  return Object.assign({}, error, props)
+  return Object.assign({}, serializeError(error, { withStackTrace }), props)
 }
 
 /**
@@ -114,9 +115,7 @@ export const getExtendedErrorResponse = (
 export const getSerializedErrorResponse = (error: unknown, contextId?: string) => {
   const extendedError = getExtendedErrorResponse(error, contextId)
 
-  const serializedError = serializeError(extendedError, { withStackTrace: false })
-
-  return JSON.stringify(serializedError)
+  return JSON.stringify(extendedError)
 }
 
 /**
@@ -171,13 +170,17 @@ export const logServerError = (
   const withStackTrace = true
 
   const error = getExtendedErrorResponse(
-    serializeError(e, { withStackTrace }),
+    e,
     contextId,
     withStackTrace,
   )
 
   error.code = error.code || code
   error.meta = { ...meta, ...error.meta }
+
+  if (e && typeof e === 'object') {
+    Object.assign(e, { ...error })
+  }
 
   logger.error(message, error)
 }

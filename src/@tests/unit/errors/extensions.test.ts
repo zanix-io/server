@@ -1,6 +1,10 @@
-import { assertEquals, assertExists, assertFalse, assertNotEquals } from '@std/assert'
+import { assert, assertEquals, assertExists, assertFalse, assertNotEquals } from '@std/assert'
 import { HttpError, PermissionDenied } from '@zanix/errors'
-import { getExtendedErrorResponse, httpErrorResponse } from 'modules/webserver/helpers/errors.ts'
+import {
+  getExtendedErrorResponse,
+  httpErrorResponse,
+  logServerError,
+} from 'modules/webserver/helpers/errors.ts'
 
 Deno.test('getExtendedErrorResponse should generate a new id if none exists', () => {
   const error = { message: 'Test error' }
@@ -84,4 +88,23 @@ Deno.test('getExtendedErrorResponse should create new object to override it', as
     response.cause.cause.cause,
     'The provided token signature does not match the expected signature',
   )
+})
+
+Deno.test('httpErrorResponse should return all data after log', async () => {
+  // deno-lint-ignore no-explicit-any
+  const error: any = new Error('BAD_REQUEST')
+
+  console.error = () => {}
+
+  logServerError(error, {
+    message: 'message',
+    code: 'CODE',
+  })
+
+  assert(error.id)
+  const response = await httpErrorResponse(error).json()
+
+  assertEquals(error.id, response.id)
+  assertEquals(response.name, 'Error')
+  assertEquals(response.message, 'BAD_REQUEST')
 })
