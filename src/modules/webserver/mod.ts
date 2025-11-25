@@ -24,7 +24,6 @@ self.addEventListener('unhandledrejection', async (event) => {
   await event.promise.catch((err) => {
     logServerError(err, {
       message: event.reason?.message || 'Uncaught (in promise) Error',
-      meta: { source: 'zanix' },
       code: 'UNHANDLED_PROMISE_REJECTION',
     })
   })

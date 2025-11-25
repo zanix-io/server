@@ -23,15 +23,20 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
   globalPrefix = cleanRoute(globalPrefix).replace(/\/$/g, '').replace(/^\//g, '')
 
   const processedRoutes = Object.keys(routes).reduce<
-    { absolutePaths: ProcessedRoutes; relativePaths: ProcessedRoutes }
+    { absolutePaths: ProcessedRoutes; relativePaths: ProcessedRoutes; routePaths: Set<string> }
   >((acc, route) => {
-    const { handler, interceptors, pipes, methods, guards } = routes[route]
-    route = globalPrefix && `/${globalPrefix}` !== route ? `/${globalPrefix}${route}` : route
+    const { handler, path, interceptors, pipes, httpMethod, guards } = routes[route]
+    let fullPath = path
+    if (globalPrefix && `/${globalPrefix}` !== path) {
+      route = `/${globalPrefix}${route}`
+      fullPath = `/${globalPrefix}${path}`
+      acc.routePaths.add(fullPath)
+    } else acc.routePaths.add(path)
 
     logger.info(
       `${serverName} sever route:`,
-      route,
-      methods.length ? `| Methods: ${methods}` : '',
+      fullPath,
+      httpMethod ? `| Method: ${httpMethod}` : '',
       'noSave',
     )
 
@@ -57,7 +62,7 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
     const baseRoute = {
       params: getParamNames(route),
       handler: processedHandler,
-      methods: methods.length === 0 ? ['GET', 'POST'] : methods,
+      httpMethod: httpMethod || 'GET',
       interceptors,
       enableALS,
       guards,
@@ -70,7 +75,7 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
       acc.absolutePaths[route] = baseRoute
     }
     return acc
-  }, { relativePaths: {}, absolutePaths: {} })
+  }, { relativePaths: {}, absolutePaths: {}, routePaths: new Set([]) })
 
   return processedRoutes
 }

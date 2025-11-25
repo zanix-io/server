@@ -1,6 +1,6 @@
 import type { CorsOptions } from './middlewares.ts'
 import type { GzipOptions } from './general.ts'
-import type { HttpMethods } from './router.ts'
+import type { HttpMethod } from './router.ts'
 
 /**
  * Represents the various types of web servers that can be managed by the system.
@@ -40,11 +40,11 @@ export type ServerManagerData = Record<
 
 export type ServerHandler = Deno.ServeHandler<Deno.NetAddr>
 
-type CorsAllowedMethods<Methods extends HttpMethods> =
+type CorsAllowedMethods<Methods extends HttpMethod> =
   & CorsOptions
   & Omit<CorsOptions, 'allowedMethods'>
   & {
-    allowedMethods?: Extract<HttpMethods, Methods>[]
+    allowedMethods?: Extract<HttpMethod, Methods>[]
   }
 
 /**

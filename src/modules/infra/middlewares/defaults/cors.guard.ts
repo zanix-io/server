@@ -1,10 +1,9 @@
 import type { HandlerContext } from 'typings/context.ts'
 import type { CorsOptions, MiddlewareInternalGuard } from 'typings/middlewares.ts'
 import type { WebServerTypes } from 'typings/server.ts'
-import type { HttpMethods } from 'typings/router.ts'
+import type { HttpMethod } from 'typings/router.ts'
 
 import { HttpError } from '@zanix/errors'
-import { validateMethodsPipe } from './methods.pipe.ts'
 
 /**
  * Creates a CORS (Cross-Origin Resource Sharing) validation middleware.
@@ -42,7 +41,7 @@ import { validateMethodsPipe } from './methods.pipe.ts'
  *   Headers that clients may send in cross-origin requests.
  *   Used for the `Access-Control-Allow-Headers` response header.
  *
- * @param {HttpMethods[]} [options.allowedMethods=["GET", "POST", "PUT", "DELETE"]]
+ * @param {HttpMethod[]} [options.allowedMethods=["GET", "POST", "PUT", "DELETE"]]
  *   HTTP methods allowed for cross-origin requests.
  *   Used for the `Access-Control-Allow-Methods` header.
  *
@@ -78,7 +77,7 @@ export const corsGuard = <Credential extends boolean>(
 ): MiddlewareInternalGuard => {
   if (!options) return () => ({})
 
-  const methodMap: Record<WebServerTypes, HttpMethods[]> = {
+  const methodMap: Record<WebServerTypes, HttpMethod[]> = {
     graphql: ['GET', 'POST'],
     socket: ['GET'],
     ssr: ['GET'],
@@ -126,7 +125,9 @@ export const corsGuard = <Credential extends boolean>(
     }
 
     // Allowed methods validation
-    validateMethodsPipe(allowedMethods)(ctx)
+    if (!allowedMethods.includes(ctx.req.method as HttpMethod)) {
+      throw new HttpError('METHOD_NOT_ALLOWED', { id: ctx.id })
+    }
 
     // Websocket adaptation
     if (ctx.req.headers.get('Upgrade') === 'websocket') return {}

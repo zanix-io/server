@@ -28,13 +28,13 @@ const mainProcess = (options: {
   cors?: CorsOptions
   gzip?: GzipOptions
 }) => {
-  const { route: { methods, interceptors, handler, pipes, guards, enableALS } } = options
+  const { route: { interceptors, handler, pipes, guards, enableALS } } = options
   const { context, gzip, cors, type } = options
 
   const process = async () => {
     const { response, headers } = await routerGuard(context, { type, cors, guards })
     if (response) return response
-    await routerPipe(context, { methods, pipes })
+    await routerPipe(context, pipes)
     return routerInterceptor(context, null as never, { gzip, interceptors, handler, headers })
   }
 
@@ -57,11 +57,11 @@ export const getMainHandler = (
     ProgramModule.routes.defineRoute('graphql', {
       path: globalPrefix || 'graphql',
       handler: getGraphqlHandler(),
-      methods: ['POST'],
+      httpMethod: 'POST',
     })
   }
 
-  const { relativePaths, absolutePaths } = routeProcessor(type, globalPrefix)
+  const { relativePaths, absolutePaths, routePaths } = routeProcessor(type, globalPrefix)
 
   const { cors, gzip } = options
 
@@ -82,14 +82,19 @@ export const getMainHandler = (
 
     // Check for absolute paths
     const path = cleanRoute(url.pathname)
-    const absoluteRoute = absolutePaths[path]
+    const fullPath = `${path}/${req.method}`
+    const absoluteRoute = absolutePaths[fullPath]
 
     if (absoluteRoute) {
       return mainProcess({ route: absoluteRoute, context, gzip, cors, type })
     }
 
-    const processedRoute = findMatchingRoute(relativePaths, path)
-    if (!processedRoute) throw new HttpError('NOT_FOUND', { id: context.id })
+    const processedRoute = findMatchingRoute(relativePaths, fullPath)
+    if (!processedRoute) {
+      if (routePaths.has(path)) throw new HttpError('METHOD_NOT_ALLOWED', { id: context.id })
+
+      throw new HttpError('NOT_FOUND', { id: context.id, meta: { path } })
+    }
 
     const { route, match } = processedRoute
 

@@ -10,7 +10,7 @@ import type {
 import type { ConnectorTypes, HandlerTypes, Lifetime, ProviderTypes, StartMode } from './program.ts'
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import type { ZanixProvider } from 'providers/base.ts'
-import type { HttpMethods } from './router.ts'
+import type { HttpMethod } from './router.ts'
 
 /**
  * A decorator type for classes.
@@ -192,7 +192,7 @@ export type ResolverRequestOptions = {
 export type DecoratorTypes = HandlerTypes | MiddlewareTypes | 'generic'
 
 export type DecoratorsData<T extends DecoratorTypes> = T extends 'controller'
-  ? { handler: string; endpoint: string; httpMethod: HttpMethods }
+  ? { handler: string; endpoint: string; httpMethod: HttpMethod }
   : T extends 'resolver' ? {
       handler: Function
       name: string

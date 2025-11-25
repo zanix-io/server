@@ -1,5 +1,4 @@
 import type { ProcessedRoutes } from 'typings/router.ts'
-import { HttpError } from '@zanix/errors'
 
 /**
  * Normalizes and sanitizes a route path string.
@@ -58,12 +57,14 @@ export const bodyPayloadProperty = async (
   if (req.method === 'POST') {
     const contentType = req.headers.get('Content-Type')
 
-    if (contentType && contentType.includes('application/json')) {
-      computedBody = await req.json()
-    } else if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
-      computedBody = await req.formData()
-    } else {
-      throw new HttpError('UNSUPPORTED_MEDIA_TYPE')
+    try {
+      if (contentType && contentType.includes('application/json')) {
+        computedBody = await req.json()
+      } else if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
+        computedBody = await req.formData()
+      }
+    } catch {
+      return computedBody
     }
   }
 

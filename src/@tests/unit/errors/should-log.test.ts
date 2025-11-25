@@ -1,4 +1,4 @@
-import { assert, assertFalse } from '@std/assert'
+import { assert, assertEquals, assertFalse } from '@std/assert'
 import { HttpError, InternalError } from '@zanix/errors'
 import {
   getStatusError,
@@ -65,7 +65,7 @@ Deno.test('shouldNotLogError - known error with status and less than 50 errors',
 
 // Test: shouldNotLogError with a known error and more than 50 errors
 Deno.test('shouldNotLogError - known error with more than 50', () => {
-  const knownError = new HttpError('FORBIDDEN')
+  const knownError = new HttpError('FORBIDDEN', { meta: { data: 'my meta data' } })
 
   const errorStatus = getStatusError(knownError) || 0
   assert(errorStatus >= 400 && errorStatus < 500)
@@ -80,6 +80,13 @@ Deno.test('shouldNotLogError - known error with more than 50', () => {
   }
   assert(shouldNotLogError(knownError)) // add one more register
   const result = shouldNotLogError(knownError)
+  assertEquals(knownError.meta, {
+    data: 'my meta data',
+    reason: 'Concurrent error rate exceeded: 50 errors per hour',
+    description:
+      'Error triggered by exceeding 50 errors in the past hour, possibly due to system overload or recurring issues.',
+    resolution: 'Check system load or request patterns to address potential causes.',
+  })
   assertFalse(result, 'It should return false because more than 50 errors have occurred')
 
   const newResult = shouldNotLogError(knownError)

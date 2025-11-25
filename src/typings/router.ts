@@ -1,5 +1,5 @@
 import type { HandlerContext } from './context.ts'
-import type { MiddlewareGuard, MiddlewareInterceptor, MiddlewarePipe } from './middlewares.ts'
+import type { Middlewares } from './middlewares.ts'
 import type { MetadataTargetSymbols } from './program.ts'
 import type { WebServerTypes } from './server.ts'
 
@@ -19,7 +19,7 @@ export type HandlerResponse = Record<string, unknown> | Response | string
  * - `'OPTIONS'` — Describe the communication options for the target resource.
  * - `'HEAD'` — Same as GET but only retrieves the headers.
  */
-export type HttpMethods = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
 export type HandlerFunction = (
   ctx: HandlerContext,
@@ -32,11 +32,8 @@ export type RouteDefinition = {
     | HandlerFunction
     | Required<Omit<MetadataTargetSymbols, 'type'>> & { type?: MetadataTargetSymbols['type'] }
   enableALS?: boolean
-  methods?: HttpMethods[]
-  guards?: MiddlewareGuard[]
-  pipes?: MiddlewarePipe[]
-  interceptors?: MiddlewareInterceptor[]
-}
+  httpMethod?: HttpMethod
+} & Partial<Middlewares>
 
 export type ProcessedRouteDefinition =
   & {
@@ -58,7 +55,14 @@ export type ProcessedRouteDefinition =
 export type ProcessedRoutes = Record<string, ProcessedRouteDefinition>
 
 export type RoutesObject = Partial<
-  Record<WebServerTypes, Record<string, Required<Omit<RouteDefinition, 'enableALS'>>>>
+  Record<
+    WebServerTypes,
+    Record<
+      string,
+      & { handler: RouteDefinition['handler']; httpMethod: HttpMethod; path: string }
+      & Middlewares
+    >
+  >
 >
 
 export type RouteDefinitionProps = RouteDefinition & { path?: string }

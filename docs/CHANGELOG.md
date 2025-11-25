@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.4] - 2025-11-20
+
+### Added
+
+- Allowed using the same route path with different HTTP methods.
+
 ## [1.3.3] - 2025-11-20
 
 ### Fixed

@@ -15,7 +15,7 @@ import { assertFalse } from '@std/assert'
 
 /** mocks */
 stub(console, 'info')
-stub(console, 'error')
+console.error = () => {}
 
 export const SOCKET_PORT = 9222
 export const GQL_PORT = 9333

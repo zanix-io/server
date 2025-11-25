@@ -124,7 +124,7 @@ export type {
   ZanixInteractorClass,
   ZanixProviderClass,
 } from 'typings/targets.ts'
-export type { HttpMethods } from 'typings/router.ts'
+export type { HttpMethod } from 'typings/router.ts'
 export type {
   ZanixClassDecorator,
   ZanixFunctionDecorator,

@@ -61,6 +61,19 @@ export const shouldNotLogError = (e: unknown): boolean => {
     if (errorQuantity.value >= 50) {
       setErrorConcurrency(errorStatus)
 
+      const metaError = {
+        reason: 'Concurrent error rate exceeded: 50 errors per hour',
+        description:
+          'Error triggered by exceeding 50 errors in the past hour, possibly due to system overload or recurring issues.',
+        resolution: 'Check system load or request patterns to address potential causes.',
+      }
+
+      if ('meta' in e && typeof e.meta === 'object') {
+        e.meta = { ...e.meta, ...metaError }
+      } else {
+        ;(e as Record<string, unknown>).meta = metaError
+      }
+
       return false
     }
   } else setErrorConcurrency(errorStatus)
@@ -73,13 +86,18 @@ export const shouldNotLogError = (e: unknown): boolean => {
  *
  * @param {unknown} error - The error object to be processed.
  * @param {string} [contextId] - Optional request context id to be sent with the error.
+ * @param {boolean} [withStackTrace] - Optional stack trace flag serializaion
  */
-// deno-lint-ignore no-explicit-any
-export const getExtendedErrorResponse = (error: any, contextId?: string) => {
+export const getExtendedErrorResponse = (
+  // deno-lint-ignore no-explicit-any
+  error: any,
+  contextId?: string,
+  withStackTrace = false,
+) => {
   const props: Record<string, unknown> = {
     id: error?.id || generateUUID(),
   }
-  if (error?.cause) props.cause = serializeError(error?.cause)
+  if (error?.cause) props.cause = serializeError(error?.cause, { withStackTrace })
   if (contextId) props.contextId = contextId
 
   return Object.assign({}, error, props)
@@ -150,8 +168,13 @@ export const logServerError = (
   if (shouldNotLogError(e)) return
 
   const { message, code, meta, contextId } = options
+  const withStackTrace = true
 
-  const error = getExtendedErrorResponse(e, contextId)
+  const error = getExtendedErrorResponse(
+    serializeError(e, { withStackTrace }),
+    contextId,
+    withStackTrace,
+  )
 
   error.code = error.code || code
   error.meta = { ...meta, ...error.meta }

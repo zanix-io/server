@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import type { HandlerContext } from './context.ts'
 import type { ZanixGlobalExports } from './program.ts'
-import type { HttpMethods } from './router.ts'
+import type { HttpMethod } from './router.ts'
 import type { WebServerTypes } from './server.ts'
 import type {
   ZanixConnectorsGetter,
@@ -137,7 +137,7 @@ export type CorsOptions<Credential extends boolean = true> = CorsOrigin<Credenti
   /**
    * HTTP methods allowed for cross-origin requests (excluding OPTIONS).
    */
-  allowedMethods?: Exclude<HttpMethods, 'OPTIONS'>[]
+  allowedMethods?: Exclude<HttpMethod, 'OPTIONS'>[]
   /**
    * Optional configuration for preflight (OPTIONS) requests.
    */
@@ -151,4 +151,10 @@ export type CorsOptions<Credential extends boolean = true> = CorsOrigin<Credenti
      */
     optionsSuccessStatus: 200 | 204
   }
+}
+
+export type Middlewares = {
+  guards: MiddlewareGuard[]
+  pipes: MiddlewarePipe[]
+  interceptors: MiddlewareInterceptor[]
 }

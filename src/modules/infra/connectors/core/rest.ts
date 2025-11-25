@@ -1,5 +1,5 @@
 import type { RequestOptions, RestFullOptions } from 'typings/clients.ts'
-import type { HttpMethods } from 'typings/router.ts'
+import type { HttpMethod } from 'typings/router.ts'
 
 import { HttpError } from '@zanix/errors'
 import { ZanixConnector } from '../base.ts'
@@ -38,7 +38,7 @@ import { cleanRoute } from 'utils/routes.ts'
 export class RestClient extends ZanixConnector {
   #options
   public http: Record<
-    Exclude<Lowercase<HttpMethods>, 'options' | 'head'>,
+    Exclude<Lowercase<HttpMethod>, 'options' | 'head'>,
     <T>(endpoint: string, options?: RestFullOptions) => Promise<T>
   >
 

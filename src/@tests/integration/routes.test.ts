@@ -26,15 +26,16 @@ Deno.test('routeProcessor should return default adapted routes', () => {
     handler: () => '' as never,
   })
 
+  const fullPath = path + '/GET'
   const { absolutePaths, relativePaths } = routeProcessor('rest')
 
   assertFalse(Object.keys(absolutePaths).length)
-  assertExists(relativePaths[path].regex)
-  assertEquals(relativePaths[path].params, ['param'])
-  assertEquals(relativePaths[path].methods, ['GET', 'POST']) // Default methods
-  assertEquals(relativePaths[path].interceptors[0]({} as never, {} as never), 'resp' as never)
-  assert(relativePaths[path].pipes.length === 0)
-  assert(typeof relativePaths[path].handler === 'function')
+  assertExists(relativePaths[fullPath].regex)
+  assertEquals(relativePaths[fullPath].params, ['param'])
+  assertEquals(relativePaths[fullPath].httpMethod, 'GET') // Default method
+  assertEquals(relativePaths[fullPath].interceptors[0]({} as never, {} as never), 'resp' as never)
+  assert(relativePaths[fullPath].pipes.length === 0)
+  assert(typeof relativePaths[fullPath].handler === 'function')
 
   // References should be deleted
   Program.routes.resetContainer()
@@ -64,11 +65,10 @@ Deno.test('routeProcessor should return adapted routes for external definitions'
   Program.middlewares.addPipe(() => {}, { Target, propertyKey: 'Fa' }) // new specific for the property
 
   Program.routes.setEndpoint({ Target, endpoint: 'prefix' })
-  Program.routes.setEndpoint({ Target, propertyKey: 'Fa', endpoint: path })
+  Program.routes.setEndpoint({ Target, propertyKey: 'Fa', endpoint: path, httpMethod: 'DELETE' })
   Program.targets.addProperty({ Target, propertyKey: 'Fa' })
   Program.routes.setEndpoint({ Target, propertyKey: 'Fb' }) // set property name endpoint
   Program.targets.addProperty({ Target, propertyKey: 'Fb' })
-  Program.routes.addHttpMethod('DELETE', { Target, propertyKey: 'Fa' })
 
   Program.routes.defineRoute('rest', Target)
 
@@ -76,17 +76,21 @@ Deno.test('routeProcessor should return adapted routes for external definitions'
 
   const { absolutePaths, relativePaths } = routeProcessor('rest')
 
-  const fullPath = '/prefix/' + path
+  const fullPath = '/prefix/' + path + '/DELETE'
 
-  assertExists(absolutePaths['/prefix/fb'])
+  assertExists(absolutePaths['/prefix/fb/GET'])
+
   assertExists(relativePaths[fullPath].regex)
   assertEquals(relativePaths[fullPath].params, ['param-1'])
   assert(relativePaths[fullPath].interceptors.length === 0)
-  assertEquals(relativePaths[fullPath].methods, ['DELETE'])
+  assertEquals(relativePaths[fullPath].httpMethod, 'DELETE')
   assertEquals(relativePaths[fullPath].pipes.length, 4)
   assertEquals(relativePaths[fullPath].pipes[0]({ id: 2 } as never), 'this is global' as never)
-  assertEquals(absolutePaths['/prefix/fb'].pipes.length, 3) // One global, two for the target
-  assertEquals(absolutePaths['/prefix/fb'].pipes[0]({ id: 2 } as never), 'this is global' as never)
+  assertEquals(absolutePaths['/prefix/fb/GET'].pipes.length, 3) // One global, two for the target
+  assertEquals(
+    absolutePaths['/prefix/fb/GET'].pipes[0]({ id: 2 } as never),
+    'this is global' as never,
+  )
   assertEquals(relativePaths[fullPath].pipes[1]({ id: 2 } as never), 2 as never)
   assertEquals(relativePaths[fullPath].pipes[2]({ id: 2 } as never), undefined)
 })

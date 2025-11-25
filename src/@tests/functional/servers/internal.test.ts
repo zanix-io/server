@@ -31,9 +31,9 @@ Deno.test('Start module should init internal servers', async () => {
     assert(webServerManager.info(server as never).addr)
   }
 
-  assertSpyCalls(consoleInfo, 6) // routes quentity
+  assertSpyCalls(consoleInfo, 8) // routes quentity
 
-  // Assert resetTargets called with argument
+  // Assert some internal server
   for (let call = 0; call < consoleInfo.calls.length; call++) {
     assert(servers.some((id) => consoleInfo.calls[call].args[1].startsWith(`/${id}`)))
   }

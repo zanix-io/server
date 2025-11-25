@@ -3,6 +3,7 @@ import './setup/mod.ts'
 
 import { assert, assertEquals } from '@std/assert'
 import { isUUID } from '@zanix/validator'
+import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
 
 const restUrl = 'http://0.0.0.0:8000/api'
 
@@ -14,6 +15,36 @@ Deno.test('Verifying controller api rest basic', async () => {
   // Cors validation
   assert(query.headers.has('access-control-allow-credentials'))
   assert(query.headers.has('access-control-allow-origin'))
+
+  // Method not allowed
+
+  const queryNotAllowed = await fetch(`${restUrl}/hello`, {
+    method: 'POST',
+    headers: JSON_CONTENT_HEADER,
+  })
+
+  const responseNotAllowed = await queryNotAllowed.json()
+  assertEquals(responseNotAllowed.message, 'METHOD_NOT_ALLOWED')
+
+  // Post route bad request
+  const queryPost = await fetch(`${restUrl}/test`, {
+    method: 'POST',
+    headers: JSON_CONTENT_HEADER,
+  })
+  const responsePost = await queryPost.json()
+  assertEquals(responsePost.message, 'BAD_REQUEST')
+
+  const queryPostTest = await fetch(`${restUrl}/test`, {
+    method: 'POST',
+    headers: JSON_CONTENT_HEADER,
+    body: JSON.stringify({ email: 'pepito@email.com' }),
+  })
+  const responsePostTest = await queryPostTest.text()
+  assertEquals(responsePostTest, 'response test post')
+
+  const queryGetTest = await fetch(`${restUrl}/test`)
+  const responseGetTest = await queryGetTest.text()
+  assertEquals(responseGetTest, 'response test get')
 })
 
 Deno.test('Verifying controller guard api rest', async () => {
@@ -76,6 +107,7 @@ Deno.test('Verifying bad request and not found on api rest welcome service', asy
 
   assertEquals(response2.message, 'NOT_FOUND')
   assertEquals(response2.name, 'HttpError')
+  assertEquals(response2.meta.path, '/api/welcome/iscam@gmail.com')
   assertEquals(response2.status.value, 404)
 
   // qparam is required

@@ -4,7 +4,7 @@ import type {
   MiddlewareInterceptor,
   MiddlewarePipe,
 } from 'typings/middlewares.ts'
-import type { HandlerFunction, HttpMethods } from 'typings/router.ts'
+import type { HandlerFunction } from 'typings/router.ts'
 import type { GzipOptions } from 'typings/general.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { HandlerContext } from 'typings/context.ts'
@@ -13,7 +13,6 @@ import { getConnectors, getInteractors, getProviders } from 'modules/program/pub
 import { httpErrorResponse, logServerError } from 'webserver/helpers/errors.ts'
 import { getResponseInterceptor } from './response.interceptor.ts'
 import { cleanUpPipe, contextSettingPipe } from './context.pipe.ts'
-import { validateMethodsPipe } from './methods.pipe.ts'
 import { gzipResponseFromResponse } from 'utils/gzip.ts'
 import { corsGuard } from './cors.guard.ts'
 
@@ -82,6 +81,7 @@ export const routerGuard = (context: HandlerContext, options: {
   guards?: MiddlewareGuard[]
 }) => {
   const { type, cors, guards = [] } = options
+
   const baseCorsGuard = corsGuard(cors, type)
   return mainGuard(context, [baseCorsGuard, ...guards])
 }
@@ -89,15 +89,8 @@ export const routerGuard = (context: HandlerContext, options: {
 /**
  * Main Pipe that must be executed across all routes of HTTP web servers.
  */
-export const routerPipe: MiddlewarePipe = async (context, options: {
-  pipes: MiddlewarePipe[]
-  methods: HttpMethods[]
-}) => {
-  const { pipes, methods } = options
-  const validateMethods = validateMethodsPipe(methods)
-
+export const routerPipe: MiddlewarePipe = async (context, pipes: MiddlewarePipe[]) => {
   contextSettingPipe(context)
-  validateMethods(context)
   await mainPipe(context, pipes)
 }
 

@@ -31,6 +31,7 @@ import { Guard } from 'modules/infra/middlewares/decorators/guard.ts'
 import { ZanixKVConnector } from 'modules/infra/connectors/core/kv.ts'
 import { registerGlobalPipe } from 'modules/infra/middlewares/defs/pipes.ts'
 import { registerGlobalInterceptor } from 'modules/infra/middlewares/defs/interceptors.ts'
+import { Post } from 'modules/infra/handlers/rest/decorators/post.ts'
 
 /** RTOS */
 class C extends BaseRTO {
@@ -396,9 +397,17 @@ class _Controller extends ZanixController<InteractorX> {
 
 @Controller({ enableALS: true })
 class _ControllerBasic extends ZanixController {
-  @Get()
+  @Get('hello')
   public hello() {
     return 'response'
+  }
+  @Post('test', { Body: C })
+  public testPost() {
+    return 'response test post'
+  }
+  @Get('test')
+  public testGet() {
+    return 'response test get'
   }
 }
 

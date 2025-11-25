@@ -4,7 +4,7 @@ import type {
   ZanixClassDecorator,
   ZanixMethodDecorator,
 } from 'typings/decorators.ts'
-import type { HttpMethods } from 'typings/router.ts'
+import type { HttpMethod } from 'typings/router.ts'
 
 import {
   applyMiddlewaresToTarget,
@@ -46,9 +46,8 @@ export function defineControllerDecorator(
     const methodDecorators = ProgramModule.decorators.getDecoratorsData('controller')
 
     methodDecorators.forEach((decorator) => {
-      const { handler, endpoint, httpMethod } = decorator
-      ProgramModule.routes.setEndpoint({ Target, propertyKey: handler, endpoint })
-      ProgramModule.routes.addHttpMethod(httpMethod, { Target, propertyKey: handler })
+      const { handler, httpMethod, endpoint } = decorator
+      ProgramModule.routes.setEndpoint({ Target, propertyKey: handler, endpoint, httpMethod })
       ProgramModule.targets.addProperty({ Target, propertyKey: handler })
     })
     ProgramModule.decorators.deleteDecorators('controller')
@@ -66,7 +65,7 @@ export function defineControllerDecorator(
 
 /** Define decorator to register a controller method */
 export function defineControllerMethodDecorator(
-  httpMethod: HttpMethods,
+  httpMethod: HttpMethod,
   options: HandlerDecoratorMethodOptions,
 ): ZanixMethodDecorator {
   let { rto, pathOrRTO } = options
