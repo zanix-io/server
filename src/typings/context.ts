@@ -85,6 +85,13 @@ export interface ScopedContext extends BaseContext {
    */
   readonly session?: Session
   /**
+   * Parsed cookies extracted from the incoming HTTP request.
+   *
+   * Each key represents the cookie name and the value is the
+   * corresponding raw cookie string as sent by the client.
+   */
+  readonly cookies: Record<string, string>
+  /**
    * A per-request mutable container.
    *
    * Can be used by middlewares, handlers to store ephemeral
@@ -127,6 +134,13 @@ export interface HandlerContext<P extends Partial<GenericPayload> = GenericPaylo
    * is passed within handlers or middlewares.
    */
   payload: P
+  /**
+   * Parsed cookies extracted from the incoming HTTP request.
+   *
+   * Each key represents the cookie name and the value is the
+   * corresponding raw cookie string as sent by the client.
+   */
+  cookies: Record<string, string>
   /**
    * A per-request mutable container.
    *

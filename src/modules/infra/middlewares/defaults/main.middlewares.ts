@@ -14,6 +14,7 @@ import { httpErrorResponse, logServerError } from 'webserver/helpers/errors.ts'
 import { getResponseInterceptor } from './response.interceptor.ts'
 import { cleanUpPipe, contextSettingPipe } from './context.pipe.ts'
 import { gzipResponseFromResponse } from 'utils/gzip.ts'
+import { cookiesGuard } from './cookies.guard.ts'
 import { corsGuard } from './cors.guard.ts'
 
 /**
@@ -83,7 +84,8 @@ export const routerGuard = (context: HandlerContext, options: {
   const { type, cors, guards = [] } = options
 
   const baseCorsGuard = corsGuard(cors, type)
-  return mainGuard(context, [baseCorsGuard, ...guards])
+  const znxCookiesGuard = cookiesGuard()
+  return mainGuard(context, [baseCorsGuard, znxCookiesGuard, ...guards])
 }
 
 /**

@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.6] - 2025-11-25
+
+### Added
+
+- `cookiesGuard`: Added a new guard that parses incoming request cookies and exposes only user-level
+  cookies, filtering out internal framework cookies that start with `X-Znx-`.\
+  This guard centralizes cookie handling at the server level and prevents framework-specific cookies
+  from being exposed in the request context.
+
 ## [1.3.5] - 2025-11-25
 
 ### Fixed

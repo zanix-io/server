@@ -18,6 +18,7 @@ export const contextSettingPipe: MiddlewarePipe = (context) => {
     payload: processScopedPayload(context.payload),
     id: Object.freeze(context.id),
     locals: context.locals,
+    cookies: Object.freeze(context.cookies),
     session,
   })
 }
