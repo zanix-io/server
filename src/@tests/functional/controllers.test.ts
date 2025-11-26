@@ -54,7 +54,9 @@ Deno.test('Verifying controller guard api rest', async () => {
 })
 
 Deno.test('Verifying controller api rest welcome service', async () => {
-  const query = await fetch(`${restUrl}/welcome/iscam%40gmail.com?qparam=6`)
+  const query = await fetch(`${restUrl}/welcome/iscam%40gmail.com?qparam=6`, {
+    headers: { 'Cookie': 'X-Znx-Cookie=value' },
+  })
   const response = await query.json()
   const contextId = response
   delete response.contextId

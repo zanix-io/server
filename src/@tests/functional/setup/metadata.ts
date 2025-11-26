@@ -197,6 +197,7 @@ class InteractorX extends ZanixInteractor<{ Connector: Connectors; Provider: Pro
   public welcomeMsg = 'welcome'
 
   public secondInteractor() {
+    assertEquals(this.context.cookies['X-Znx-Cookie'], 'value')
     return this.interactors.get(InteractorD).interactorDMessage
   }
 

@@ -24,20 +24,26 @@ import { corsGuard } from './cors.guard.ts'
 export const mainGuard = async (context: HandlerContext, guards: MiddlewareGuard[]) => {
   let baseHeaders: Record<string, string> = {}
 
-  const guardContext = {
-    ...context,
+  // Avoid destructuring because guards may mutate the context at runtime
+  Object.assign(context, {
     interactors: getInteractors(context.id),
     providers: getProviders(context.id),
     connectors: getConnectors(context.id),
-  }
+  })
 
   for await (const guard of guards) {
-    const { response, headers } = await guard(guardContext)
+    const { response, headers } = await guard(context as never)
     baseHeaders = { ...baseHeaders, ...headers }
     if (response) {
       return { response }
     }
   }
+
+  // Removing context data intended for guards
+  delete context['interactors' as never]
+  delete context['providers' as never]
+  delete context['connectors' as never]
+
   return { headers: baseHeaders }
 }
 
