@@ -91,7 +91,9 @@ export const getMainHandler = (
 
     const processedRoute = findMatchingRoute(relativePaths, fullPath)
     if (!processedRoute) {
-      if (routePaths.has(path)) throw new HttpError('METHOD_NOT_ALLOWED', { id: context.id })
+      if (routePaths.absolute.has(path) || routePaths.relative.test(path)) {
+        throw new HttpError('METHOD_NOT_ALLOWED', { id: context.id })
+      }
 
       throw new HttpError('NOT_FOUND', { id: context.id, meta: { path } })
     }

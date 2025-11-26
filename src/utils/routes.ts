@@ -82,8 +82,6 @@ export const findMatchingRoute = (relativeRoutes: ProcessedRoutes, path: string)
     const route = relativeRoutes[key]
     const match = route.regex.exec(path)
 
-    if (match) {
-      return { route, match }
-    }
+    if (match) return { route, match }
   }
 }

@@ -26,6 +26,14 @@ Deno.test('Verifying controller api rest basic', async () => {
   const responseNotAllowed = await queryNotAllowed.json()
   assertEquals(responseNotAllowed.message, 'METHOD_NOT_ALLOWED')
 
+  const relativaNotAllowed = await fetch(`${restUrl}/param/not-allowed`, {
+    method: 'POST',
+    headers: JSON_CONTENT_HEADER,
+  })
+
+  const responseRelativeNotAllowed = await relativaNotAllowed.json()
+  assertEquals(responseRelativeNotAllowed.message, 'METHOD_NOT_ALLOWED')
+
   // Post route bad request
   const queryPost = await fetch(`${restUrl}/test`, {
     method: 'POST',
@@ -83,8 +91,8 @@ Deno.test('Verifying controller api rest welcome service', async () => {
 
 Deno.test('Verifying bad request and not found on api rest welcome service', async () => {
   // email must be valid
-  const query = await fetch(`${restUrl}/welcome/iscamgmail.com`)
-  const response = await query.json()
+  let query = await fetch(`${restUrl}/welcome/iscamgmail.com`)
+  let response = await query.json()
 
   assertEquals(response.message, 'BAD_REQUEST')
   assertEquals(response.name, 'HttpError')
@@ -104,22 +112,31 @@ Deno.test('Verifying bad request and not found on api rest welcome service', asy
   })
 
   // only url encoded
-  const query2 = await fetch(`${restUrl}/welcome/iscam@gmail.com`)
-  const response2 = await query2.json()
+  query = await fetch(`${restUrl}/welcome/iscam@gmail.com`)
+  response = await query.json()
 
-  assertEquals(response2.message, 'NOT_FOUND')
-  assertEquals(response2.name, 'HttpError')
-  assertEquals(response2.meta.path, '/api/welcome/iscam@gmail.com')
-  assertEquals(response2.status.value, 404)
+  assertEquals(response.message, 'NOT_FOUND')
+  assertEquals(response.name, 'HttpError')
+  assertEquals(response.meta.path, '/api/welcome/iscam@gmail.com')
+  assertEquals(response.status.value, 404)
+
+  // only one param
+  query = await fetch(`${restUrl}/welcome/iscam%40gmail.com/param2`)
+  response = await query.json()
+
+  assertEquals(response.message, 'NOT_FOUND')
+  assertEquals(response.name, 'HttpError')
+  assertEquals(response.meta.path, '/api/welcome/iscam%40gmail.com/param2')
+  assertEquals(response.status.value, 404)
 
   // qparam is required
-  const query3 = await fetch(`${restUrl}/welcome/iscam%40gmail.com`)
-  const response3 = await query3.json()
+  query = await fetch(`${restUrl}/welcome/iscam%40gmail.com`)
+  response = await query.json()
 
-  assertEquals(response3.message, 'BAD_REQUEST')
-  assertEquals(response3.name, 'HttpError')
-  assertEquals(response3.status.value, 400)
-  assertEquals(response3.cause, {
+  assertEquals(response.message, 'BAD_REQUEST')
+  assertEquals(response.name, 'HttpError')
+  assertEquals(response.status.value, 400)
+  assertEquals(response.cause, {
     message: 'Request validation error',
     properties: {
       qparam: [{ constraints: ["'qparam' must be a valid number."] }],

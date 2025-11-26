@@ -23,15 +23,18 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
   globalPrefix = cleanRoute(globalPrefix).replace(/\/$/g, '').replace(/^\//g, '')
 
   const processedRoutes = Object.keys(routes).reduce<
-    { absolutePaths: ProcessedRoutes; relativePaths: ProcessedRoutes; routePaths: Set<string> }
+    {
+      absolutePaths: ProcessedRoutes
+      relativePaths: ProcessedRoutes
+      routePaths: { absolute: Set<string>; relative: RegExp[] }
+    }
   >((acc, route) => {
     const { handler, path, interceptors, pipes, httpMethod, guards } = routes[route]
-    let fullPath = path
+    let fullPath
     if (globalPrefix && `/${globalPrefix}` !== path) {
       route = `/${globalPrefix}${route}`
       fullPath = `/${globalPrefix}${path}`
-      acc.routePaths.add(fullPath)
-    } else acc.routePaths.add(path)
+    } else fullPath = path
 
     logger.info(
       `${serverName} sever route:`,
@@ -71,11 +74,26 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
 
     if (PARAM_PATTERN.test(route)) {
       acc.relativePaths[route] = { ...baseRoute, regex: pathToRegex(route) }
+      acc.routePaths.relative.push(pathToRegex(fullPath))
     } else {
       acc.absolutePaths[route] = baseRoute
+      acc.routePaths.absolute.add(fullPath)
     }
     return acc
-  }, { relativePaths: {}, absolutePaths: {}, routePaths: new Set([]) })
+  }, {
+    relativePaths: {},
+    absolutePaths: {},
+    routePaths: { absolute: new Set([]), relative: [] },
+  })
 
-  return processedRoutes
+  const { relativePaths, routePaths, absolutePaths } = processedRoutes
+
+  return {
+    relativePaths,
+    absolutePaths,
+    routePaths: {
+      absolute: routePaths.absolute,
+      relative: new RegExp(routePaths.relative.map((r) => r.source).join('|')),
+    },
+  }
 }

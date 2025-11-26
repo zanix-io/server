@@ -410,6 +410,10 @@ class _ControllerBasic extends ZanixController {
   public testGet() {
     return 'response test get'
   }
+  @Get(':relative/not-allowed')
+  public testNotAllowed() {
+    return 'response not allowed'
+  }
 }
 
 @Controller()
