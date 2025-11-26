@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.11] - 2025-11-26
+
+### Fixed
+
+- Fixed an issue where RestClient returned responses with an incorrect Content-Type format.
+
 ## [1.3.7] - 2025-11-25
 
 ### Fixed

@@ -31,7 +31,7 @@ export const getResponseInterceptor: MiddlewareInterceptor = async (
 
 /** Plain response interceptor */
 export const plainResponseInterceptor: MiddlewareInterceptor = (_, response) => {
-  if (response.headers.get('Content-Type') === JSON_CONTENT_HEADER['Content-Type']) {
+  if (response.headers.get('Content-Type')?.includes(JSON_CONTENT_HEADER['Content-Type'])) {
     return response.json()
   }
   return response.text()

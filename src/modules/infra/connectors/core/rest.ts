@@ -95,7 +95,7 @@ export class RestClient extends ZanixConnector {
         throw new Error(`[HTTP ${response.status}] ${response.statusText}\n${text}`)
       }
 
-      if (response.headers.get('Content-Type') === JSON_CONTENT_HEADER['Content-Type']) {
+      if (response.headers.get('Content-Type')?.includes(JSON_CONTENT_HEADER['Content-Type'])) {
         return response.json()
       }
 
