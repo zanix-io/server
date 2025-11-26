@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.7] - 2025-11-25
+
+### Fixed
+
+- Avoided the use of reserved names in target injector classes.
+- Clarified the error message provided by the connector injections.
+
 ## [1.3.6] - 2025-11-25
 
 ### Added

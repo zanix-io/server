@@ -25,8 +25,6 @@ let counter = 1
  * @returns {string} A unique identifier associated with the given target, or an empty
  * string if no target was provided.
  *
- * @throws {InternalError} If the target name starts with the reserved prefix `"_Zanix"`.
- *
  * @example
  * // Different classes with the same name get different keys:
  * class A {}
@@ -41,14 +39,6 @@ export const getTargetKey = (target?: { name: string }): string => {
   if (!target) return ''
 
   const { name } = target
-
-  // Prevent the use of reserved class name prefixes.
-  if (name.startsWith('_Zanix')) {
-    throw new InternalError(
-      "Class names starting with '_Zanix' are reserved and cannot be used. Please choose a different class name.",
-      { meta: { source: 'zanix', className: name } },
-    )
-  }
 
   // Check if this class already has an assigned key.
   const existing = classIds.get(target)

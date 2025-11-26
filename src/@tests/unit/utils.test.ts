@@ -1,10 +1,9 @@
-import { assertEquals, assertMatch, assertThrows } from '@std/assert'
+import { assertEquals, assertMatch } from '@std/assert'
 import { uuidRegex } from '@zanix/regex'
 import { cleanRoute, pathToRegex } from 'utils/routes.ts'
 import { processUrlParams } from 'utils/params.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { contextId } from 'utils/context.ts'
-import { InternalError } from '@zanix/errors'
 
 console.error = () => {}
 
@@ -79,12 +78,6 @@ Deno.test('processUrlParams should decode mixed nested arrays and objects', () =
   }
 
   assertEquals(processUrlParams(input), expected)
-})
-
-Deno.test('getTargetKey for reserved classes', () => {
-  class _ZanixClass {}
-
-  assertThrows(() => getTargetKey(_ZanixClass), InternalError)
 })
 
 Deno.test('getTargetKey for different classes with the same name', () => {

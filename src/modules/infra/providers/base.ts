@@ -48,12 +48,14 @@ export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
     try {
       return getConnectors(this.contextId, false).get<T>(connector)
     } catch {
+      const connectorName = typeof connector === 'string' ? connector : connector.name
+
       throw new TargetError('An error occurred in the system', startMode, {
         code: 'CONNECTOR_INSTANCE_NOT_FOUND',
-        cause: `The "${connector}" instance is not available in this Provider.`,
+        cause: `The "${connectorName}" instance is not available in this Provider.`,
         shouldLog: verbose,
         meta: {
-          connector,
+          connector: connectorName,
           target: 'provider',
           source: 'zanix',
           suggestion:
