@@ -385,7 +385,7 @@ class _Controller extends ZanixController<InteractorX> {
       contextId: this.context.id,
     }
   }
-  @Get('intercepted')
+  @Get('')
   @Interceptor((_) => {
     return new Response(JSON.stringify({ message: 'hello intercepted' }))
   })

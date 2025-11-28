@@ -71,7 +71,7 @@ export function defineControllerMethodDecorator(
   let { rto, pathOrRTO } = options
   if (typeof pathOrRTO !== 'string') {
     rto = pathOrRTO
-    pathOrRTO = ''
+    pathOrRTO = undefined
   }
   if (rto && typeof rto !== 'object') rto = { Search: rto }
 
@@ -79,10 +79,7 @@ export function defineControllerMethodDecorator(
 
   return function (method) {
     const handler = method.name.toString()
-    ProgramModule.decorators.addDecoratorData(
-      { handler, endpoint: endpoint || handler, httpMethod },
-      'controller',
-    )
+    ProgramModule.decorators.addDecoratorData({ handler, endpoint, httpMethod }, 'controller')
     if (rto) defineMiddlewareDecorator('pipe', (ctx) => requestValidationPipe(ctx, rto))(method)
   }
 }

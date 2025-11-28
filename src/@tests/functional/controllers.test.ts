@@ -83,7 +83,7 @@ Deno.test('Verifying controller api rest welcome service', async () => {
   })
   assertEquals(query.headers.get('global-header'), 'global interceptor header')
 
-  const query2 = await fetch(`${restUrl}/welcome/intercepted`)
+  const query2 = await fetch(`${restUrl}/welcome`)
   const response2 = await query2.json()
   assertEquals(response2.message, 'hello intercepted')
   assertEquals(query.headers.get('global-header'), 'global interceptor header')

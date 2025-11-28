@@ -192,7 +192,7 @@ export type ResolverRequestOptions = {
 export type DecoratorTypes = HandlerTypes | MiddlewareTypes | 'generic'
 
 export type DecoratorsData<T extends DecoratorTypes> = T extends 'controller'
-  ? { handler: string; endpoint: string; httpMethod: HttpMethod }
+  ? { handler: string; endpoint?: string; httpMethod: HttpMethod }
   : T extends 'resolver' ? {
       handler: Function
       name: string
