@@ -106,7 +106,7 @@ export class RouteContainer extends BaseContainer {
       httpMethod?: HttpMethod
     },
   ) {
-    const data = { endpoint: endpoint || propertyKey || '', httpMethod }
+    const data = { endpoint: endpoint ?? propertyKey ?? '', httpMethod }
     if (!data) return
 
     this.setData<{ endpoint: string; httpMethod?: HttpMethod }>(
