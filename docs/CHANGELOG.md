@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.13] - 2025-11-27
+
+### Fixed
+
+- PATCH, PUT, and DELETE methods now properly accept a request body (payload).
+
 ## [1.3.11] - 2025-11-26
 
 ### Fixed

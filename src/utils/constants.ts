@@ -72,3 +72,5 @@ export const ZANIX_SERVER_MODULES = [
   '.connector.ts',
   '.provider.ts',
 ]
+
+export const HTTPMETHODS_WITHOUT_BODY = new Set(['GET', 'HEAD', 'CONNECT', 'OPTIONS'])

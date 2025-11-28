@@ -1,5 +1,5 @@
 import type { ProcessedRoutes } from 'typings/router.ts'
-import { JSON_CONTENT_HEADER } from './constants.ts'
+import { HTTPMETHODS_WITHOUT_BODY, JSON_CONTENT_HEADER } from './constants.ts'
 
 /**
  * Normalizes and sanitizes a route path string.
@@ -55,18 +55,19 @@ export const bodyPayloadProperty = async (
   req: Request,
 ): Promise<unknown> => {
   let computedBody: unknown
-  if (req.method === 'POST') {
-    const contentType = req.headers.get('Content-Type')
+  const method = req.method
+  if (HTTPMETHODS_WITHOUT_BODY.has(method)) return computedBody
 
-    try {
-      if (contentType && contentType.includes(JSON_CONTENT_HEADER['Content-Type'])) {
-        computedBody = await req.json()
-      } else if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
-        computedBody = await req.formData()
-      }
-    } catch {
-      return computedBody
+  const contentType = req.headers.get('Content-Type')
+
+  try {
+    if (contentType && contentType.includes(JSON_CONTENT_HEADER['Content-Type'])) {
+      computedBody = await req.json()
+    } else if (contentType && contentType.includes('application/x-www-form-urlencoded')) {
+      computedBody = await req.formData()
     }
+  } catch {
+    return computedBody
   }
 
   return computedBody
