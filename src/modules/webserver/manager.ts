@@ -10,6 +10,7 @@ import { getMainHandler } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
+import { encoder } from 'utils/encoder.ts'
 import logger from '@zanix/logger'
 
 /**
@@ -75,7 +76,7 @@ export class WebServerManager {
     type: T,
     options: ServerManagerOptions<T> = {},
   ): ServerID {
-    const serverID = `${new TextEncoder().encode(type).toHex()}${generateUUID()}` as ServerID
+    const serverID = `${encoder.encode(type).toHex()}${generateUUID()}` as ServerID
 
     if (this.#servers[serverID]) return serverID
 

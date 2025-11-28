@@ -109,16 +109,31 @@ export abstract class BaseInstancesContainer extends BaseContainer {
   }
 
   /**
-   * Reset all lazy scoped instances
+   * Reset all scoped instances
    */
-  public resetScopedInstances(keyId: string) {
+  public async resetScopedInstances(keyId: string) {
     if (this.#scopedInstances.size === 0) return
     const scopedInstances = Array.from(this.#scopedInstances).map((key) =>
       this.#getInstanceKey(key, keyId)
     )
 
-    scopedInstances.forEach((key) => {
+    const promises = []
+
+    for (const key of scopedInstances) {
+      // Close connection if is a connector instance
+      if (key.startsWith('connector')) {
+        const instance = this.getData<ZanixConnector | undefined>(key)
+        if (instance) {
+          promises.push(instance['close']())
+          instance['onDestroy']()
+        }
+      } else this.getData<TargetBaseClass>(key)?.['onDestroy']()
+
       this.deleteData(key)
-    })
+    }
+
+    await Promise.all(promises)
+
+    this.#scopedInstances.clear()
   }
 }

@@ -32,7 +32,7 @@ export const contextSettingPipe: MiddlewarePipe = (context) => {
  * @remarks
  * This ensures that no stale or leftover data remains after the request/process finishes.
  */
-export const cleanUpPipe: MiddlewarePipe = (context) => {
+export const cleanUpPipe: MiddlewarePipe = async (context) => {
   ProgramModule.context.deleteContext(context.id)
-  ProgramModule.targets.resetScopedInstances(context.id)
+  await ProgramModule.targets.resetScopedInstances(context.id)
 }

@@ -64,8 +64,8 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
         })
       }
 
-      socket.onclose = (event) => {
-        cleanUpPipe(ctx)
+      socket.onclose = async (event) => {
+        await cleanUpPipe(ctx)
         return catcher(ctx, socket, event, () => this['onclose'](event))
       }
 

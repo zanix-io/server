@@ -41,4 +41,18 @@ export abstract class TargetBaseClass {
     type: '' as never,
     key: '',
   }
+
+  /**
+   * Lifecycle hook invoked when the instance is being cleaned up or destroyed.
+   *
+   * This method is currently used for classes of type **SCOPED** and is
+   * automatically called when the instance is cleared or destroyed.
+   *
+   * Override this method to release resources, cancel timers, unsubscribe
+   * from events, or perform any cleanup tasks needed before the instance
+   * is discarded.
+   *
+   * @protected
+   */
+  protected onDestroy() {}
 }

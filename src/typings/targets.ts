@@ -29,6 +29,7 @@ export type CallerArguments<Type extends ClassConstructor = ClassConstructor> =
 export type HandlerPrototype<Interactor extends ZanixInteractorGeneric, Extensions = never> =
   | never
   | TargetBaseClass['_znx_props_']
+  | TargetBaseClass['onDestroy']
   | HandlerFunction
   | Interactor
   | (<

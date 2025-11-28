@@ -103,7 +103,7 @@ class Connectors extends ZanixConnector {
   }
 }
 
-@Connector({ type: 'kvLocal', startMode: 'lazy' })
+@Connector({ type: 'kvLocal', startMode: 'lazy', lifetime: 'SCOPED' })
 class _KVLocal extends ZanixKVConnector {
   public override get<O = any>(_: string): O | undefined {
     return 'my kv local value' as any

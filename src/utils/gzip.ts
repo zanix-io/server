@@ -1,5 +1,6 @@
 import type { GzipSettings } from 'typings/general.ts'
 import { JSON_CONTENT_HEADER } from './constants.ts'
+import { encoder } from './encoder.ts'
 
 const COMPRESSIBLE_REGEX = /(text|json|javascript|xml|svg|css|html)/i
 
@@ -64,7 +65,7 @@ export function gzipResponse(
   const { threshold = 1024 } = options
   const headers = JSON_CONTENT_HEADER
 
-  const encoded = new TextEncoder().encode(body)
+  const encoded = encoder.encode(body)
   const { body: finalBody, headers: finalHeaders } = maybeGzip(encoded, headers, threshold)
   return new Response(finalBody, { headers: finalHeaders })
 }

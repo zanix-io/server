@@ -123,7 +123,7 @@ export const routerInterceptor: MiddlewareInterceptor = async (context, _, optio
       headers,
     })
 
-    cleanUpPipe(context)
+    await cleanUpPipe(context)
 
     return acceptsGzip ? gzipResponseFromResponse(response, gzip) : response
   } catch (e) {
