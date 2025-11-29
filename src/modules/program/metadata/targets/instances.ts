@@ -133,7 +133,5 @@ export abstract class BaseInstancesContainer extends BaseContainer {
     }
 
     await Promise.all(promises)
-
-    this.#scopedInstances.clear()
   }
 }
