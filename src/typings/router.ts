@@ -3,7 +3,14 @@ import type { Middlewares } from './middlewares.ts'
 import type { MetadataTargetSymbols } from './program.ts'
 import type { WebServerTypes } from './server.ts'
 
-export type HandlerResponse = Record<string, unknown> | Response | string
+export type HandlerResponse =
+  | Record<string, unknown>[]
+  | Record<string, unknown>
+  | string[]
+  | number[]
+  | boolean[]
+  | string
+  | Response
 
 /**
  * Represents the allowed HTTP request methods.
