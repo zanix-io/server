@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.3.18] - 2025-12-07
+
+### Fixed
+
+- Fixed an issue where routes failed to resolve correctly when both `prefix` and `endpoint` were
+  empty strings.
+
 ## [1.3.13] - 2025-11-27
 
 ### Fixed

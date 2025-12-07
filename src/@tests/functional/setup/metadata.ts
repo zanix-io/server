@@ -425,4 +425,8 @@ class _ControllerGuard extends ZanixController {
   public helloGuard() {
     return 'response'
   }
+  @Get('')
+  public hello() {
+    return 'response'
+  }
 }

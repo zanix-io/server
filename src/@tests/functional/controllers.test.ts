@@ -53,6 +53,10 @@ Deno.test('Verifying controller api rest basic', async () => {
   const queryGetTest = await fetch(`${restUrl}/test`)
   const responseGetTest = await queryGetTest.text()
   assertEquals(responseGetTest, 'response test get')
+
+  const queryGet = await fetch(`${restUrl}`)
+  const responseGet = await queryGet.text()
+  assertEquals(responseGet, 'response')
 })
 
 Deno.test('Verifying controller guard api rest', async () => {

@@ -29,7 +29,7 @@ export class RouteContainer extends BaseContainer {
     for (const propertyKey of propertyKeys) {
       const { endpoint, httpMethod = 'GET' } = this.getEndpoint({ Target, propertyKey })
 
-      const path = cleanRoute(join(prefix, endpoint))
+      const path = prefix === '' && endpoint === '' ? '' : cleanRoute(join(prefix, endpoint))
       const fullPath = `${path}/${httpMethod}`
 
       const { interceptors, pipes, guards } = this.middlewares.getMiddlewares(type, {
