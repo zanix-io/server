@@ -280,7 +280,7 @@ class _Socket extends ZanixWebSocket<InteractorD> {
     this.registry.set('socket:user-id', this)
   }
   protected override onopen(_ev: Event): void {
-    assertEquals(this.context.session.id, '9')
+    assertEquals(this.context.session?.id, '9')
   }
   protected override async onmessage(_e: MessageEvent) {
     assert(this.context.id)

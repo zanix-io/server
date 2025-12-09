@@ -1,5 +1,5 @@
 import type { MiddlewarePipe } from 'typings/middlewares.ts'
-import type { ScopedContext } from 'typings/context.ts'
+import type { ScopedContext, Session } from 'typings/context.ts'
 
 import { processScopedPayload } from 'utils/context.ts'
 import ProgramModule from 'modules/program/mod.ts'
@@ -11,8 +11,10 @@ import ProgramModule from 'modules/program/mod.ts'
  *  2. Processes the incoming payload through `processScopedPayload` before storing it.
  */
 export const contextSettingPipe: MiddlewarePipe = (context) => {
-  const session = Object.freeze(context.locals.session)
-  context.session = { ...context.session, ...session }
+  context.session = context.session || context.locals.session
+    ? { ...context.session, ...context.locals.session } as Session
+    : undefined
+
   Object.freeze(context.session)
   delete context.locals.session
 
@@ -21,7 +23,7 @@ export const contextSettingPipe: MiddlewarePipe = (context) => {
     id: Object.freeze(context.id),
     locals: context.locals,
     cookies: Object.freeze(context.cookies),
-    session,
+    session: context.session,
   })
 }
 
