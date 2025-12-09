@@ -39,35 +39,34 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
       this.socket = socket
 
       socket.onopen = (event) => {
-        contextSettingPipe(ctx)
-        this.context = ctx // update context by pipe
-        return catcher(ctx, socket, event, () => this['onopen'](event))
+        contextSettingPipe(this.context) // preserve the request context while socket is connected
+        return catcher(this.context, socket, event, () => this.onopen(event))
       }
 
       socket.onerror = (event) => {
-        return catcher(ctx, socket, event, () => this['onerror'](event))
+        return catcher(this.context, socket, event, () => this.onerror(event))
       }
 
       socket.onmessage = (event) => {
         try {
-          ctx.payload.body = JSON.parse(event.data)
+          this.context.payload.body = JSON.parse(event.data)
         } catch {
           const error = new HttpError('BAD_REQUEST', {
             message: `"${event.data}" should be a valid JSON`,
           })
 
-          return socket.send(getSerializedErrorResponse(error, ctx.id))
+          return socket.send(getSerializedErrorResponse(error, this.context.id))
         }
 
-        return catcher(ctx, socket, event, async () => {
-          if (rto) await this.requestValidation(rto, ctx)
+        return catcher(this.context, socket, event, async () => {
+          if (rto) await this.requestValidation(rto, this.context)
           return this['onmessage'](event)
         })
       }
 
       socket.onclose = async (event) => {
-        await cleanUpPipe(ctx)
-        return catcher(ctx, socket, event, () => this['onclose'](event))
+        await cleanUpPipe(this.context)
+        return catcher(this.context, socket, event, () => this.onclose(event))
       }
 
       return response

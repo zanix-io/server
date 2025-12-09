@@ -169,5 +169,5 @@ export interface HandlerContext<P extends Partial<GenericPayload> = GenericPaylo
    * Includes identifying information, roles, permissions, and
    * additional session-related configuration.
    */
-  session?: Session
+  session: Session
 }

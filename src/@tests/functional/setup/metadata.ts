@@ -270,9 +270,17 @@ registerGlobalInterceptor(globalInt)
 
 /** Sockets */
 @Socket({ route: 'mysock/:qparam', Interactor: InteractorD, rto: { Body: C, Params: S } })
+@Guard((ctx) => {
+  ctx.locals.session = { id: '9' } as never
+  return {}
+})
 class _Socket extends ZanixWebSocket<InteractorD> {
-  protected override onopen(_ev: Event): void {
+  constructor(ctx: any) {
+    super(ctx)
     this.registry.set('socket:user-id', this)
+  }
+  protected override onopen(_ev: Event): void {
+    assertEquals(this.context.session.id, '9')
   }
   protected override async onmessage(_e: MessageEvent) {
     assert(this.context.id)

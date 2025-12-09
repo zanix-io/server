@@ -12,7 +12,7 @@ import ProgramModule from 'modules/program/mod.ts'
  */
 export const contextSettingPipe: MiddlewarePipe = (context) => {
   const session = Object.freeze(context.locals.session)
-  context.session = session
+  context.session = { ...context.session, ...session }
   Object.freeze(context.session)
   delete context.locals.session
 
