@@ -40,6 +40,7 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
 
       socket.onopen = (event) => {
         contextSettingPipe(ctx)
+        this.context = ctx // update context by pipe
         return catcher(ctx, socket, event, () => this['onopen'](event))
       }
 
