@@ -225,6 +225,10 @@ class InteractorD extends ZanixInteractor<{ cache: any }> {
     assertEquals(this.kvLocal.get(''), 'my kv local value')
     this.interactorDMessage = 'interactor D message'
   }
+
+  public send() {
+    assertEquals(this.registry.get<_Socket>('socket:user-id')?.send(), 'message sent')
+  }
 }
 
 /** Global middlewares */
@@ -267,6 +271,9 @@ registerGlobalInterceptor(globalInt)
 /** Sockets */
 @Socket({ route: 'mysock/:qparam', Interactor: InteractorD, rto: { Body: C, Params: S } })
 class _Socket extends ZanixWebSocket<InteractorD> {
+  protected override onopen(_ev: Event): void {
+    this.registry.set('socket:user-id', this)
+  }
   protected override async onmessage(_e: MessageEvent) {
     assert(this.context.id)
     assert(this.context.payload)
@@ -277,12 +284,21 @@ class _Socket extends ZanixWebSocket<InteractorD> {
     assert(contextId)
 
     await new Promise((resolve) => setTimeout(resolve, 500))
+    this.interactor.send()
     return {
       message: this.interactor.interactorDMessage,
       socket: this.context.payload.params.qparam,
       data: this.context.payload.body,
       contextId,
     }
+  }
+
+  protected override onclose(_ev: CloseEvent): void {
+    ProgramModule.registry.delete('socket:user-id')
+  }
+
+  public send() {
+    return 'message sent'
   }
 }
 

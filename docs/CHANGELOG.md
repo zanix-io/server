@@ -7,6 +7,17 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.0] - 2025-12-09
+
+### Added
+
+- **RegistryContainer**: a new container for storing and managing internal metadata and registry
+  entries.
+- **RegistryContainer integration** across `PublicModule`, interactor classes, provider classes, and
+  socket classes.
+- **Support for instance registration by ID**, allowing components such as sockets to be registered,
+  retrieved, and managed using unique identifiers.
+
 ## [1.3.18] - 2025-12-07
 
 ### Fixed

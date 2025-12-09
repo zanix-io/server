@@ -6,6 +6,7 @@ import { RouteContainer } from './metadata/routes.ts'
 import { TargetContainer } from './metadata/targets/main.ts'
 import { ContextContainer } from 'modules/program/metadata/context.ts'
 import { HANDLER_METADATA_PROPERTY_KEY } from 'utils/constants.ts'
+import { RegistryContainer } from './metadata/registry.ts'
 
 /**
  * Class that manages containers for middlewares, targets, routes, decorators, and context.
@@ -41,6 +42,12 @@ export class InternalProgram {
    * @type {ContextContainer}
    */
   public context: ContextContainer = new ContextContainer()
+
+  /**
+   * Decorator container that handles custom registry.
+   * @type {RegistryContainer}
+   */
+  public registry: RegistryContainer = new RegistryContainer()
 
   /**
    * Method to clean up metadata stored in containers.

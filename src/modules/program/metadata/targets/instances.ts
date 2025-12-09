@@ -66,9 +66,7 @@ export abstract class BaseInstancesContainer extends BaseContainer {
       const currentInstance = this.getData<T>(instanceKey)
       if (currentInstance || useExistingInstance) return currentInstance
 
-      if (isTransient && isSetupMode || isSingleton) {
-        this.deleteTarget(key)
-      }
+      if (isTransient && isSetupMode || isSingleton) this.deleteTarget(key)
 
       const context = isSingleton ? DEFAULT_CONTEXT_ID : (params || DEFAULT_CONTEXT_ID)
 
@@ -76,9 +74,7 @@ export abstract class BaseInstancesContainer extends BaseContainer {
 
       this.instanceFreeze(instance)
 
-      if (!isTransient) {
-        this.setData(instanceKey, instance)
-      }
+      if (!isTransient) this.setData(instanceKey, instance)
 
       return instance
     } catch (e) {

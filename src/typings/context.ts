@@ -154,18 +154,20 @@ export interface HandlerContext<P extends Partial<GenericPayload> = GenericPaylo
    */
   locals: Record<string, unknown> & {
     /**
-     * Session information associated with the current request.
-     *
-     * May represent:
-     * - An authenticated user session
-     * - An API session (machine-to-machine)
-     * - An anonymous/guest session
-     *
-     * Includes identifying information, roles, permissions, and
-     * additional session-related configuration.
-     *
-     * Undefined **when not defined**.
+     * Temporary session information associated with the current request.
      */
     session?: Session
   }
+  /**
+   * Session information associated with the current request.
+   *
+   * May represent:
+   * - An authenticated user session
+   * - An API session (machine-to-machine)
+   * - An anonymous/guest session
+   *
+   * Includes identifying information, roles, permissions, and
+   * additional session-related configuration.
+   */
+  session?: Session
 }
