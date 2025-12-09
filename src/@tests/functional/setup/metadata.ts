@@ -227,7 +227,7 @@ class InteractorD extends ZanixInteractor<{ cache: any }> {
   }
 
   public send() {
-    assertEquals(this.registry.get<_Socket>('socket:user-id')?.send(), 'message sent')
+    assertEquals(this.registry.get<_Socket>('socket:user-id')?.send({}), 'message sent')
   }
 }
 
@@ -305,7 +305,7 @@ class _Socket extends ZanixWebSocket<InteractorD> {
     ProgramModule.registry.delete('socket:user-id')
   }
 
-  public send() {
+  public send(_data: { transactionId?: string }) {
     return 'message sent'
   }
 }

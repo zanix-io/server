@@ -1,6 +1,6 @@
 {
   "name": "@zanix/server",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true,

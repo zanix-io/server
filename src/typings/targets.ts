@@ -44,9 +44,7 @@ export type HandlerPrototype<Interactor extends ZanixInteractorGeneric, Extensio
   | Extensions
 
 export type SocketPrototype =
-  | ((ev: Event | ErrorEvent) => unknown)
-  | ((ev: CloseEvent) => unknown)
-  | ((ev: MessageEvent<any>) => unknown)
+  | ((...args: any[]) => unknown)
   | Partial<WebSocket>
 
 export type GQLPrototype = (payload: any, ctx: HandlerContext) => unknown
