@@ -56,55 +56,77 @@ Deno.test('Web server manager should return env ports', () => {
   Deno.env.delete('PORT_SOCKET')
 })
 
-Deno.test('Web server manager should start multiple servers', async () => {
-  Deno.env.set('PORT', '9183')
-  const webServerManager = new WebServerManager()
+Deno.test(
+  'Web server manager should start multiple servers with same type and different port',
+  async () => {
+    Deno.env.set('PORT', '9183')
+    const webServerManager = new WebServerManager()
 
-  const id = webServerManager.create('rest', {
-    handler: () => new Response('response'),
-  })
-  const id2 = webServerManager.create('rest', {
-    handler: () => new Response('response'),
-  })
+    const id = webServerManager.create('rest', {
+      handler: () => new Response('response'),
+    })
+    const id2 = webServerManager.create('rest', {
+      handler: () => new Response('response'),
+    })
 
-  Deno.env.delete('PORT')
+    Deno.env.delete('PORT')
 
-  webServerManager.start(id)
-  webServerManager.start(id) // ignore start
+    webServerManager.start(id)
+    webServerManager.start(id) // ignore start
 
-  const err = assertThrows(
-    () => webServerManager.start(id2),
-    InternalError,
-    `Port 9183 is already in use and cannot be assigned to the REST server with ID ${id2}. Please choose a different port.`,
-  ) // cannot start with the same port
-  assertMatch(
-    (err.cause as any)?.message,
-    new RegExp(`Address already in use \\(os error \\d+\\) by REST server with ID ${id}.`),
-  )
+    const err = assertThrows(
+      () => webServerManager.start(id2),
+      InternalError,
+      `An error ocurred on starting Rest server`,
+    ) // cannot start with the same port
+    assertMatch(
+      (err.cause as any)?.message,
+      new RegExp(`Address already in use \\(os error \\d+\\)`),
+    )
 
-  assertEquals(webServerManager.info(id).addr?.port, 9183)
-  assertEquals(webServerManager.info(id).protocol, 'http')
+    assertEquals(webServerManager.info(id).addr?.port, 9183)
+    assertEquals(webServerManager.info(id).protocol, 'http')
 
-  const rest = webServerManager.create('rest', {
-    handler: () => new Response('response'),
-  })
+    const rest = webServerManager.create('rest', {
+      handler: () => new Response('response'),
+    })
 
-  webServerManager.start(rest)
-  assertEquals(webServerManager.info(rest).addr?.port, 8000)
-  assertEquals(webServerManager.info(rest).protocol, 'http')
-  webServerManager.stop(rest)
+    webServerManager.start(rest)
+    assertEquals(webServerManager.info(rest).addr?.port, 8000)
+    assertEquals(webServerManager.info(rest).protocol, 'http')
+    webServerManager.stop(rest)
 
-  const randomId = 'random-server-undefined-1-1'
-  webServerManager.start(randomId)
-  assert(webServerManager.info(randomId).addr === undefined)
+    const randomId = 'random-server-undefined-1-1'
+    webServerManager.start(randomId)
+    assert(webServerManager.info(randomId).addr === undefined)
 
-  await webServerManager.stop(id)
-  await webServerManager.stop(id) // ignore stop
+    await webServerManager.stop(id)
+    await webServerManager.stop(id) // ignore stop
 
-  webServerManager.delete(id)
-  assert(webServerManager.info(id).addr === undefined)
-  assert(webServerManager.info(id).protocol === undefined)
-})
+    webServerManager.delete(id)
+    assert(webServerManager.info(id).addr === undefined)
+    assert(webServerManager.info(id).protocol === undefined)
+  },
+)
+
+Deno.test(
+  'Web server manager should start multiple servers with same port and different type',
+  async () => {
+    const webServerManager = new WebServerManager()
+
+    const id = webServerManager.create('rest', {
+      handler: () => new Response('response'),
+    })
+    const id2 = webServerManager.create('graphql', {
+      handler: () => new Response('response'),
+    })
+
+    webServerManager.start([id, id2])
+
+    await webServerManager.stop(id)
+    await webServerManager.stop(id2)
+  },
+)
 
 Deno.test('Web server should start https', async () => {
   const tmp = getTemporaryFolder(import.meta.url) + '/ssl'

@@ -5,7 +5,7 @@ import { assert, assertEquals } from '@std/assert'
 import { isUUID } from '@zanix/validator'
 import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
 
-const restUrl = 'http://0.0.0.0:8000/api'
+const restUrl = 'http://0.0.0.0:8000//api/'
 
 Deno.test('Verifying controller api rest basic', async () => {
   const query = await fetch(`${restUrl}/hello`)

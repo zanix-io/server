@@ -1,4 +1,5 @@
 import type {
+  ServerHandler,
   ServerID,
   ServerManagerData,
   ServerManagerOptions,
@@ -6,11 +7,12 @@ import type {
 } from 'typings/server.ts'
 
 import { capitalize, fileExists, generateUUID } from '@zanix/helpers'
-import { getMainHandler } from './helpers/handler.ts'
+import { getMainHandler, multiplexer } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
 import { encoder } from 'utils/encoder.ts'
+import { getPrefix } from 'utils/routes.ts'
 import logger from '@zanix/logger'
 
 /**
@@ -19,6 +21,7 @@ import logger from '@zanix/logger'
  * The class allows both HTTP and HTTPS protocols, with the SSL certificate and key provided via environment variables or directly through the options parameter.
  */
 export class WebServerManager {
+  #handlers: Record<number, Record<string, ServerHandler>> = {}
   #servers: Partial<ServerManagerData> = {}
   #sslOptions: { key?: string; cert?: string } = {}
 
@@ -80,11 +83,14 @@ export class WebServerManager {
 
     if (this.#servers[serverID]) return serverID
 
-    const {
-      isInternal,
-      server: { onceStop, globalPrefix, ssl, gzip, cors, ...opts } = {},
-      handler = getMainHandler(type, { cors, gzip }, isInternal ? serverID : globalPrefix),
-    } = options
+    const { isInternal, server: { onceStop, globalPrefix = '', ssl, gzip, cors, ...opts } = {} } =
+      options
+
+    const prefix = getPrefix(globalPrefix)
+
+    const { handler = getMainHandler(type, isInternal ? serverID : prefix, { cors, gzip }) } =
+      options
+
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
     // Port assignment
@@ -103,11 +109,25 @@ export class WebServerManager {
     opts.onListen = onListen(currentListenHandler, protocol, serverName)
     opts.onError = onErrorListener(currentErrorHandler, serverName)
 
+    this.#handlers[opts.port] = { ...this.#handlers[opts.port], [prefix]: handler }
+    const handlers = this.#handlers
     const currentServers = this.#servers
+
     currentServers[serverID] = {
       _start() {
+        const port = opts.port as number
+
         try {
-          const server = Deno.serve(opts, handler)
+          const existingServer = Object.values(currentServers).find((server) =>
+            server?.addr?.port === opts.port && server?.type !== type
+          )
+
+          if (existingServer) {
+            delete handlers[port] // clean up memory
+            return this.addr = existingServer.addr
+          }
+
+          const server = Deno.serve(opts, multiplexer(handlers[port]))
           this.addr = server.addr
 
           server.finished.then(() => {
@@ -119,33 +139,9 @@ export class WebServerManager {
               logger.info(`${serverName} server is finished`, 'noSave')
             })
         } catch (error) {
-          const serverInUse = Object.entries(currentServers).find(([_, server]) =>
-            server?.addr?.port === opts.port
-          )
-
-          if (serverInUse?.[1]) {
-            const addInUseType = serverInUse[1].type.toUpperCase()
-            ;(error as Error).message += isInternal
-              ? ` by an internal ${addInUseType} server.`
-              : ` by ${addInUseType} server with ID ${serverInUse[0]}.`
-            throw new InternalError(
-              `Port ${opts.port} is already in use and cannot be assigned to the ${this.type.toUpperCase()} server with ID ${serverID}. Please choose a different port.`,
-              {
-                cause: error,
-                meta: {
-                  source: 'zanix',
-                  port: opts.port,
-                  serverID,
-                  serverName,
-                  serverType: this.type,
-                },
-              },
-            )
-          }
-
           throw new InternalError(`An error ocurred on starting ${serverName} server`, {
             cause: error,
-            meta: { source: 'zanix', serverName, serverType: this.type },
+            meta: { source: 'zanix', serverName, serverType: this.type, port },
           })
         }
       },

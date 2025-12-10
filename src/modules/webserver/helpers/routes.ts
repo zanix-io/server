@@ -2,7 +2,7 @@ import type { HandlerFunction, ProcessedRoutes } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { HandlerTypes } from 'typings/program.ts'
 
-import { cleanRoute, getParamNames, pathToRegex } from 'utils/routes.ts'
+import { getParamNames, pathToRegex } from 'utils/routes.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { capitalize } from '@zanix/helpers'
 import { InternalError } from '@zanix/errors'
@@ -19,8 +19,6 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
       meta: { source: 'zanix', serverName },
     })
   }
-
-  globalPrefix = cleanRoute(globalPrefix).replace(/\/$/g, '').replace(/^\//g, '')
 
   const processedRoutes = Object.keys(routes).reduce<
     {

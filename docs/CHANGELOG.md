@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.4] - 2025-12-09
+
+### Added
+
+- Multiple server types can now run on the same port, enabling single-port deployment environments.
+
 ## [1.4.0] - 2025-12-09
 
 ### Added

@@ -24,18 +24,40 @@ import { HTTPMETHODS_WITHOUT_BODY, JSON_CONTENT_HEADER } from './constants.ts'
  * ```
  */
 export function cleanRoute(route: string): string {
+  let result = ''
+  let prevChar = ''
   route = route.trim()
-  route = route.replace(/\s+/g, '')
-  route = route.replace(/\\/g, '/')
-  route = route.replace(/\/+/g, '/')
 
-  if (route && !route.startsWith('/')) {
-    route = '/' + route
+  for (let i = 0; i < route.length; i++) {
+    let ch = route[i]
+
+    // Convert backslashes a slashes
+    if (ch === '\\') ch = '/'
+
+    // Skip consecutive slashes
+    if (ch === '/' && prevChar === '/') continue
+
+    // Skip whitespace
+    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') continue
+
+    result += ch
+    prevChar = ch
   }
 
-  route = route.endsWith('/') ? route.slice(0, -1) : route
+  // Ensure starts with '/'
+  if (result && result[0] !== '/') result = '/' + result
 
-  return route.toLowerCase() || '/'
+  // Remove trailing slash
+  if (result.length > 1 && result.endsWith('/')) result = result.slice(0, -1)
+
+  return result.toLowerCase() || '/'
+}
+
+/** Function to get prefix */
+export const getPrefix = (globalPrefix: string) => {
+  const path = cleanRoute(globalPrefix)
+  const end = path.indexOf('/', 1)
+  return end === -1 ? path.slice(1) : path.slice(1, end)
 }
 
 /** Function to convert dynamic routes into regular expressions */
@@ -45,9 +67,22 @@ export const pathToRegex = (path: string) => {
 
 /** Function to get param names from string */
 export const getParamNames = (route: string) => {
-  return route.split('/').filter((part) => part.startsWith(':')).map((param) =>
-    param.substring(1).replace('?', '')
-  )
+  const params: string[] = []
+  let start = 0
+
+  for (let i = 0; i <= route.length; i++) {
+    if (i === route.length || route[i] === '/') {
+      const segment = route.slice(start, i)
+      if (segment.startsWith(':')) {
+        // Remove leading ':' y posible '?'
+        const param = segment.slice(1).replace('?', '')
+        params.push(param)
+      }
+      start = i + 1
+    }
+  }
+
+  return params
 }
 
 /** Body payload property */

@@ -6,7 +6,7 @@ import { SOCKET_PORT } from './setup/mod.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { isUUID } from '@zanix/validator'
 
-const sockerUrl = `ws://0.0.0.0:${SOCKET_PORT}/sock/mysock`
+const sockerUrl = `ws://0.0.0.0:${SOCKET_PORT}//sock//mysock`
 
 const baseOptions = { headers: { 'Origin': '*' } }
 

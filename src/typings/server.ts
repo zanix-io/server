@@ -84,7 +84,7 @@ export type ServerOptions<K extends WebServerTypes = never> =
      */
     gzip?: GzipOptions
     /**
-     * A global route prefix for the API.
+     * A global route prefix for the server.
      */
     globalPrefix?: string
   }

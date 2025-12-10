@@ -4,7 +4,7 @@ import type { HandlerContext } from 'typings/context.ts'
 import type { CorsOptions } from 'typings/middlewares.ts'
 import type { GzipOptions } from 'typings/general.ts'
 
-import { bodyPayloadProperty, cleanRoute, findMatchingRoute } from 'utils/routes.ts'
+import { bodyPayloadProperty, cleanRoute, findMatchingRoute, getPrefix } from 'utils/routes.ts'
 import { contextId, payloadAccessorDefinition } from 'utils/context.ts'
 import { getGraphqlHandler } from 'handlers/graphql/handler.ts'
 import { searchParamsPropertyDescriptor } from '@zanix/helpers'
@@ -50,12 +50,12 @@ const mainProcess = (options: {
  */
 export const getMainHandler = (
   type: WebServerTypes,
-  options: { cors?: CorsOptions; gzip?: GzipOptions } = {},
   globalPrefix: string = '',
+  options: { cors?: CorsOptions; gzip?: GzipOptions } = {},
 ): ServerHandler => {
   if (type === 'graphql') {
     ProgramModule.routes.defineRoute('graphql', {
-      path: globalPrefix || 'graphql',
+      path: globalPrefix,
       handler: getGraphqlHandler(),
       httpMethod: 'POST',
     })
@@ -105,4 +105,24 @@ export const getMainHandler = (
 
     return mainProcess({ route, context, gzip, cors, type })
   })
+}
+
+/**
+ * Creates a request multiplexer that routes incoming HTTP/WebSocket requests
+ * to the appropriate server handler based on the request URL, method, protocol,
+ * or any logic defined inside the multiplexer implementation.
+ *
+ * This is designed to unify multiple logical servers (HTTP, REST, GraphQL,
+ * WebSocket, SSR, etc.) under a single `Deno.serve` instance — especially useful
+ * on platforms where only one port listener is allowed.
+ */
+export function multiplexer(handlers: Record<string, ServerHandler>) {
+  const handlerFuntions = Object.values(handlers)
+  if (handlerFuntions.length === 1) return handlerFuntions[0]
+  return (request: Request, info: Deno.ServeHandlerInfo<Deno.NetAddr>) => {
+    const url = new URL(request.url)
+    const prefix = getPrefix(url.pathname)
+
+    return handlers[prefix](request, info)
+  }
 }

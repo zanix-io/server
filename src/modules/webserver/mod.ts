@@ -145,7 +145,7 @@ export const bootstrapServers = async (
       typeof server
     >['socket']
     const id = webServerManager.create('socket', {
-      server: { ...opts, port: port || SOCKET_PORT },
+      server: { ...opts, globalPrefix: opts.globalPrefix || 'socket', port: port || SOCKET_PORT },
       isInternal,
     })
     onCreate?.(id)
@@ -158,7 +158,7 @@ export const bootstrapServers = async (
       typeof server
     >['graphql']
     const id = webServerManager.create('graphql', {
-      server: { ...opts, port: port || GRAPHQL_PORT, globalPrefix: opts.globalPrefix || 'graphql' },
+      server: { ...opts, globalPrefix: opts.globalPrefix || 'graphql', port: port || GRAPHQL_PORT },
       isInternal,
     })
     onCreate?.(id)
