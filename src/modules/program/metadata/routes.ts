@@ -39,10 +39,11 @@ export class RouteContainer extends BaseContainer {
 
       if (route[fullPath]) {
         const target: object['constructor'] = route[fullPath].handler['Target' as never]
-        const targetMessage = target ? ` in "${target.name}"` : ''
+        const methodMessage = type === 'rest' ? ` for HTTP "${httpMethod}"` : ''
+        const targetMessage = target ? ` in "${target.name}"${methodMessage}` : `${methodMessage}`
         throw new InternalError(
-          `Route path "${type}=>${path}" is already defined${targetMessage} for HTTP "${httpMethod}". Please ensure that each HTTP method route is assigned a unique path.`,
-          { meta: { source: 'zanix', serverType: type, path, target: target?.name } },
+          `Route path "${type}=>${path}" is already defined${targetMessage}. Please ensure that each route is assigned a unique path.`,
+          { meta: { source: 'zanix', serverType: type, path, target: target?.name, httpMethod } },
         )
       }
 

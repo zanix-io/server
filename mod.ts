@@ -15,6 +15,7 @@ export { BaseContainer as ProgramContainer } from 'modules/program/metadata/base
 export { TargetContainer } from 'modules/program/metadata/targets/main.ts'
 
 // Handlers
+export { HandlerGenericClass } from 'handlers/generic.ts'
 export { ZanixController } from 'handlers/rest/base.ts'
 export { Controller } from 'handlers/rest/decorators/base.ts'
 export { Get } from 'handlers/rest/decorators/get.ts'
@@ -52,6 +53,7 @@ export { Connector } from 'connectors/decorators/base.ts'
 export { ZanixProvider } from 'providers/base.ts'
 export { ZanixCacheProvider } from 'providers/core/cache.ts'
 export { ZanixWorkerProvider } from 'providers/core/worker.ts'
+export { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
 export { Provider } from 'providers/decorators/base.ts'
 
 // Middlewares
@@ -64,6 +66,7 @@ export { Pipe } from 'middlewares/decorators/pipe.ts'
 export { Guard } from 'middlewares/decorators/guard.ts'
 export { Interceptor } from 'middlewares/decorators/interceptor.ts'
 export { RequestValidation } from 'middlewares/decorators/validation.ts'
+export { cleanUpPipe, contextSettingPipe } from 'modules/infra/middlewares/defaults/context.pipe.ts'
 export { requestValidationPipe } from 'modules/infra/middlewares/defaults/validation.pipe.ts'
 export { defineMiddlewareDecorator } from 'modules/infra/middlewares/decorators/assembly.ts'
 
@@ -86,8 +89,10 @@ export { cleanRoute } from 'utils/routes.ts'
 export { processUrlParams } from 'utils/params.ts'
 export { gzipResponse, gzipResponseFromResponse } from 'utils/gzip.ts'
 export { httpErrorResponse } from 'webserver/helpers/errors.ts'
+export { getSerializedErrorResponse } from 'webserver/helpers/errors.ts'
 
 // Types
+export type { BackoffOptions, QueueMessageOptions, QueuePriorities } from 'typings/queues.ts'
 export type {
   CoreCacheConnectors,
   CoreConnectors,
@@ -122,6 +127,7 @@ export type {
   CoreConnectorTemplates,
   ZanixConnectorClass,
   ZanixInteractorClass,
+  ZanixInteractorGeneric,
   ZanixProviderClass,
 } from 'typings/targets.ts'
 export type { HttpMethod } from 'typings/router.ts'

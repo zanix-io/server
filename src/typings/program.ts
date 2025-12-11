@@ -32,7 +32,7 @@ export type GeneralTargetTypes =
  * ℹ️ These are **instantiated** modules
  *
  * Can be any of:
- * - `HandlerTypes`: `'controller'`, `'socket'`, `'resolver'`, `'subscriber'`,
+ * - `HandlerTypes`: `'controller'`, `'socket'`, `'resolver'`
  * - `GeneralTargetTypes`: `'connector'`, `'interactor'`, `'provider'`
  */
 export type ModuleTypes =
@@ -90,8 +90,7 @@ export type CoreConnectors =
   | 'database'
   | 'kvLocal'
 
-export type CoreProviders = 'cache' | 'worker'
-
+export type CoreProviders = 'asyncmq' | 'cache' | 'worker'
 export type ConnectorTypes = CoreConnectors | GenericTargets
 export type ProviderTypes = CoreProviders | GenericTargets
 

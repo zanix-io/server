@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.5] - 2025-12-11
+
+### Added
+
+- Support for asynchronous message queue handling (Async MQ).
+
 ## [1.4.4] - 2025-12-09
 
 ### Added

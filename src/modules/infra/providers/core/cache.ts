@@ -143,7 +143,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
       value: V
     },
   ): Promise<void> {
-    throw this['methodNotImplementedError']('getCachedOrRevalidate')
+    throw this['methodNotImplementedError']('saveToCaches')
   }
 
   /**

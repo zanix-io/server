@@ -51,8 +51,6 @@ export type GQLPrototype = (payload: any, ctx: HandlerContext) => unknown
 
 export type ZanixHandlerGeneric = HandlerBaseClass<any, any>
 
-export type ZanixInteractorGeneric = ZanixInteractor<any>
-
 export type ZanixConnectorGeneric = ZanixConnector
 
 export type ZanixProviderGeneric = ZanixProvider<any>
@@ -62,6 +60,9 @@ export type ZanixCacheConnectorGeneric<P extends CoreCacheConnectors> = ZanixCac
   any,
   P
 >
+
+/** Represent the generic Zanix Interactor */
+export type ZanixInteractorGeneric = ZanixInteractor<any>
 
 /**
  * Represents an accessor for retrieving instantiated Zanix Interactors.

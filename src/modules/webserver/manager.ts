@@ -99,7 +99,8 @@ export class WebServerManager {
     if (!this.#sslOptions && ssl) this.#sslOptions = { cert: ssl.cert, key: ssl.key }
 
     // Protocol assignment
-    const protocol = this.#sslOptions.cert ? 'https' : 'http'
+    const baseProtocol = type === 'socket' ? 'ws' : 'http'
+    const protocol = this.#sslOptions.cert ? `${baseProtocol}s` : baseProtocol
 
     // Ssl assignment
     Object.assign(opts, { ...this.#sslOptions })
@@ -124,7 +125,11 @@ export class WebServerManager {
 
           if (existingServer) {
             delete handlers[port] // clean up memory
-            return this.addr = existingServer.addr
+            const addr = existingServer.addr
+            logger.success(
+              `${serverName} server is running at ${protocol}://${addr?.hostname}:${addr?.port}`,
+            )
+            return this.addr = addr
           }
 
           const server = Deno.serve(opts, multiplexer(handlers[port]))

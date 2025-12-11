@@ -7,6 +7,7 @@ export const ProviderCoreModules: Record<
 > = {
   // initialization only
   cache: { key: 'cache', Target: {} as Function },
+  asyncmq: { key: 'asyncmq', Target: {} as Function },
   worker: { key: 'worker', Target: {} as Function },
 }
 

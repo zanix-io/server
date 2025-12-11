@@ -43,7 +43,7 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
                         v
 +-------------------------------------------------+
 |                    HANDLERS                     |  <- *.handler.ts
-|  Controllers, Resolvers, Subscribers, Sockets   |
+|        Controllers, Resolvers, Sockets          |
 +-------------------------------------------------+
                         |
                         v
@@ -71,7 +71,7 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
                  |             |
 +----------------+-------------+------------------+
 |             DEPENDENCIES (DSL/Defs)             |  <- *.defs.ts
-|  Middleware, Jobs, Models, Auth Guards, etc.    |
+|      Middleware, Queues, Jobs, Models, etc.     |
 +-------------------------------------------------+
 ```
 
@@ -80,8 +80,8 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
 ### **Component Descriptions**
 
 - **Handlers** (`*.handler.ts`): Handle **incoming requests or events**. Include controllers,
-  resolvers, subscribers, and WebSocket handlers. They delegate execution to **Interactors** while
-  remaining free of business logic.
+  resolvers, and WebSocket handlers. They delegate execution to **Interactors** while remaining free
+  of business logic.
 
 - **Interactors** (`*.interactor.ts`): Encapsulate the **core business logic** and
   **application-level orchestration**. Interactors call **Providers** to perform operations that
@@ -98,8 +98,8 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
 - **Dependencies /Definitions / DSL** (`*.defs.ts`): Contain domain definitions, metadata
   structures, and DSL-based declarations used to define, create, or register entities within the
   module. These files establish the foundational contracts, schemas, and configurable behaviors—such
-  as middleware pipes, jobs, auth guards, or model utilities—that other components (handlers,
-  interactors, providers, and connectors) depend on.
+  as middleware pipes, queues, jobs, auth guards, or model utilities—that other components
+  (handlers, interactors, providers, and connectors) depend on.
 
 ---
 

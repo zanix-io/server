@@ -3,6 +3,7 @@ import { type HttpError, serializeError } from '@zanix/errors'
 import { generateUUID } from '@zanix/helpers'
 import logger from '@zanix/logger'
 
+// TODO: implement status error concurrency by server id and saved in kv or cache
 export const statusErrorConcurrency = new Map<number, { value: number; expiredTime: number }>()
 
 export const setErrorConcurrency = (errorStatus: number) => {
@@ -112,7 +113,7 @@ export const getExtendedErrorResponse = (
  * @param {unknown} error - The error object to be processed.
  * @param {string} [contextId] - Optional request context id to be sent with the error.
  */
-export const getSerializedErrorResponse = (error: unknown, contextId?: string) => {
+export const getSerializedErrorResponse = (error: unknown, contextId?: string): string => {
   const extendedError = getExtendedErrorResponse(error, contextId)
 
   return JSON.stringify(extendedError)
