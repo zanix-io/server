@@ -1,9 +1,9 @@
-import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 import type { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 import type { ZanixKVConnector } from 'connectors/core/kv.ts'
 import type { ZanixWorkerProvider } from 'providers/core/worker.ts'
 import type { ZanixCacheProvider } from 'providers/core/cache.ts'
 import type { RegistryContainer } from '../../program/metadata/registry.ts'
+import type { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
 import type {
   CoreConnectorTemplates,
   ZanixConnectorsGetter,
@@ -99,16 +99,16 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * Connectors to message brokers such as RabbitMQ, Kafka, MQTT, etc.
    *
    * If the `asyncmq` connector is specified in the generic type `T`, it will return that specific connector type.
-   * Otherwise, it defaults to returning a `ZanixAsyncmqConnector`.
+   * Otherwise, it defaults to returning a `ZanixAsyncMQProvider`.
    *
    * @protected
-   * @returns {T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq'] : ZanixAsyncmqConnector} The asyncmq connector instance associated with the current context.
+   * @returns {T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq'] : ZanixAsyncMQProvider} The asyncmq connector instance associated with the current context.
    */
-  protected get asyncmq(): T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq']
-    : ZanixAsyncmqConnector {
-    return this.connectors.get<
-      T['asyncmq'] extends ZanixAsyncmqConnector ? T['asyncmq'] : ZanixAsyncmqConnector
-    >(ConnectorCoreModules.asyncmq.key)
+  protected get asyncmq(): T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq']
+    : ZanixAsyncMQProvider {
+    return this.providers.get<
+      T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq'] : ZanixAsyncMQProvider
+    >(ProviderCoreModules.asyncmq.key)
   }
 
   /**

@@ -66,4 +66,16 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
   ): Promise<boolean> {
     throw this['methodNotImplementedError']('sendGlobalMessage')
   }
+
+  /**
+   * Requeues all messages found in the Dead Letter Queue (DLQ) associated
+   * with the specified queue.
+   *
+   * @param {string} _queue - The name of the queue whose Dead Letter Queue will be processed.
+   * @returns {Promise<any[]>} A promise that resolves to an array of decoded messages.
+   */
+  // deno-lint-ignore no-explicit-any
+  public requeueDeadLetters(_queue: string): Promise<any[]> {
+    throw this['methodNotImplementedError']('requeueDeadLetters')
+  }
 }
