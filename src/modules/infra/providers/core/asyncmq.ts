@@ -44,7 +44,7 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    *
    * @abstract
    */
-  public abstract sendMessage(
+  public abstract enqueue(
     queue: string,
     message: string | Record<string, unknown>,
     options: QueueMessageOptions & { isInternal?: boolean },
@@ -59,12 +59,12 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    *
    * @returns {Promise<boolean>} A promise that resolves to `true` if the global message was successfully sent, `false` otherwise.
    */
-  public sendGlobalMessage(
+  public sendMessage(
     _topic: string,
     _message: string | Record<string, unknown>,
     _options: QueueMessageOptions,
   ): Promise<boolean> {
-    throw this['methodNotImplementedError']('sendGlobalMessage')
+    throw this['methodNotImplementedError']('sendMessage')
   }
 
   /**
