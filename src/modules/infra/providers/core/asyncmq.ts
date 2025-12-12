@@ -47,7 +47,7 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
   public abstract sendMessage(
     queue: string,
     message: string | Record<string, unknown>,
-    options: QueueMessageOptions & { isLocal?: boolean },
+    options: QueueMessageOptions & { isInternal?: boolean },
   ): Promise<boolean>
 
   /**
