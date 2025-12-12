@@ -1,8 +1,8 @@
 // deno-lint-ignore-file no-explicit-any
 import type { CoreCacheConnectors, CoreConnectors, CoreProviders } from './program.ts'
 import type { ZanixCacheConnector } from 'modules/infra/connectors/core/cache.ts'
-import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 import type { ZanixDatabaseConnector } from 'connectors/core/database.ts'
+import type { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 import type { ZanixCacheProvider } from 'providers/core/cache.ts'
 import type { ZanixKVConnector } from 'connectors/core/kv.ts'
@@ -152,13 +152,13 @@ export type ZanixConnectorClass<
  * of the system, allowing flexible options depending on the specific use case.
  *
  * @property {ZanixWorkerProvider} worker - Optional provider for the worker part of the system.
- * @property {ZanixAsyncmqConnector|} asyncmq - Optional connector for the asynchronous message queue.
+ * @property {ZanixAsyncMQProvider|} asyncmq - Optional provider for the asynchronous message queue.
  * @property {ZanixCacheProvider} cache - Optional provider for the cache.
  * @property {ZanixDatabaseConnector} database - Optional connector for the database.
  */
 export type CoreConnectorTemplates = {
   worker?: ZanixWorkerProvider
-  asyncmq?: ZanixAsyncmqConnector
+  asyncmq?: ZanixAsyncMQProvider
   cache?: ZanixCacheProvider
   database?: ZanixDatabaseConnector
   kvLocal?: ZanixKVConnector

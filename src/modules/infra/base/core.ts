@@ -95,23 +95,6 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
   // TODO: process public instances properties to restrict it for security issues
 
   /**
-   * Retrieves the asyncmq connector associated with the instance.
-   * Connectors to message brokers such as RabbitMQ, Kafka, MQTT, etc.
-   *
-   * If the `asyncmq` connector is specified in the generic type `T`, it will return that specific connector type.
-   * Otherwise, it defaults to returning a `ZanixAsyncMQProvider`.
-   *
-   * @protected
-   * @returns {T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq'] : ZanixAsyncMQProvider} The asyncmq connector instance associated with the current context.
-   */
-  protected get asyncmq(): T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq']
-    : ZanixAsyncMQProvider {
-    return this.providers.get<
-      T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq'] : ZanixAsyncMQProvider
-    >(ProviderCoreModules.asyncmq.key)
-  }
-
-  /**
    * Retrieves the key-value local store connector associated with the instance.
    *
    * If the `kvLocal` connector is specified in the generic type `T`, it will return that specific connector type.
@@ -143,6 +126,23 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
     return this.connectors.get<
       T['database'] extends ZanixDatabaseConnector ? T['database'] : ZanixDatabaseConnector
     >(ConnectorCoreModules.database.key)
+  }
+
+  /**
+   * Retrieves the asyncmq connector associated with the instance.
+   * Connectors to message brokers such as RabbitMQ, Kafka, MQTT, etc.
+   *
+   * If the `asyncmq` connector is specified in the generic type `T`, it will return that specific connector type.
+   * Otherwise, it defaults to returning a `ZanixAsyncMQProvider`.
+   *
+   * @protected
+   * @returns {T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq'] : ZanixAsyncMQProvider} The asyncmq connector instance associated with the current context.
+   */
+  protected get asyncmq(): T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq']
+    : ZanixAsyncMQProvider {
+    return this.providers.get<
+      T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq'] : ZanixAsyncMQProvider
+    >(ProviderCoreModules.asyncmq.key)
   }
 
   /**

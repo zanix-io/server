@@ -11,7 +11,7 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
   // Create class from CoreBaseClass
   class TestCore extends CoreBaseClass {}
 
-  const fakeConnectors = {
+  const fakeTargets = {
     worker: { name: 'worker-mock' },
     asyncmq: { name: 'asyncmq-mock' },
     cache: { name: 'cache-mock' },
@@ -20,10 +20,8 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
 
   const getCoreConnectorsSpy = spy((_key: string, _options: unknown) => {
     switch (_key) {
-      case ConnectorCoreModules.asyncmq.key:
-        return fakeConnectors.asyncmq
       case ConnectorCoreModules.database.key:
-        return fakeConnectors.database
+        return fakeTargets.database
       default:
         return null
     }
@@ -31,10 +29,12 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
 
   const getCoreProvidersSpy = spy((_key: string, _options: unknown) => {
     switch (_key) {
+      case ProviderCoreModules.asyncmq.key:
+        return fakeTargets.asyncmq
       case ProviderCoreModules.worker.key:
-        return fakeConnectors.worker
+        return fakeTargets.worker
       case ProviderCoreModules.cache.key:
-        return fakeConnectors.cache
+        return fakeTargets.cache
       default:
         return null
     }
@@ -50,14 +50,14 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
   assert(testInstance['context'])
 
   // Force calls
-  assertEquals(testInstance['worker'], fakeConnectors.worker as never)
-  assertEquals(testInstance['asyncmq'], fakeConnectors.asyncmq as never)
-  assertEquals(testInstance['cache'], fakeConnectors.cache as never)
-  assertEquals(testInstance['database'], fakeConnectors.database as never)
+  assertEquals(testInstance['worker'], fakeTargets.worker as never)
+  assertEquals(testInstance['asyncmq'], fakeTargets.asyncmq as never)
+  assertEquals(testInstance['cache'], fakeTargets.cache as never)
+  assertEquals(testInstance['database'], fakeTargets.database as never)
 
   // Validate 2 times caller
-  assertSpyCalls(getCoreConnectorsSpy, 2)
-  assertSpyCalls(getCoreProvidersSpy, 2)
+  assertSpyCalls(getCoreConnectorsSpy, 1)
+  assertSpyCalls(getCoreProvidersSpy, 3)
 
   const ctx = {
     contextId: 'context-id',
