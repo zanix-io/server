@@ -1,10 +1,11 @@
-import type { CoreConnectorTemplates } from 'typings/targets.ts'
 import type { QueueMessageOptions, ScheduleOptions } from 'typings/queues.ts'
+import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
+import type { CoreConnectorTemplates } from 'typings/targets.ts'
+import type { ScopedContext } from '@zanix/server'
 
 import ProgramModule from 'modules/program/mod.ts'
 import { ZanixProvider } from '../base.ts'
 import { InternalError } from '@zanix/errors'
-import type { ScopedContext } from '@zanix/server'
 
 /**
  * Abstract class representing an asynchronous message queue provider in the Zanix system.
@@ -26,6 +27,21 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
     throw new InternalError('Direct access to `asyncmq` is not allowed. Use `this` instead.', {
       meta: { source: 'zanix', provider: this.constructor.name },
     })
+  }
+
+  /**
+   * Retrieves used asyncmq connector.
+   *
+   * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `false`
+   * @returns {ZanixAsyncmqConnector } - A connector of the specified type `ZanixAsyncmqConnector`.
+   *
+   * @remarks
+   * This method dynamically retrieves the used connector based on the provided `asyncmq` key
+   */
+  public override use<ASMQ extends ZanixAsyncmqConnector>(
+    verbose: boolean = false,
+  ): ASMQ {
+    return this.getProviderConnector('asyncmq', verbose)
   }
 
   /** Get a request context by ID */
