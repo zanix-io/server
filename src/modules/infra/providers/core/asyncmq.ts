@@ -1,5 +1,5 @@
 import type { CoreConnectorTemplates } from 'typings/targets.ts'
-import type { QueueMessageOptions } from 'typings/queues.ts'
+import type { QueueMessageOptions, ScheduleOptions } from 'typings/queues.ts'
 
 import ProgramModule from 'modules/program/mod.ts'
 import { ZanixProvider } from '../base.ts'
@@ -40,7 +40,7 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    * @param {string | Record<string, unknown>} message - The message to send, either as a string or an object.
    * @param {QueueMessageOptions} options - Additional options for sending the message. Type is not specified (deno-lint-ignore used).
    *
-   * @returns {Promise<boolean>} A promise that resolves to `true` if the message was successfully sent, `false` otherwise.
+   * @returns {Promise<boolean>|boolean} A promise that resolves to `true` if the message was successfully sent, `false` otherwise.
    *
    * @abstract
    */
@@ -48,7 +48,7 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
     queue: string,
     message: string | Record<string, unknown>,
     options: QueueMessageOptions & { isInternal?: boolean },
-  ): Promise<boolean>
+  ): Promise<boolean> | boolean
 
   /**
    * Sends a global message to a topic.
@@ -57,13 +57,13 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    * @param {string | Record<string, unknown>} _message - The message to send, either as a string or an object.
    * @param {QueueMessageOptions} _options - Additional options for sending the global message. Type is not specified (deno-lint-ignore used).
    *
-   * @returns {Promise<boolean>} A promise that resolves to `true` if the global message was successfully sent, `false` otherwise.
+   * @returns {Promise<boolean>|boolean} A promise that resolves to `true` if the global message was successfully sent, `false` otherwise.
    */
   public sendMessage(
     _topic: string,
     _message: string | Record<string, unknown>,
     _options: QueueMessageOptions,
-  ): Promise<boolean> {
+  ): Promise<boolean> | boolean {
     throw this['methodNotImplementedError']('sendMessage')
   }
 
@@ -77,5 +77,35 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
   // deno-lint-ignore no-explicit-any
   public requeueDeadLetters(_queue: string): Promise<any[]> {
     throw this['methodNotImplementedError']('requeueDeadLetters')
+  }
+
+  /**
+   * Schedules a message to be published to a queue at a future time.
+   *
+   * The message can be scheduled either by specifying an absolute date or a delay
+   * (in milliseconds). When `isInternal` is set, the queue name is resolved through
+   * the internal queue path mechanism.
+   *
+   * @async
+   * @param {string} _queue - The name of the queue where the message will be published.
+   * @param {string | Record<string, unknown>} _message - The message payload to send.
+   *   It will be securely encoded before publication.
+   * @param {Omit<QueueMessageOptions, 'expiration'> & ScheduleOptions} _options - Configuration options
+   *   for scheduling and message publishing.
+   * @param {boolean} [options.isInternal] - Whether the queue is internal and should be resolved
+   *   through the internal queue path.
+   * @param {Date} [options.date] - The absolute date at which the message should be delivered.
+   *   If provided, it overrides `delay`.
+   * @param {number} [options.delay] - Delay in milliseconds before the message is delivered.
+   *   Used when `date` is not provided.
+   *
+   * @returns {Promise<boolean>|boolean} Resolves to `true` if the message was successfully scheduled.
+   */
+  public schedule(
+    _queue: string,
+    _message: string | Record<string, unknown>,
+    _options: Omit<QueueMessageOptions, 'expiration'> & ScheduleOptions,
+  ): Promise<boolean> | boolean {
+    throw this['methodNotImplementedError']('schedule')
   }
 }

@@ -50,6 +50,11 @@ export type QueueMessageOptions = Publish & {
   }
   /** Request context id */
   contextId: string | undefined
+  /**
+   * Whether the queue is internal and should be resolved
+   * through the internal queue path.
+   */
+  isInternal?: boolean
 }
 
 /** The options for Backoff strategy */
@@ -65,3 +70,25 @@ export type BackoffOptions = {
    */
   exponentialBackoffCoefficient?: number
 } & Record<string, unknown>
+
+/**
+ * Options for scheduling a task.
+ *
+ * You can specify the schedule in **one of two mutually exclusive ways**:
+ *
+ * 1. `date`: Run the task at a specific Date/Time.
+ *    ```ts
+ *    { date: new Date("2025-12-12T10:00:00Z") }
+ *    ```
+ * 2. `delay`: Run the task after a delay in milliseconds.
+ *    ```ts
+ *    { delay: 60000 } // 1 minute
+ *    ```
+ *
+ * @property {Date} [date] The specific date/time when the task should run.
+ *   Mutually exclusive with `delay`.
+ *
+ * @property {number} [delay] Delay in milliseconds after which the task should run.
+ *   Mutually exclusive with `date`
+ */
+export type ScheduleOptions = { date: Date; delay?: number } | { date?: Date; delay: number }

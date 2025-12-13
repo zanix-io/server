@@ -93,7 +93,12 @@ export { getSerializedErrorResponse } from 'webserver/helpers/errors.ts'
 export { getTargetKey } from 'utils/targets.ts'
 
 // Types
-export type { BackoffOptions, QueueMessageOptions, QueuePriorities } from 'typings/queues.ts'
+export type {
+  BackoffOptions,
+  QueueMessageOptions,
+  QueuePriorities,
+  ScheduleOptions,
+} from 'typings/queues.ts'
 export type {
   CoreCacheConnectors,
   CoreConnectors,
