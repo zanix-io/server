@@ -72,11 +72,9 @@ import { HttpError } from '@zanix/errors'
  * that must be used to configure CORS policy to the response.
  */
 export const corsGuard = (
-  options?: CorsOptions,
+  options: CorsOptions = {},
   type: WebServerTypes = 'rest',
 ): MiddlewareInternalGuard => {
-  if (!options) return () => ({})
-
   const methodMap: Record<WebServerTypes, HttpMethod[]> = {
     graphql: ['GET', 'POST'],
     socket: ['GET'],
