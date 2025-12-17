@@ -109,23 +109,32 @@ export type MiddlewareGlobalInterceptor<A extends unknown[] = any[]> =
 
 export type MiddlewareTypes = 'guard' | 'pipe' | 'interceptor'
 
-export type CorsOrigin<Credential extends boolean> = true extends Credential ? {
-    /**
-     * Specifies the allowed origin(s). Can be a string, regex, array, or a function returning a boolean.
-     */
-    origins: (string | RegExp)[] | ((origin: string) => boolean)
-  }
-  // deno-lint-ignore ban-types
-  : {}
+export type CorsOrigin = {
+  /**
+   * Indicates whether cross-origin requests are allowed to include credentials
+   * (cookies, authorization headers, TLS client certificates).
+   *
+   * @default true
+   */
+  credentials?: boolean
+
+  /**
+   * Defines the allowed origins for cross-origin requests.
+   *
+   * Accepted formats:
+   * - An array of strings (exact origin matches)
+   * - An array of regular expressions
+   * - A function that receives the request origin and returns `true` if allowed
+   *
+   * @default '*'
+   */
+  origins?: '*' | (string | RegExp)[] | ((origin: string) => boolean)
+}
 
 /**
  * Configuration options for Cross-Origin Resource Sharing (CORS).
  */
-export type CorsOptions<Credential extends boolean = true> = CorsOrigin<Credential> & {
-  /**
-   * Whether to include credentials (`true` or `false`) in cross-origin requests. Defaults to `true`.
-   */
-  credentials?: Credential
+export type CorsOptions = CorsOrigin & {
   /**
    * List of headers that browsers are allowed to access from the response.
    */

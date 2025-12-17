@@ -1,6 +1,6 @@
 {
   "name": "@zanix/server",
-  "version": "1.4.9",
+  "version": "1.4.10",
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true,
@@ -58,6 +58,7 @@
     "@zanix/regex": "jsr:@zanix/utils@2.*/regex",
     "@zanix/errors": "jsr:@zanix/utils@2.*/errors",
     "@zanix/types": "jsr:@zanix/utils@2.*/types",
+    "@zanix/workers": "jsr:@zanix/utils@2.*/workers",
     "@std/uuid": "jsr:@std/uuid@0.224",
     "async_hooks": "node:async_hooks",
     "shared/": "./src/shared/",

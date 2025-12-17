@@ -453,4 +453,15 @@ class _ControllerGuard extends ZanixController {
   public hello() {
     return 'response'
   }
+
+  @Get()
+  public unhandledError() {
+    return setTimeout(() => {
+      throw new Error('Error')
+    })
+  }
+  @Get()
+  public promiseRejection() {
+    Promise.reject('Error')
+  }
 }

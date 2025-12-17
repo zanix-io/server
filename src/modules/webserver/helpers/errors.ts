@@ -177,7 +177,7 @@ export const logServerError = (
   )
 
   error.code = error.code || code
-  error.meta = { ...meta, ...error.meta }
+  if (error.meta || meta) error.meta = { ...meta, ...error.meta }
 
   try {
     Object.assign(e as never, { id: error.id, contextId: error.contextId })

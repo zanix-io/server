@@ -7,6 +7,24 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.10] - 2025-12-17
+
+### Fixed
+
+- 🛠️ Improved CORS logic in `corsGuard`:
+
+  - `Access-Control-Allow-Origin` is now set dynamically based on `credentials`:
+
+    - `credentials: true` → returns the actual request origin (`requestOrigin`).
+    - `credentials: false` → returns `"*"` to allow any origin.
+  - Added `Access-Control-Allow-Credentials: true` **only when `credentials: true`**.
+  - Added `Vary: Origin` **only when a dynamic origin is returned**, ensuring caches and proxies do
+    not reuse responses across different origins.
+  - Requests without an `Origin` header are no longer unnecessarily blocked.
+  - Preflight (`OPTIONS`) requests and allowed methods/headers validation are fully supported.
+  - Overall improvements to security and browser/proxy compatibility for cross-origin requests, with
+    or without credentials.
+
 ## [1.4.5] - 2025-12-11
 
 ### Added

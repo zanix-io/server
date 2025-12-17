@@ -19,11 +19,27 @@ const targetModuleInit = (key: string) => {
 }
 
 /** Catch all module errors */
+self.onerror = (event) => {
+  event.preventDefault?.()
+  const error = event.error || event
+  logServerError(error, {
+    message: `An uncaught error has been detected: ${
+      error?.message || error.toString() || 'Unknown'
+    }`,
+    code: 'UNCAUGHT_ERROR',
+  })
+
+  return true // Prevents the default error handling
+}
+
 self.addEventListener('unhandledrejection', async (event) => {
   event.preventDefault()
   await event.promise.catch((err) => {
-    logServerError(err, {
-      message: event.reason?.message || 'Uncaught (in promise) Error',
+    logServerError(typeof err === 'string' ? { message: err } : err, {
+      message: `An unhandled rejection error has been detected: ${
+        event.reason?.message || err.message || err.toString() ||
+        'Unknown'
+      }`,
       code: 'UNHANDLED_PROMISE_REJECTION',
     })
   })

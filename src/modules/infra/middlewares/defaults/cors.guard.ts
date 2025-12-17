@@ -71,8 +71,8 @@ import { HttpError } from '@zanix/errors'
  * @returns {(ctx: HandlerContext) => { response?: Response; headers?: Record<string, string> }} A middleware function
  * that must be used to configure CORS policy to the response.
  */
-export const corsGuard = <Credential extends boolean>(
-  options?: CorsOptions<Credential>,
+export const corsGuard = (
+  options?: CorsOptions,
   type: WebServerTypes = 'rest',
 ): MiddlewareInternalGuard => {
   if (!options) return () => ({})
@@ -88,29 +88,30 @@ export const corsGuard = <Credential extends boolean>(
 
   return (ctx: HandlerContext) => {
     const {
-      origins,
+      origins = '*',
       preflight,
       credentials = true,
       allowedHeaders = ['Content-Type'],
       allowedMethods = defaultAllowedMethods,
       exposedHeaders = ['Content-Length', 'X-Kuma-Revision'],
-    } = options as CorsOptions<true>
+    } = options as CorsOptions
 
-    const origin = credentials ? ctx.req.headers.get('Origin') : '*'
+    const requestOrigin = ctx.req.headers.get('Origin')
 
-    if (!origin) {
-      throw new HttpError('BAD_REQUEST', { message: 'CORS blocked: no Origin header present' })
-    }
-
-    const isValidOrigin = !credentials ||
-      (typeof origins === 'function'
-        ? origins(origin)
+    if (requestOrigin) {
+      const isValidOrigin = typeof origins === 'function'
+        ? origins(requestOrigin)
+        : origins === '*'
+        ? true
         : origins.some((value) =>
-          value === '*' || (typeof value === 'string' ? value === origin : value.test(origin))
-        ))
+          typeof value === 'string' ? value === requestOrigin : value.test(requestOrigin)
+        )
 
-    if (!isValidOrigin) {
-      throw new HttpError('BAD_REQUEST', { message: `CORS blocked for origin: ${origin}` })
+      if (!isValidOrigin) {
+        throw new HttpError('BAD_REQUEST', {
+          message: `CORS blocked for origin: ${requestOrigin}`,
+        })
+      }
     }
 
     // Preflights
@@ -134,11 +135,18 @@ export const corsGuard = <Credential extends boolean>(
 
     // Valid origin headers
     const headers: Record<string, string> = {
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Credentials': credentials.toString(),
       'Access-Control-Allow-Methods': allowedMethods.join(', '),
       'Access-Control-Allow-Headers': allowedHeaders.join(', '),
       'Access-Control-Expose-Headers': exposedHeaders.join(', '),
+    }
+    if (requestOrigin) {
+      headers['Access-Control-Allow-Origin'] = credentials ? requestOrigin : '*'
+      if (credentials) {
+        headers['Access-Control-Allow-Credentials'] = 'true'
+      }
+      headers['Vary'] = 'Origin'
+    } else {
+      headers['Access-Control-Allow-Origin'] = '*'
     }
 
     return { headers }

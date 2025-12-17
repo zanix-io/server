@@ -59,6 +59,40 @@ Deno.test('Verifying controller api rest basic', async () => {
   assertEquals(responseGet, 'response')
 })
 
+Deno.test({
+  sanitizeOps: false,
+  sanitizeResources: false,
+  name: 'Verifying controller uncaught error',
+  fn: async () => {
+    const unhandledError = await fetch(`${restUrl}/unhandledError`)
+    assert(unhandledError.ok)
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // Check healthy
+    const query = await fetch(`${restUrl}/hello`)
+    const response = await query.text()
+    assertEquals(response, 'response')
+  },
+})
+
+Deno.test({
+  sanitizeOps: false,
+  sanitizeResources: false,
+  name: 'Verifying controller uncaught promise rejection',
+  fn: async () => {
+    const promiseRejection = await fetch(`${restUrl}/promiseRejection`)
+    assert(promiseRejection.ok)
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // Check healthy
+    const query = await fetch(`${restUrl}/hello`)
+    const response = await query.text()
+    assertEquals(response, 'response')
+  },
+})
+
 Deno.test('Verifying controller guard api rest', async () => {
   const query = await fetch(`${restUrl}/helloGuard`)
   const response = await query.text()

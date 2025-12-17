@@ -40,16 +40,6 @@ Deno.test('Cors validation pipe', async () => {
     'CORS blocked for origin: base-origin',
   )
 
-  assertThrows(
-    () =>
-      cors({
-        req: new Request(baseUrl),
-        ...baseOpts,
-      }),
-    HttpError,
-    'CORS blocked: no Origin header present',
-  )
-
   // origin string
   const response = await cors({
     req: new Request(baseUrl, {
@@ -66,6 +56,7 @@ Deno.test('Cors validation pipe', async () => {
     'Access-Control-Allow-Methods': 'GET, POST',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Expose-Headers': 'Content-Length',
+    'Vary': 'Origin',
   })
 
   // origin regex
@@ -86,6 +77,7 @@ Deno.test('Cors validation pipe', async () => {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Expose-Headers': 'Content-Length, X-Kuma-Revision',
+    Vary: 'Origin',
   })
 
   // origin function
@@ -106,6 +98,7 @@ Deno.test('Cors validation pipe', async () => {
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Expose-Headers': 'Content-Length, X-Kuma-Revision',
+    Vary: 'Origin',
   })
 
   // no credentials
@@ -123,15 +116,15 @@ Deno.test('Cors validation pipe', async () => {
 
   assertEquals(response4.headers, {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Credentials': 'false',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Expose-Headers': 'Content-Length, X-Kuma-Revision',
+    Vary: 'Origin',
   })
 
   // prefligths
   const response5 = await corsGuard({
-    origins: ['*'],
+    origins: '*',
     preflight: { maxAge: 600, optionsSuccessStatus: 204 },
   })({
     req: new Request(baseUrl, {
