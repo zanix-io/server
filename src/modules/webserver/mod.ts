@@ -1,22 +1,11 @@
 import type { BootstrapServerOptions, ServerID } from 'typings/server.ts'
-import type { ModuleTypes } from 'typings/program.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 
-import { GRAPHQL_PORT, INSTANCE_KEY_SEPARATOR, SOCKET_PORT } from 'utils/constants.ts'
-import { connectorModuleInitialization } from 'utils/targets.ts'
+import { GRAPHQL_PORT, SOCKET_PORT } from 'utils/constants.ts'
+import { targetInitializations } from 'utils/targets.ts'
 import { logServerError } from './helpers/errors.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { WebServerManager } from './manager.ts'
-
-/** Target module setup startup initialization */
-const targetModuleInit = (key: string) => {
-  const [type, id] = key.split(INSTANCE_KEY_SEPARATOR) as [ModuleTypes, string]
-  const instance = ProgramModule.targets['getInstance']<ZanixConnector>(id, type)
-
-  if (type !== 'connector') return
-
-  return connectorModuleInitialization(instance)
-}
 
 /** Catch all module errors */
 self.onerror = (event) => {
@@ -131,18 +120,12 @@ export const bootstrapServers = async (
   const serveRest = ProgramModule.routes.getRoutes('rest')
   const serveSocket = ProgramModule.routes.getRoutes('socket')
   const serveGraphql = ProgramModule.targets.getTargetsByType('resolver').length
-  const types: ModuleTypes[] = ['connector', 'provider', 'interactor']
 
   if (!(serveRest || serveSocket || serveGraphql)) {
     return servers
   }
 
-  // Prioritize connectors first, then providers, with the interactor as the last option.
-  for await (const type of types) {
-    await Promise.all(
-      ProgramModule.targets.getTargetsByStartMode('onSetup', type).map(targetModuleInit),
-    )
-  }
+  await targetInitializations('onSetup')
 
   // REST initialization
   if (serveRest) {
@@ -181,21 +164,11 @@ export const bootstrapServers = async (
     servers.push(id)
   }
 
-  // Prioritize connectors first, then providers, with the interactor as the last option.
-  for await (const type of types) {
-    await Promise.all(
-      ProgramModule.targets.getTargetsByStartMode('onBoot', type).map(targetModuleInit),
-    )
-  }
+  await targetInitializations('onBoot')
 
   webServerManager.start(servers)
 
-  // Prioritize connectors first, then providers, with the interactor as the last option.
-  for await (const type of types) {
-    await Promise.all(
-      ProgramModule.targets.getTargetsByStartMode('postBoot', type).map(targetModuleInit),
-    )
-  }
+  await targetInitializations('postBoot')
 
   return servers
 }

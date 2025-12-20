@@ -1,11 +1,26 @@
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
+import type { ModuleTypes, StartMode } from 'typings/program.ts'
 
+import { INSTANCE_KEY_SEPARATOR } from './constants.ts'
+import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
 
 // WeakMap to associate each class constructor with its unique ID.
 // WeakMap ensures that once the class is no longer referenced, its entry is GC'ed.
 const classIds = new WeakMap<{ name: string }, string>()
 let counter = 1
+
+const types: ModuleTypes[] = ['connector', 'provider', 'interactor']
+
+/** Target module setup startup initialization */
+const targetModuleInit = (key: string) => {
+  const [type, id] = key.split(INSTANCE_KEY_SEPARATOR) as [ModuleTypes, string]
+  const instance = ProgramModule.targets['getInstance']<ZanixConnector>(id, type)
+
+  if (type !== 'connector') return
+
+  return connectorModuleInitialization(instance)
+}
 
 /**
  * Returns a unique internal key associated with a given class-like target object.
@@ -101,4 +116,32 @@ export const connectorModuleInitialization = (instance: ZanixConnector) => {
       })
       .catch(reject)
   })
+}
+
+/**
+ * Initializes the targets based on the specified start mode.
+ * Prioritizes connectors first, then providers, and finally the interactor.
+ *
+ * @param {Exclude<StartMode, 'lazy'>} startMode - The start mode for initialization.
+ *     The 'lazy' mode is excluded from the possible start modes.
+ *     It can be one of the values defined in `StartMode`.
+ *
+ * @returns {Promise<void>} A promise that resolves when all targets
+ *     have been initialized successfully. The targets are initialized in parallel using `Promise.all()`.
+ *
+ * @async
+ *
+ * @example
+ * // Example usage:
+ * const startMode: StartMode = 'immediate';
+ * await targetInitializations(startMode);
+ */
+export const targetInitializations = async (
+  startMode: Exclude<StartMode, 'lazy'>,
+): Promise<void> => {
+  for await (const type of types) {
+    await Promise.all(
+      ProgramModule.targets.getTargetsByStartMode(startMode, type).map(targetModuleInit),
+    )
+  }
 }

@@ -89,7 +89,7 @@ export { processUrlParams } from 'utils/params.ts'
 export { gzipResponse, gzipResponseFromResponse } from 'utils/gzip.ts'
 export { httpErrorResponse } from 'webserver/helpers/errors.ts'
 export { getSerializedErrorResponse } from 'webserver/helpers/errors.ts'
-export { getTargetKey } from 'utils/targets.ts'
+export { getTargetKey, targetInitializations } from 'utils/targets.ts'
 
 // Types
 export type {
