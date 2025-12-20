@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.4.12] - 2025-12-19
+
+### Changed
+
+- `ZanixWorkerProvider` abstrac class.
+
 ## [1.4.10] - 2025-12-17
 
 ### Fixed

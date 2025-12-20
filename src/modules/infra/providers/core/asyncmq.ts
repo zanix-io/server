@@ -1,4 +1,4 @@
-import type { QueueMessageOptions, ScheduleOptions } from 'typings/queues.ts'
+import type { MessageQueue, QueueMessageOptions, ScheduleOptions } from 'typings/queues.ts'
 import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 import type { CoreConnectorTemplates } from 'typings/targets.ts'
 import type { ScopedContext } from '@zanix/server'
@@ -53,7 +53,7 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    * Sends a message to a specific queue.
    *
    * @param {string} queue - The name of the queue to which the message will be sent.
-   * @param {string | Record<string, unknown>} message - The message to send, either as a string or an object.
+   * @param {MessageQueue} message - The message to send, either as a string or an object.
    * @param {QueueMessageOptions} options - Additional options for sending the message. Type is not specified (deno-lint-ignore used).
    *
    * @returns {Promise<boolean>|boolean} A promise that resolves to `true` if the message was successfully sent, `false` otherwise.
@@ -62,7 +62,7 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    */
   public abstract enqueue(
     queue: string,
-    message: string | Record<string, unknown>,
+    message: MessageQueue,
     options: QueueMessageOptions & { isInternal?: boolean },
   ): Promise<boolean> | boolean
 
@@ -70,14 +70,14 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    * Sends a global message to a topic.
    *
    * @param {string} _topic - The name of the global topic to which the message will be sent.
-   * @param {string | Record<string, unknown>} _message - The message to send, either as a string or an object.
+   * @param {MessageQueue} _message - The message to send, either as a string or an object.
    * @param {QueueMessageOptions} _options - Additional options for sending the global message. Type is not specified (deno-lint-ignore used).
    *
    * @returns {Promise<boolean>|boolean} A promise that resolves to `true` if the global message was successfully sent, `false` otherwise.
    */
   public sendMessage(
     _topic: string,
-    _message: string | Record<string, unknown>,
+    _message: MessageQueue,
     _options: QueueMessageOptions,
   ): Promise<boolean> | boolean {
     throw this['methodNotImplementedError']('sendMessage')
@@ -104,7 +104,7 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    *
    * @async
    * @param {string} _queue - The name of the queue where the message will be published.
-   * @param {string | Record<string, unknown>} _message - The message payload to send.
+   * @param {MessageQueue} _message - The message payload to send.
    *   It will be securely encoded before publication.
    * @param {Omit<QueueMessageOptions, 'expiration'> & ScheduleOptions} _options - Configuration options
    *   for scheduling and message publishing.
@@ -119,7 +119,7 @@ export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = ob
    */
   public schedule(
     _queue: string,
-    _message: string | Record<string, unknown>,
+    _message: MessageQueue,
     _options: Omit<QueueMessageOptions, 'expiration'> & ScheduleOptions,
   ): Promise<boolean> | boolean {
     throw this['methodNotImplementedError']('schedule')

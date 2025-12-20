@@ -44,7 +44,6 @@ export { ZanixKVConnector } from 'connectors/core/kv.ts'
 export { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 export { ZanixCacheConnector } from 'connectors/core/cache.ts'
 export { ZanixDatabaseConnector } from 'connectors/core/database.ts'
-export { ZanixWorkerConnector } from 'connectors/core/worker.ts'
 export { GraphQLClient } from 'connectors/core/graphql.ts'
 export { RestClient } from 'connectors/core/rest.ts'
 export { Connector } from 'connectors/decorators/base.ts'
@@ -95,6 +94,7 @@ export { getTargetKey } from 'utils/targets.ts'
 // Types
 export type {
   BackoffOptions,
+  MessageQueue,
   QueueMessageOptions,
   QueuePriorities,
   ScheduleOptions,
@@ -102,7 +102,6 @@ export type {
 export type {
   CoreCacheConnectors,
   CoreConnectors,
-  CoreWorkerConnectors,
   GeneralTargetTypes,
   ModuleTypes,
   StartMode,
@@ -132,9 +131,12 @@ export type {
   ConnectorOptions,
   CoreConnectorTemplates,
   ZanixConnectorClass,
+  ZanixConnectorsGetter,
   ZanixInteractorClass,
   ZanixInteractorGeneric,
+  ZanixInteractorsGetter,
   ZanixProviderClass,
+  ZanixProvidersGetter,
 } from 'typings/targets.ts'
 export type { HttpMethod } from 'typings/router.ts'
 export type {

@@ -1,6 +1,6 @@
 import type { GzipSettings } from 'typings/general.ts'
 import { JSON_CONTENT_HEADER } from './constants.ts'
-import { encoder } from './encoder.ts'
+import { encoder } from '@zanix/helpers'
 
 const COMPRESSIBLE_REGEX = /(text|json|javascript|xml|svg|css|html)/i
 

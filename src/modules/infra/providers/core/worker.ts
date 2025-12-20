@@ -1,10 +1,10 @@
-import type { ZanixWorkerConnector } from 'connectors/core/worker.ts'
 import type { CoreConnectorTemplates } from 'typings/targets.ts'
-import type { CoreWorkerConnectors } from 'typings/program.ts'
-import ConnectorCoreModules from 'connectors/core/all.ts'
+import type { ScopedContext } from 'typings/context.ts'
+import type { MessageQueue } from 'typings/queues.ts'
+import type { TaskCallback } from '@zanix/types'
 
+import ProgramModule from 'modules/program/mod.ts'
 import { ZanixProvider } from '../base.ts'
-import { InternalError } from '@zanix/errors'
 
 /**
  * Abstract base class for providers that integrate with background job or worker systems.
@@ -23,54 +23,43 @@ import { InternalError } from '@zanix/errors'
 export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = object>
   extends ZanixProvider<T> {
   /**
-   * **Note:** use `this` to access the instance instead.
+   * Executes a Job asynchronously (e.g. via AsyncMQ).
+   *
+   * @param name - Registered job name
+   * @param options
+   * @param options.contextId - Optional execution context
+   * @param options.args - Payload sent to the job
    */
-  protected override get worker(): never {
-    throw new InternalError('Direct access to `worker` is not allowed. Use `this` instead.', {
-      meta: { source: 'zanix', provider: this.constructor.name },
-    })
-  }
+  abstract runJob(
+    name: string,
+    options?: {
+      contextId?: string
+      args?: MessageQueue
+    },
+  ): Promise<boolean> | undefined
 
   /**
-   * Retrieves a different worker connector based on the given `worker` identifier.
+   * Executes a Task locally.
    *
-   * @param {CoreWorkerConnectors} worker - The identifier for the desired worker.
-   * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `false`
-   *
-   * @returns {T} - A connector of the specified type `T`, which extends `ZanixWorkerConnector`.
-   *
-   * @remarks
-   * This method dynamically retrieves a worker connector based on the provided `worker` key
+   * @param name - Registered task/job name
+   * @param options
+   * @param options.args - Arguments passed to the task
+   * @param options.contextId - Optional execution context
+   * @param options.callback - Callback executed on task completion
+   * @param options.timeout - Maximum execution time in ms
    */
-  public override use<T extends ZanixWorkerConnector>(
-    worker: CoreWorkerConnectors,
-    verbose?: false,
-  ): T {
-    const workerId = `worker:${worker}` as const
-    return this.getProviderConnector<T>(ConnectorCoreModules[workerId].key, verbose)
-  }
+  abstract runTask(
+    name: string,
+    options?: {
+      args?: MessageQueue
+      contextId?: string
+      callback?: TaskCallback
+      timeout?: number
+    },
+  ): void | undefined
 
-  /**
-   * Retrieves the Bull worker connector for the current context.
-   *
-   * @returns {ZanixWorkerConnector} - The Bull worker connector instance.
-   *
-   * @remarks
-   * This getter provides a direct access to the Bull worker connector.
-   */
-  public get bull(): ZanixWorkerConnector {
-    return this.use('bull')
-  }
-
-  /**
-   * Retrieves the local worker connector for the current context.
-   *
-   * @returns {ZanixWorkerConnector} - The local worker connector instance.
-   *
-   * @remarks
-   * This getter provides a direct access to the local worker connector.
-   */
-  public get local(): ZanixWorkerConnector {
-    return this.use('local')
+  /** Get a request context by ID */
+  protected getContext(contextId: string): ScopedContext {
+    return ProgramModule.context.getContext(contextId)
   }
 }

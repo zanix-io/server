@@ -71,7 +71,6 @@ export type ZanixInteractorGeneric = ZanixInteractor<any>
  * its corresponding instantiated Interactor, ensuring correct typing through
  * the generic parameter.
  *
- * @typedef {Object} ZanixInteractorsGetter
  * @property {<D extends ZanixInteractorGeneric>(Interactor: ZanixInteractorClass<D>) => D} get
  *   Retrieves an instance of the given Interactor class.
  */
@@ -86,7 +85,6 @@ export type ZanixInteractorsGetter = {
  * predefined connector from `CoreConnectors`, returning a correctly typed
  * connector instance.
  *
- * @typedef {Object} ZanixConnectorsGetter
  * @property {<D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D> | CoreConnectors) => D} get
  *   Retrieves an instance of the given Connector.
  */
@@ -101,7 +99,6 @@ export type ZanixConnectorsGetter = {
  * predefined provider from `CoreProviders`, returning a correctly typed
  * provider instance.
  *
- * @typedef {Object} ZanixProvidersGetter
  * @property {<D extends ZanixProviderGeneric>(Provider: ZanixProviderClass<D> | CoreProviders) => D} get
  *   Retrieves an instance of the given Provider.
  */

@@ -8,11 +8,13 @@ import type { ClassConstructor } from './targets.ts'
  * - `'controller'`: Handles HTTP requests in a typical MVC pattern.
  * - `'socket'`: Handles WebSocket events or messages.
  * - `'resolver'`: Handles GraphQL resolvers or similar query-based operations.
+ * - `'subscriber'`: Handles AsyncMQ jobs.
  */
 export type HandlerTypes =
   | 'controller'
   | 'socket'
   | 'resolver'
+  | 'subscriber'
 
 /**
  * Represents general module target types that are part of backend architecture.
@@ -32,7 +34,7 @@ export type GeneralTargetTypes =
  * ℹ️ These are **instantiated** modules
  *
  * Can be any of:
- * - `HandlerTypes`: `'controller'`, `'socket'`, `'resolver'`
+ * - `HandlerTypes`: `'controller'`, `'socket'`, `'resolver'`, `'subscriber'`
  * - `GeneralTargetTypes`: `'connector'`, `'interactor'`, `'provider'`
  */
 export type ModuleTypes =
@@ -63,17 +65,6 @@ export type CoreCacheTypes<K> = {
 }
 
 /**
- * Defines the available connectors for worker systems.
- *
- * These connectors represent different types of worker systems that can be used for background jobs or task processing.
- *
- * - `'local'`: Represents a local worker system for task execution.
- * - `'bull'`: Represents the Bull queue system for job management.
- * - `GenericTargets`: Allows the inclusion of other generic worker connectors.
- */
-export type CoreWorkerConnectors = 'local' | 'bull' | GenericTargets
-
-/**
  * Defines the available connectors in the system, including cache, worker, async message queues, and database systems.
  *
  * This type includes connectors for different system components:
@@ -85,7 +76,6 @@ export type CoreWorkerConnectors = 'local' | 'bull' | GenericTargets
  */
 export type CoreConnectors =
   | `cache:${CoreCacheConnectors}`
-  | `worker:${CoreWorkerConnectors}`
   | 'asyncmq'
   | 'database'
   | 'kvLocal'

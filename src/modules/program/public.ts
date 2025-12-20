@@ -113,6 +113,41 @@ class Program {
   }
 
   /**
+   * Retrieves a interactor from the `ProgramModule` based on the provided context ID.
+   *
+   * This function creates an object with a `get` method that allows fetching a interactor using either
+   * a class type (`ZanixInteractorClass<T>`). The `get` method returns the interactor associated with the provided key.
+   * If a context ID (`ctxId`) is provided, it is passed to the `getInteractor` method to scope the interactor retrieval.
+   *
+   * @warning ⚠️ **Important: Use this accessor carefully.**
+   * Misusing direct provider retrieval can break dependency injection patterns, bypass lifecycle rules,
+   * or lead to unintended singleton/multi-instance behaviors.
+   * Prefer relying on framework-managed injection whenever possible.
+   *
+   * @param {string} [ctxId] - A context ID to specify the scope or context of the interactor. If not provided,
+   *                            the interactor is retrieved globally.
+   * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `true`
+   *
+   * @returns {ZanixInteractorsGetter} An object with a `get` method that retrieves the requested interactor.
+   *
+   * @example
+   * const interactors = getInteractors('myInteractorCtxId');
+   * const interactor = interactors.get(MyInteractorClass);
+   */
+  public getInteractors: (ctxId: string, verbose?: boolean) => ZanixInteractorsGetter = (
+    ctxId,
+    verbose,
+  ) => ({
+    get: <T extends ZanixInteractorGeneric>(
+      Interactor: ZanixInteractorClass<T>,
+    ): T =>
+      ProgramModule.targets.getInteractor<T>(getTargetKey(Interactor), {
+        contextId: ctxId,
+        verbose,
+      }),
+  })
+
+  /**
    * Provides access to the internal `RegistryContainer` used by the dependency
    * injection system.
    *
@@ -146,10 +181,6 @@ const PublicProgramModule: Readonly<Program> = Object.freeze(new Program())
 
 export const getConnectors = PublicProgramModule.getConnectors
 export const getProviders = PublicProgramModule.getProviders
-export const getInteractors: (ctxId: string) => ZanixInteractorsGetter = (ctxId) => ({
-  get: <T extends ZanixInteractorGeneric>(
-    Interactor: ZanixInteractorClass<T>,
-  ): T => ProgramModule.targets.getInteractor<T>(getTargetKey(Interactor), { contextId: ctxId }),
-})
+export const getInteractors = PublicProgramModule.getInteractors
 
 export default PublicProgramModule

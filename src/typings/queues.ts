@@ -92,3 +92,6 @@ export type BackoffOptions = {
  *   Mutually exclusive with `date`
  */
 export type ScheduleOptions = { date: Date; delay?: number } | { date?: Date; delay: number }
+
+/** Handler message type */
+export type MessageQueue = string | Record<string, unknown> | null

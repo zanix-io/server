@@ -11,8 +11,8 @@ import { getMainHandler, multiplexer } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
-import { encoder } from 'utils/encoder.ts'
 import { getPrefix } from 'utils/routes.ts'
+import { encoder } from '@zanix/helpers'
 import logger from '@zanix/logger'
 
 /**

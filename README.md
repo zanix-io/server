@@ -208,13 +208,6 @@ application. You can import connectors based on the service you need to integrat
   import { ZanixCacheConnector } from 'jsr:@zanix/server@[version]'
   ```
 
-- **Worker Connector** Is designed to be the foundation for implementing connectors to background
-  processing tools such as BullMQ, Agenda, Temporal, or custom job queues.
-
-  ```typescript
-  import { ZanixWorkerConnector } from 'jsr:@zanix/server@[version]'
-  ```
-
 - **KV Store Connector** For connectors that integrate key-value stores, with optional TTL
   (Time-To-Live) support.
 
@@ -236,7 +229,12 @@ combine repository and data service responsibilities, managing multiple connecto
 domain logic separate.
 
 ```typescript
-import { ZanixCacheProvider, ZanixProvider, ZanixWorkerProvider } from 'jsr:@zanix/server@[version]'
+import {
+  ZanixAsyncmqProvider,
+  ZanixCacheProvider,
+  ZanixProvider,
+  ZanixWorkerProvider,
+} from 'jsr:@zanix/server@[version]'
 ```
 
 #### 5. **Middlewares**
