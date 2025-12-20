@@ -1,6 +1,6 @@
 import type { CoreConnectorTemplates } from 'typings/targets.ts'
 import type { ScopedContext } from 'typings/context.ts'
-import type { MessageQueue } from 'typings/queues.ts'
+import type { MessageQueue, QueueMessageOptions } from 'typings/queues.ts'
 import type { TaskCallback } from '@zanix/types'
 
 import ProgramModule from 'modules/program/mod.ts'
@@ -29,14 +29,16 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
    * @param options
    * @param options.contextId - Optional execution context
    * @param options.args - Payload sent to the job
+   * @param options.settings - Additional options for publishing the queue message.
    */
   abstract runJob(
     name: string,
     options?: {
       contextId?: string
       args?: MessageQueue
+      settings?: Omit<QueueMessageOptions, 'contextId' | 'isInternal'>
     },
-  ): Promise<boolean> | undefined
+  ): Promise<boolean> | boolean
 
   /**
    * Executes a Task locally.
@@ -56,7 +58,7 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
       callback?: TaskCallback
       timeout?: number
     },
-  ): void | undefined
+  ): boolean
 
   /** Get a request context by ID */
   protected getContext(contextId: string): ScopedContext {
