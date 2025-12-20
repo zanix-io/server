@@ -54,7 +54,7 @@
     "@std/testing": "jsr:@std/testing@1.0.9",
     "@zanix/logger": "jsr:@zanix/utils@2.*/logger",
     "@zanix/helpers": "jsr:@zanix/utils@2.*/helpers",
-    "@zanix/validator": "jsr:@zanix/utils@2.*/validator",
+    "@zanix/validator": "jsr:@zanix/utils@2.2.*/validator",
     "@zanix/regex": "jsr:@zanix/utils@2.*/regex",
     "@zanix/errors": "jsr:@zanix/utils@2.*/errors",
     "@zanix/types": "jsr:@zanix/utils@2.*/types",
