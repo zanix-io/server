@@ -4,7 +4,7 @@ import type { InstanceOptions } from 'typings/context.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 
 import { DEFAULT_CONTEXT_ID, INSTANCE_KEY_SEPARATOR, ZANIX_PROPS } from 'utils/constants.ts'
-import { TargetError } from 'utils/errors.ts'
+import { TargetError } from 'utils/errors/target.ts'
 import { BaseContainer } from '../base.ts'
 
 /**

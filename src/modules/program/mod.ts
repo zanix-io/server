@@ -50,10 +50,12 @@ export class InternalProgram {
   public registry: RegistryContainer = new RegistryContainer()
 
   /**
-   * Method to clean up metadata stored in containers.
+   * Method to clean up metadata stored in containers for initializations.
    * Resets the containers for routes, middlewares, decorators, and targets.
    */
-  public cleanupMetadata(mode: Extract<StartMode, 'postBoot' | 'onBoot'> = 'onBoot'): void {
+  public cleanupInitializationsMetadata(
+    mode: Extract<StartMode, 'postBoot' | 'onBoot'> = 'onBoot',
+  ): void {
     if (mode === 'postBoot') {
       /** Clean metadata postBoot */
       const removeTargets: (`type:${ModuleTypes}` | `${ModuleTypes}:startMode:${StartMode}`)[] = [

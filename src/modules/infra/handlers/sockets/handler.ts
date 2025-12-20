@@ -3,7 +3,7 @@ import type { ZanixWebSocket } from './base.ts'
 import type { RtoTypes } from '@zanix/types'
 import type { HandlerContext } from '@zanix/server'
 
-import { getSerializedErrorResponse, logServerError } from 'modules/webserver/helpers/errors.ts'
+import { getSerializedErrorResponse, logAppError } from 'utils/errors/helper.ts'
 import { cleanUpPipe, contextSettingPipe } from 'middlewares/defaults/context.pipe.ts'
 import { HttpError } from '@zanix/errors'
 
@@ -20,7 +20,7 @@ const catcher = async (
     else response = cb
     return response
   } catch (e) {
-    logServerError(e, {
+    logAppError(e, {
       message: 'An error occurred on socket',
       meta: { event: event.type },
       code: 'SOCKET_ERROR',

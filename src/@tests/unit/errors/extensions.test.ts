@@ -1,10 +1,6 @@
 import { assert, assertEquals, assertExists, assertFalse, assertNotEquals } from '@std/assert'
 import { HttpError, PermissionDenied } from '@zanix/errors'
-import {
-  getExtendedErrorResponse,
-  httpErrorResponse,
-  logServerError,
-} from 'modules/webserver/helpers/errors.ts'
+import { getExtendedErrorResponse, httpErrorResponse, logAppError } from 'utils/errors/helper.ts'
 
 Deno.test('getExtendedErrorResponse should generate a new id if none exists', () => {
   const error = { message: 'Test error' }
@@ -96,7 +92,7 @@ Deno.test('httpErrorResponse should return all data after log', async () => {
 
   console.error = () => {}
 
-  logServerError(error, {
+  logAppError(error, {
     message: 'message',
     code: 'CODE',
   })

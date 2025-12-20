@@ -1,6 +1,6 @@
 import type { ConnectorOptions } from 'typings/targets.ts'
 
-import { logServerError } from 'webserver/helpers/errors.ts'
+import { logAppError } from 'utils/errors/helper.ts'
 import { ContextualBaseClass } from '../base/contextual.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
 
@@ -56,7 +56,7 @@ export abstract class ZanixConnector extends ContextualBaseClass {
             // Mark as initialized successfully
             resolve(true)
           } catch (error) {
-            logServerError(error, {
+            logAppError(error, {
               message:
                 `Failed to initialize connector '${this.constructor.name}' during '${startMode}' startup mode.`,
               code: 'CONNECTOR_ERROR',

@@ -67,7 +67,7 @@ Deno.test({
     const unhandledError = await fetch(`${restUrl}/unhandledError`)
     assert(unhandledError.ok)
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 150))
 
     // Check healthy
     const query = await fetch(`${restUrl}/hello`)
@@ -84,7 +84,7 @@ Deno.test({
     const promiseRejection = await fetch(`${restUrl}/promiseRejection`)
     assert(promiseRejection.ok)
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
+    await new Promise((resolve) => setTimeout(resolve, 150))
 
     // Check healthy
     const query = await fetch(`${restUrl}/hello`)

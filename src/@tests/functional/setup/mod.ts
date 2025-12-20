@@ -1,17 +1,15 @@
 import './metadata.ts'
 
-import type { ModuleTypes, StartMode } from 'typings/program.ts'
-import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
+import type { StartMode } from 'typings/program.ts'
 
 import { assertEquals } from '@std/assert/assert-equals'
+import { targetInitializations } from 'utils/targets.ts'
 import Program from 'modules/program/mod.ts'
 import { webServerManager } from 'webserver/mod.ts'
 import { stub } from '@std/testing/mock'
 import { assert } from '@std/assert/assert'
-import logger from '@zanix/logger'
-import { connectorModuleInitialization } from 'utils/targets.ts'
-import { INSTANCE_KEY_SEPARATOR } from 'utils/constants.ts'
 import { assertFalse } from '@std/assert'
+import logger from '@zanix/logger'
 
 /** mocks */
 stub(console, 'info')
@@ -39,26 +37,11 @@ try {
     server: { port: GQL_PORT, globalPrefix: '/gql//' },
   })
 
-  /** Target module setup startup initialization */
-  const startConnection = (key: string) => {
-    const [type, id] = key.split(INSTANCE_KEY_SEPARATOR) as [ModuleTypes, string]
-    const instance = Program.targets['getInstance']<ZanixConnector>(id, type)
-
-    if (type !== 'connector') return
-
-    return connectorModuleInitialization(instance)
-  }
-
   // Prioritize connectors first, then providers, with the interactor as the last option.
-  const types: ModuleTypes[] = ['connector', 'provider', 'interactor']
   const modes: Exclude<StartMode, 'lazy'>[] = ['onSetup', 'onBoot']
 
-  for (const mode of modes) {
-    for await (const type of types) {
-      await Promise.all(
-        Program.targets.getTargetsByStartMode(mode, type).map(startConnection),
-      )
-    }
+  for await (const mode of modes) {
+    await targetInitializations(mode)
   }
 
   webServerManager.start([id1, id2, id3])
@@ -72,14 +55,9 @@ try {
   // All instantiated classes
   assertEquals(Object.keys(Program.targets).length, 22)
 
-  // Prioritize connectors first, then providers, with the interactor as the last option.
-  for await (const type of types) {
-    await Promise.all(
-      Program.targets.getTargetsByStartMode('postBoot', type).map(startConnection),
-    )
-  }
+  await targetInitializations('postBoot')
 
-  Program.cleanupMetadata('postBoot')
+  Program.cleanupInitializationsMetadata('postBoot')
 
   assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'connector').length)
   assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'interactor').length)

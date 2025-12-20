@@ -93,7 +93,7 @@ export const getExtendedErrorResponse = (
   // deno-lint-ignore no-explicit-any
   error: any,
   contextId?: string,
-  withStackTrace = false,
+  withStackTrace: boolean = false,
   // deno-lint-ignore no-explicit-any
 ): Record<string, any> => {
   if (!error) error = {}
@@ -153,7 +153,7 @@ export const httpErrorResponse = (
 }
 
 /**
- * Logs a server error with optional additional details.
+ * Logs a app error with optional additional details.
  *
  * @param {Object} option - The options object containing error details.
  * @param {string} [option.message] - The error message describing the issue.
@@ -161,7 +161,7 @@ export const httpErrorResponse = (
  * @param {string} [option.meta] - Optional metadata related to the error (e.g., stack trace or additional context).
  * @param {string} [option.contextId] - An optional identifier for the request context, useful for correlating errors with specific requests.
  */
-export const logServerError = (
+export const logAppError = (
   e: unknown,
   options: { message: string; code: string; meta?: Record<string, unknown>; contextId?: string },
 ) => {

@@ -10,7 +10,7 @@ import type { WebServerTypes } from 'typings/server.ts'
 import type { HandlerContext } from 'typings/context.ts'
 
 import { getConnectors, getInteractors, getProviders } from 'modules/program/public.ts'
-import { httpErrorResponse, logServerError } from 'webserver/helpers/errors.ts'
+import { httpErrorResponse, logAppError } from 'utils/errors/helper.ts'
 import { getResponseInterceptor } from './response.interceptor.ts'
 import { cleanUpPipe, contextSettingPipe } from './context.pipe.ts'
 import { gzipResponseFromResponse } from 'utils/gzip.ts'
@@ -127,7 +127,7 @@ export const routerInterceptor: MiddlewareInterceptor = async (context, _, optio
 
     return acceptsGzip ? gzipResponseFromResponse(response, gzip) : response
   } catch (e) {
-    logServerError(e, {
+    logAppError(e, {
       message: `An error occurred on route '${context.url.pathname}'`,
       meta: { route: context.url.pathname },
       contextId: context.id,

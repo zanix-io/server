@@ -83,13 +83,19 @@ export {
 } from 'utils/constants.ts'
 
 // Utils
-export { TargetError } from 'utils/errors.ts'
+export { TargetError } from 'utils/errors/target.ts'
 export { cleanRoute } from 'utils/routes.ts'
 export { processUrlParams } from 'utils/params.ts'
 export { gzipResponse, gzipResponseFromResponse } from 'utils/gzip.ts'
-export { httpErrorResponse } from 'webserver/helpers/errors.ts'
-export { getSerializedErrorResponse } from 'webserver/helpers/errors.ts'
-export { getTargetKey, targetInitializations } from 'utils/targets.ts'
+export { httpErrorResponse } from 'utils/errors/helper.ts'
+export { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
+export { getSerializedErrorResponse } from 'utils/errors/helper.ts'
+export {
+  cleanupInitializationsMetadata,
+  closeAllConnections,
+  getTargetKey,
+  targetInitializations,
+} from 'utils/targets.ts'
 
 // Types
 export type {

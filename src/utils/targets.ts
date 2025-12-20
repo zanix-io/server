@@ -145,3 +145,33 @@ export const targetInitializations = async (
     )
   }
 }
+
+/**
+ * Closes all 'connector' type connections defined in `ProgramModule`.
+ * It uses the `close` method of each connector to close them concurrently.
+ *
+ * @async
+ * @function closeAllConnections
+ * @returns {Promise<void>} A promise that resolves when all connections have been closed.
+ *
+ * @throws {Error} If an error occurs while closing any connection, the promise will be rejected.
+ */
+export const closeAllConnections = async (): Promise<void> => {
+  await Promise.all(
+    ProgramModule.targets.getTargetsByType('connector').map((key) => {
+      ProgramModule.targets.getConnector<ZanixConnector>(key, { useExistingInstance: true })
+        ?.['close']()
+    }),
+  )
+}
+
+/**
+ * Cleans up and resets any metadata managed by `ProgramModule` initializations.
+ * This is typically used to free resources or reset internal state.
+ *
+ * @function cleanupInitializationsMetadata
+ * @returns {void}
+ */
+export const cleanupInitializationsMetadata = (): void => {
+  ProgramModule.cleanupInitializationsMetadata()
+}

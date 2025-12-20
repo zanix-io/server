@@ -1,47 +1,17 @@
 import type { BootstrapServerOptions, ServerID } from 'typings/server.ts'
-import type { ZanixConnector } from 'connectors/base.ts'
 
+import { closeAllConnections, targetInitializations } from 'utils/targets.ts'
 import { GRAPHQL_PORT, SOCKET_PORT } from 'utils/constants.ts'
-import { targetInitializations } from 'utils/targets.ts'
-import { logServerError } from './helpers/errors.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { WebServerManager } from './manager.ts'
+import { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
 
-/** Catch all module errors */
-self.onerror = (event) => {
-  event.preventDefault?.()
-  const error = event.error || event
-  logServerError(error, {
-    message: `An uncaught error has been detected: ${
-      error?.message || error.toString() || 'Unknown'
-    }`,
-    code: 'UNCAUGHT_ERROR',
-  })
-
-  return true // Prevents the default error handling
-}
-
-self.addEventListener('unhandledrejection', async (event) => {
-  event.preventDefault()
-  await event.promise.catch((err) => {
-    logServerError(typeof err === 'string' ? { message: err } : err, {
-      message: `An unhandled rejection error has been detected: ${
-        event.reason?.message || err.message || err.toString() ||
-        'Unknown'
-      }`,
-      code: 'UNHANDLED_PROMISE_REJECTION',
-    })
-  })
-})
+/** Attach global errors */
+attachGlobalErrorHandlers(self)
 
 /** Disconnect all current connectors */
 self.addEventListener('unload', async () => {
-  await Promise.all(
-    ProgramModule.targets.getTargetsByType('connector').map((key) => {
-      ProgramModule.targets.getConnector<ZanixConnector>(key, { useExistingInstance: true })
-        ?.['close']()
-    }),
-  )
+  await closeAllConnections()
 })
 
 /**

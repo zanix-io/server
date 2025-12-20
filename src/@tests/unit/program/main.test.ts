@@ -14,7 +14,7 @@ Deno.test('Program class initializes all containers', () => {
   assert(program.context)
 })
 
-Deno.test('cleanupMetadata calls resetContainer on all containers', () => {
+Deno.test('cleanupInitializationsMetadata calls resetContainer on all containers', () => {
   const program = new ProgramClass()
 
   // Stub the resetContainer methods
@@ -23,8 +23,8 @@ Deno.test('cleanupMetadata calls resetContainer on all containers', () => {
   const resetDecoratorsStub = stub(program.decorators, 'resetContainer')
   const resetTargetsStub = stub(program.targets, 'resetContainer')
 
-  // Call cleanupMetadata
-  program.cleanupMetadata()
+  // Call cleanupInitializationsMetadata
+  program.cleanupInitializationsMetadata()
 
   // Assert all resetContainer methods were called once
   assertSpyCalls(resetRoutesStub, 1)
@@ -44,7 +44,7 @@ Deno.test('cleanupMetadata calls resetContainer on all containers', () => {
   resetTargetsStub.restore()
 })
 
-Deno.test('cleanupMetadata calls resetContainer on post boot', () => {
+Deno.test('cleanupInitializationsMetadata calls resetContainer on post boot', () => {
   const program = new ProgramClass()
 
   // Stub the resetContainer methods
@@ -53,8 +53,8 @@ Deno.test('cleanupMetadata calls resetContainer on post boot', () => {
   const resetDecoratorsStub = stub(program.decorators, 'resetContainer')
   const resetTargetsStub = stub(program.targets, 'resetContainer')
 
-  // Call cleanupMetadata
-  program.cleanupMetadata('postBoot')
+  // Call cleanupInitializationsMetadata
+  program.cleanupInitializationsMetadata('postBoot')
 
   // Assert all resetContainer methods were called once
   assertSpyCalls(resetRoutesStub, 0)

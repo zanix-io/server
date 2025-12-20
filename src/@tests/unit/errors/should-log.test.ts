@@ -5,7 +5,7 @@ import {
   setErrorConcurrency,
   shouldNotLogError,
   statusErrorConcurrency,
-} from 'webserver/helpers/errors.ts'
+} from 'utils/errors/helper.ts'
 
 console.error = () => {}
 

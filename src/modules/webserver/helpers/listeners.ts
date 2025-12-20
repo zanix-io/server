@@ -1,12 +1,12 @@
 import type { ServerOptions } from 'typings/server.ts'
 
-import { httpErrorResponse, logServerError } from './errors.ts'
+import { httpErrorResponse, logAppError } from 'utils/errors/helper.ts'
 import logger from '@zanix/logger'
 
 export const onErrorListener =
   (currentErrorHandler: ServerOptions['onError'], serverName: string) =>
   async (error: unknown): Promise<Response> => {
-    logServerError(error, {
+    logAppError(error, {
       message: `An error occurred on ${serverName} server`,
       code: 'SERVER_ERROR',
       meta: { serverName },

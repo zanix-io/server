@@ -3,7 +3,7 @@ import type { ScopedContext } from 'typings/context.ts'
 import { DEFAULT_CONTEXT_ID, ZANIX_PROPS } from 'utils/constants.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { TargetBaseClass } from './target.ts'
-import { TargetError } from 'utils/errors.ts'
+import { TargetError } from 'utils/errors/target.ts'
 import { asyncContext } from './storage.ts'
 
 /**
