@@ -78,7 +78,7 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
     metaUrl: string
     callback?: TaskCallback
     timeout?: number
-  }) {
+  }): (...parameters: Parameters<T>) => void {
     const { metaUrl, callback, timeout } = options
     const tasker = this.#generalTasker.task(fn, { metaUrl, onFinish: callback, timeout })
     return tasker.invoke.bind(tasker)
