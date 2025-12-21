@@ -181,7 +181,7 @@ export class WebServerManager {
     const processor = (callback: () => void) => {
       callback() // main function to execute
       // Delete unused references once the server has started
-      ProgramModule.cleanupInitializationsMetadata()
+      ProgramModule.cleanupInitializationsMetadata('onBoot')
     }
 
     if (typeof id === 'string') return processor(() => this.#start(id))

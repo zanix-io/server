@@ -24,7 +24,7 @@ Deno.test('cleanupInitializationsMetadata calls resetContainer on all containers
   const resetTargetsStub = stub(program.targets, 'resetContainer')
 
   // Call cleanupInitializationsMetadata
-  program.cleanupInitializationsMetadata()
+  program.cleanupInitializationsMetadata('onBoot')
 
   // Assert all resetContainer methods were called once
   assertSpyCalls(resetRoutesStub, 1)

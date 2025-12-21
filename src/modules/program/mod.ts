@@ -54,7 +54,7 @@ export class InternalProgram {
    * Resets the containers for routes, middlewares, decorators, and targets.
    */
   public cleanupInitializationsMetadata(
-    mode: Extract<StartMode, 'postBoot' | 'onBoot'> = 'onBoot',
+    mode: Extract<StartMode, 'postBoot' | 'onBoot'>,
   ): void {
     if (mode === 'postBoot') {
       /** Clean metadata postBoot */

@@ -5,6 +5,7 @@ import type { TaskCallback } from '@zanix/types'
 
 import ProgramModule from 'modules/program/mod.ts'
 import { ZanixProvider } from '../base.ts'
+import { WorkerManager } from '@zanix/workers'
 
 /**
  * Abstract base class for providers that integrate with background job or worker systems.
@@ -22,6 +23,8 @@ import { ZanixProvider } from '../base.ts'
  */
 export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = object>
   extends ZanixProvider<T> {
+  #generalTasker = new WorkerManager({ pool: 3 })
+
   /**
    * Executes a Job asynchronously (e.g. via AsyncMQ).
    *
@@ -59,6 +62,27 @@ export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = obj
       timeout?: number
     },
   ): boolean
+
+  /**
+   * Executes a general task using a default WorkerManager instance with 3 workers.
+   * Use this method for moderate or light tasks where no dependency injection is required.
+   *
+   * @template T
+   * @param {T} fn - The function to be executed in the worker thread. It must not accept any arguments.
+   * @param {Object} options - Options to configure the task execution.
+   * @param {string} options.metaUrl - The URL of the metadata required for the task.
+   * @param {TaskCallback} [options.callback] - A callback function to be invoked when the task finishes.
+   * @param {number} [options.timeout] - The maximum time (in milliseconds) before the task is aborted.
+   */
+  public executeGeneralTask<T extends (...args: never[]) => unknown>(fn: T, options: {
+    metaUrl: string
+    callback?: TaskCallback
+    timeout?: number
+  }) {
+    const { metaUrl, callback, timeout } = options
+    const tasker = this.#generalTasker.task(fn, { metaUrl, onFinish: callback, timeout })
+    return tasker.invoke.bind(tasker)
+  }
 
   /** Get a request context by ID */
   protected getContext(contextId: string): ScopedContext {

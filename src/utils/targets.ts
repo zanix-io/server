@@ -173,5 +173,6 @@ export const closeAllConnections = async (): Promise<void> => {
  * @returns {void}
  */
 export const cleanupInitializationsMetadata = (): void => {
-  ProgramModule.cleanupInitializationsMetadata()
+  ProgramModule.cleanupInitializationsMetadata('onBoot')
+  ProgramModule.cleanupInitializationsMetadata('postBoot')
 }

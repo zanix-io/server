@@ -59,6 +59,7 @@ try {
 
   Program.cleanupInitializationsMetadata('postBoot')
 
+  // check deleted metadata
   assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'connector').length)
   assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'interactor').length)
   assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'provider').length)

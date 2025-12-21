@@ -140,5 +140,7 @@ export const bootstrapServers = async (
 
   await targetInitializations('postBoot')
 
+  ProgramModule.cleanupInitializationsMetadata('postBoot')
+
   return servers
 }
