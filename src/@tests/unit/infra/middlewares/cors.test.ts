@@ -74,7 +74,7 @@ Deno.test('Cors validation pipe', async () => {
   assertEquals(response2.headers, {
     'Access-Control-Allow-Origin': 'https://sub.test.example.com',
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Expose-Headers': 'Content-Length, X-Kuma-Revision',
     Vary: 'Origin',
@@ -95,7 +95,7 @@ Deno.test('Cors validation pipe', async () => {
   assertEquals(response3.headers, {
     'Access-Control-Allow-Origin': 'https://sub.example.com',
     'Access-Control-Allow-Credentials': 'true',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Expose-Headers': 'Content-Length, X-Kuma-Revision',
     Vary: 'Origin',
@@ -116,7 +116,7 @@ Deno.test('Cors validation pipe', async () => {
 
   assertEquals(response4.headers, {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Access-Control-Expose-Headers': 'Content-Length, X-Kuma-Revision',
     Vary: 'Origin',
