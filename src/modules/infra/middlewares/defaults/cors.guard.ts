@@ -79,7 +79,7 @@ export const corsGuard = (
     graphql: ['GET', 'POST'],
     socket: ['GET'],
     ssr: ['GET'],
-    rest: ['GET', 'POST', 'PUT', 'DELETE'],
+    rest: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   }
 
   const defaultAllowedMethods = methodMap[type]
