@@ -72,7 +72,15 @@ export abstract class ZanixWebSocket<Interactor extends ZanixInteractorGeneric =
   }
 
   /** WebSocket connection, excluding the default events */
-  protected accessor socket!: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>
+  #socket!: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>
+
+  protected get socket(): Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'> {
+    return this.#socket
+  }
+
+  protected set socket(value: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>) {
+    this.#socket = value
+  }
 
   protected set context(ctx: HandlerContext) {
     this.#context = ctx

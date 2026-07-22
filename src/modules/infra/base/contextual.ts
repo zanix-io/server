@@ -30,7 +30,15 @@ import { asyncContext } from './storage.ts'
  * @extends TargetBaseClass
  */
 export abstract class ContextualBaseClass extends TargetBaseClass {
-  protected accessor contextId: string | undefined
+  #contextId: string | undefined
+
+  protected get contextId(): string | undefined {
+    return this.#contextId
+  }
+
+  protected set contextId(value: string | undefined) {
+    this.#contextId = value
+  }
 
   /**
    * Creates an instance of the `ContextualBaseClass` with an optional `contextId`.

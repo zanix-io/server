@@ -11,7 +11,15 @@ export const rootValue: Record<string, HandlerFunction> = {}
  */
 export class RequestContext {
   public readonly context: HandlerContext
-  public accessor response: Response = {} as never
+  #response: Response = {} as never
+
+  public get response(): Response {
+    return this.#response
+  }
+
+  public set response(value: Response) {
+    this.#response = value
+  }
 
   constructor(context: HandlerContext) {
     this.context = context
