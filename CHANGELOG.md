@@ -7,6 +7,99 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-07-23
+
+### Added
+
+- **New guides in `docs/`**: [Getting Started](./docs/GETTING-STARTED.md),
+  [Handlers](./docs/HANDLERS.md), [Middlewares](./docs/MIDDLEWARES.md),
+  [Dependency Injection](./docs/DEPENDENCY-INJECTION.md), [Configuration](./docs/CONFIGURATION.md),
+  and [Utilities Reference](./docs/UTILITIES.md), linked from the README's new `Documentation`
+  section.
+- **Validated `docs/HANDLERS.md`/`docs/MIDDLEWARES.md` against a second real production consumer**
+  (a WebSocket/RabbitMQ-heavy service), documenting: the `this.socket`/`this.registry` pattern for
+  tracking live socket connections and pushing messages to them proactively (outside the
+  request/response cycle of `onmessage`); and that `@Guard`/`@Pipe`/`@Interceptor` on `@Socket`
+  classes only take effect at the class level, never on an individual lifecycle method — a `@Socket`
+  class has exactly one route (the connection/upgrade), unlike `@Controller`/`@Resolver` which
+  register one route per decorated method, so there is no per-method route for a method-level
+  middleware to attach to. (Traced end-to-end through the route-assembly code before concluding this
+  — it is expected behavior given the single-route model, not a bug.)
+- **Validated `docs/DEPENDENCY-INJECTION.md` against a real production consumer**, surfacing the
+  dominant real-world dependency-access patterns that were missing: `ZanixProvider<{ database: X }>`
+  named-slot getters (`this.database`/`.cache`/`.worker`/`.asyncmq`/`.kvLocal`) as the idiomatic way
+  a provider reaches its connector, and `this.providers.get(X)`/`this.connectors.get(X)`/
+  `this.interactors.get(X)` for reaching dependencies beyond the single one declared on
+  `@Interactor`/`@Provider`. Also added the `@Post({ Body })` no-path overload example to
+  [Handlers](./docs/HANDLERS.md), a real-practice note to
+  [Middlewares](./docs/MIDDLEWARES.md#advanced-building-your-own-middleware-decorator) about
+  building app-level guard packages, and a clarification in the README's
+  [file naming conventions](./README.md#file-naming-conventions) that `@zanix/server` itself doesn't
+  scan the filesystem — the suffix convention matters for tooling like `@zanix/core`, not for
+  `@zanix/server`'s own registration.
+- Documented previously-uncovered public exports: `ProgramModule`'s instance accessors
+  (`getConnectors`/`getProviders`/`getInteractors`/`registry`/`asyncContext`) in
+  [Dependency Injection](./docs/DEPENDENCY-INJECTION.md), `GQLRequest` in
+  [Handlers](./docs/HANDLERS.md), `defineMiddlewareDecorator` in
+  [Middlewares](./docs/MIDDLEWARES.md), and the error/routing/compression helper functions
+  (`httpErrorResponse`, `getSerializedErrorResponse`, `attachGlobalErrorHandlers`, `TargetError`,
+  `cleanRoute`, `processUrlParams`, `gzipResponse`, `gzipResponseFromResponse`, `getTargetKey`,
+  `targetInitializations`, `closeAllConnections`, `cleanupInitializationsMetadata`) in
+  [Error Handling](./docs/ERRORS.md) and the new [Utilities Reference](./docs/UTILITIES.md).
+- **`@example` blocks** across all REST/GraphQL/Socket handler decorators (`Controller`, `Get`,
+  `Post`, `Patch`, `Put`, `Delete`, `Request`, `Resolver`, `Query`, `Mutation`, `Socket`) and the
+  `Connector`/`Provider`/`Interactor` class decorators, grounded in real, compiling usage.
+- **Dozens of previously-internal types now publicly exported** from the package entrypoint (e.g.
+  `Lifetime`, `StartMode`, `ConnectorTypes`, `ProviderTypes`, `HandlerContext`-related types,
+  `TargetBaseClass`, `HandlerBaseClass`, `ContextualBaseClass`, `CoreBaseClass`,
+  `RegistryContainer`, and many more), so consumers extending Zanix base classes can now name every
+  type involved in their public signatures.
+
+### Changed
+
+- **README restructured**: the ~150-line "Importing Features" catalog was replaced with a compact
+  table linking to the new guides, the install steps were moved directly under `Installation`, and a
+  duplicated `webServerManager` example was removed. The README shrank from ~390 to ~260 lines; the
+  removed detail now lives in `docs/` instead.
+
+### Fixed
+
+- `@Resolver({...})`'s object-argument overload incorrectly required an `Interactor`, unlike
+  `@Controller`; it's now optional, matching the underlying type.
+- `closeAllConnections` didn't `return` the result of each connector's `close()` call, so
+  `Promise.all` never actually awaited asynchronous connectors and silently swallowed rejections.
+- Corrected numerous outdated or inaccurate JSDoc comments found during a full documentation audit:
+  wrong `@returns`/`@throws` types, guard-header timing described backwards, copy-pasted docs
+  between unrelated decorators, stale `@extends` tags, missing/renamed fields in public types, and a
+  broken `jsr.io` badge link in the README.
+- `deno doc --lint` findings reduced from 93 to a single documented exception (a third-party `redis`
+  type whose own internal type graph isn't publicly resolvable).
+- Broken `CHANGELOG`/`LICENSE` links in the README (pointed at `./docs/` after those files moved to
+  the project root).
+- README inaccuracies: missing `Changelog` entry in the table of contents, a `ZanixAsyncmqProvider`
+  import typo (the real export is `ZanixAsyncMQProvider`), and a `webServerManager.start('rest')`
+  example that passed the server type instead of the `ServerID` returned by `create()`.
+- Final consistency/accuracy pass across `docs/`, verified with independent read-only reviews:
+  `ERRORS.md`'s "Error Concurrency" section had the suppression logic backwards (it described errors
+  as suppressed _after_ exceeding the 50/hour threshold, when the real code suppresses them _until_
+  the threshold is hit, then logs once and resets); a `DEPENDENCY-INJECTION.md` claim that the named
+  connector getters (`this.database`, etc.) are "built on top of" `use()` was false — they call
+  `this.connectors.get()`/`this.providers.get()` directly, an unrelated mechanism; the `Lifetime`
+  table didn't note that `@Provider` excludes `TRANSIENT` at the type level; the `Interactor`
+  section was missing its "Defaults when no options are given" line and didn't document that passing
+  a _core_ connector/provider (one extending a built-in base class) to `@Interactor`'s options
+  throws — it must be accessed via the matching named getter instead. Also fixed
+  heading/anchor/admonition-marker inconsistencies, reworded a heading whose ampersand ("&")
+  produced an ambiguous double-hyphen slug on some markdown renderers, and de-duplicated the
+  "Special Environment Variables" table that was repeated verbatim in both the README and
+  [Configuration](./docs/CONFIGURATION.md#environment-variables) (README now links to it instead).
+
+## [1.4.18] - 2026-07-23
+
+### Changed
+
+- Updated the library to be compatible with Deno 2.9.
+
 ## [1.4.12] - 2025-12-19
 
 ### Changed

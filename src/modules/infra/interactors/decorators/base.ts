@@ -20,12 +20,24 @@ import { defineInteractorDecorator } from './assembly.ts'
  * ⚠️ Be cautious when using a **transient interactor** as a dependency of any handler,
  * since its reference will be discarded immediately after use.
  *
- * @param {InteractorDecoratorOptions} options - Configuration object that defines:
- *   - `Connector`: The class used to resolve the connector dependency.
- *   - `lifetime`: (Optional) The lifetime strategy for the interactor (`SCOPED`, `SINGLETON`, etc.).
- *   - `startMode`: (Optional) The lifetime strategy for the interactor (`onSetup`, `onBoot`, `postBoot`).
+ * @param {InteractorDecoratorOptions} [options] - Configuration object that defines:
+ *   - `Connector`: (Optional) The connector class to inject as a dependency of the interactor.
+ *   - `Provider`: (Optional) The provider class to inject as a dependency of the interactor.
+ *   - `lifetime`: (Optional) The lifetime strategy for the interactor (`SCOPED`, `SINGLETON`, `TRANSIENT`).
+ *   - `startMode`: (Optional) The initialization mode for the interactor (`onSetup`, `onBoot`, `postBoot`,
+ *     or `lazy` — `lazy` is not allowed when `lifetime` is `TRANSIENT`).
  *
  * @returns {ZanixClassDecorator} The class decorator function.
+ *
+ * @example
+ * ```ts
+ * \@Interactor({ Connector: UsersConnector })
+ * class UsersInteractor extends ZanixInteractor<{ Connector: UsersConnector }> {
+ *   public findById(id: string) {
+ *     return this.connector.findById(id)
+ *   }
+ * }
+ * ```
  */
 export function Interactor<
   C extends typeof ZanixConnector,

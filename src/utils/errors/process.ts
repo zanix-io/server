@@ -21,7 +21,7 @@ import { logAppError } from './helper.ts'
  * attachGlobalErrorHandlers(window)
  * ```
  */
-export const attachGlobalErrorHandlers: (self: Window) => void = (self) => {
+export const attachGlobalErrorHandlers: (self: Window) => void = (self): void => {
   /** Catch all module errors */
   self.onerror = (event) => {
     event.preventDefault?.()

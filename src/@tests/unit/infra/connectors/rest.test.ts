@@ -121,6 +121,13 @@ Deno.test('cleans route URLs with double slashes and can be rewrited by options'
   assertSpyCalls(mockFetch, 3)
 })
 
+Deno.test('RestClient: default close() and isHealthy() implementations', () => {
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  assertEquals(client.isHealthy(), true)
+  assertEquals(client['close'](), undefined)
+})
+
 Deno.test('POST url encoded params', async () => {
   const mockFetch = spy((_url: string, opts: any) => {
     assertEquals(opts.method, 'POST')

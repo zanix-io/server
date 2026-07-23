@@ -146,6 +146,26 @@ Deno.test('ZanixConnector: should interact with context', async () => {
   await wait(waiting)
 })
 
+Deno.test('ZanixConnector: initialize failure logs the error and rejects isReady', async () => {
+  class FailingConnector extends ZanixConnector {
+    public initialize() {
+      throw new Error('boom')
+    }
+    public isHealthy() {
+      return false
+    }
+    public close() {
+      return true
+    }
+  }
+
+  const conn = new FailingConnector()
+
+  await conn.isReady.catch((error) => {
+    assertEquals(error.message, 'boom')
+  })
+})
+
 Deno.test('ZanixConnector: be freeze after auto-initialize', async () => {
   const targetKey = getTargetKey(TestConnector)
   Program.targets.defineTarget(targetKey, {

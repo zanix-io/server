@@ -25,12 +25,14 @@ export abstract class ZanixDatabaseConnector extends ZanixConnector {
    */
   protected readonly defaultDbName: string
 
+  /** Creates the database connector and derives {@link defaultDbName} from the project config. */
   constructor(options: ConnectorOptions = {}) {
     super(options)
     this.defaultDbName = this.getDefaultDatabaseName()
   }
 
-  private getDefaultDatabaseName() {
+  /** Derives a database-safe name from the project name, falling back to `zanix_system`. */
+  private getDefaultDatabaseName(): string {
     const projectName = readConfig().name
 
     if (!projectName) return 'zanix_system'

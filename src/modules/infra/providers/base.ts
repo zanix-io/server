@@ -66,7 +66,7 @@ export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
   }
 
   /** Not method implemented base error */
-  private methodNotImplementedError(methodName: string) {
+  private methodNotImplementedError(methodName: string): TargetError {
     const { startMode } = this[ZANIX_PROPS]
     return new TargetError('An error occurred in the system', startMode, {
       code: 'METHOD_NOT_IMPLEMENTED',

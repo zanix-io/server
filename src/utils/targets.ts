@@ -27,27 +27,23 @@ const targetModuleInit = (key: string) => {
  *
  * If the target was previously assigned a key, the existing key is returned.
  * Otherwise, a new unique key is generated and stored. Keys are scoped to the
- * identity of the object, not just its name—meaning two different objects with
- * the same `name` will still receive distinct keys.
- *
- * **Reserved names:**
- * Class names starting with `"_Zanix"` are forbidden. Attempting to use one
- * will throw an `InternalError`.
+ * identity of the object (via a `WeakMap`), not just its name—meaning two different
+ * classes that happen to share the same `name` will still receive distinct keys.
  *
  * @param {{ name: string }} [target] - The target object (typically a class constructor)
  * for which to obtain or generate a unique key. If omitted, an empty string is returned.
  *
- * @returns {string} A unique identifier associated with the given target, or an empty
- * string if no target was provided.
+ * @returns {string} A unique identifier of the form `Z$<name>$<counter>` associated with
+ * the given target, or an empty string if no target was provided.
  *
  * @example
- * // Different classes with the same name get different keys:
+ * ```ts
  * class A {}
  * class B {}
- * A.name = "Shared";
- * B.name = "Shared";
- * getTargetKey(A); // e.g. "Z$Shared$1"
- * getTargetKey(B); // e.g. "Z$Shared$2"
+ * getTargetKey(A) // e.g. "Z$A$1"
+ * getTargetKey(B) // e.g. "Z$B$2"
+ * getTargetKey(A) // "Z$A$1" (same reference, same key returned)
+ * ```
  */
 export const getTargetKey = (target?: { name: string }): string => {
   // If no target provided, return empty string
@@ -159,7 +155,7 @@ export const targetInitializations = async (
 export const closeAllConnections = async (): Promise<void> => {
   await Promise.all(
     ProgramModule.targets.getTargetsByType('connector').map((key) => {
-      ProgramModule.targets.getConnector<ZanixConnector>(key, { useExistingInstance: true })
+      return ProgramModule.targets.getConnector<ZanixConnector>(key, { useExistingInstance: true })
         ?.['close']()
     }),
   )

@@ -69,18 +69,21 @@ export class WebServerManager {
 
   /**
    * Creates a new web server with the specified name and handler.
-   * If a server with the same name already exists, it returns the existing server.
+   * If a server with the same id already exists, it returns the existing server as-is.
    *
    * @param {WebServerTypes} type - The name of the server (e.g., "rest", "static").
    * @param {ServerManagerOptions} [options={}] - Options that include the function to handle incoming requests and configuration for the server, such as SSL options and the `onListen` callback.
-   * @returns {ServerManagerData[keyof ServerManagerData]} The server data or `undefined` if a server with the same name already exists.
+   * @param {ServerID} [serverID] - An explicit id to (re)use for this server. Useful to make
+   * `create` idempotent across calls (e.g. reconnecting to a previously created server).
+   * Defaults to a freshly generated id.
+   * @returns {ServerID} The id of the created server, or the given/existing `serverID` if a
+   * server with that id was already registered (the existing server is left untouched).
    */
   public create<T extends WebServerTypes>(
     type: T,
     options: ServerManagerOptions<T> = {},
+    serverID: ServerID = `${encoder.encode(type).toHex()}${generateUUID()}` as ServerID,
   ): ServerID {
-    const serverID = `${encoder.encode(type).toHex()}${generateUUID()}` as ServerID
-
     if (this.#servers[serverID]) return serverID
 
     const { isInternal, server: { onceStop, globalPrefix = '', ssl, gzip, cors, ...opts } = {} } =
@@ -159,10 +162,12 @@ export class WebServerManager {
   }
 
   /**
-   * Returns info such as address and protocol (`http` or `https`) of the specified server.
+   * Returns info such as address, protocol (`http`/`https`/`ws`/`wss`) and type of the specified server.
    *
    * @param {ServerID} id - The identificator of the server.
-   * @returns {{ addr?: Deno.NetAddr | undefined; protocol?: string }} The server's address and protocol, or `undefined` if the server does not exist.
+   * @returns {Readonly<{ addr?: Deno.NetAddr; protocol?: string; type?: WebServerTypes }>} A frozen
+   * object with the server's info. If the server doesn't exist (or hasn't started listening yet,
+   * for `addr`), the corresponding fields are `undefined` — the returned object itself is never `undefined`.
    */
   public info(
     id: ServerID,

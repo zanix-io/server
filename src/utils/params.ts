@@ -5,7 +5,9 @@
  * and applies `decodeURIComponent()` to every string it encounters.
  * Non-string values are left unchanged.
  *
- * It safely ignores decoding errors and returns the original object structure.
+ * Decoding happens in place. If `decodeURIComponent` throws partway through (e.g. a malformed
+ * `%` escape sequence), the error is swallowed and the same object is returned as-is — values
+ * decoded before the failure remain decoded, and any remaining values stay untouched.
  *
  * @template T - The type of the input object or array. The return type matches the input type.
  * @param {T} obj - The object, array, or value to process and decode.

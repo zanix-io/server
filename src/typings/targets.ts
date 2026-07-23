@@ -16,6 +16,7 @@ import type { HandlerContext } from './context.ts'
 import type { BaseRTO } from '@zanix/validator'
 import type { RtoTypes } from '@zanix/types'
 
+/** The constructor shape of any Zanix target class (connector, provider, interactor, handler). */
 export type ClassConstructor<T extends TargetBaseClass = TargetBaseClass> = {
   new (...args: any[]): T
   prototype: T
@@ -26,6 +27,7 @@ export type CallerArguments<Type extends ClassConstructor = ClassConstructor> =
     Type
   >
 
+/** The union of members the framework may attach to a handler instance's prototype at runtime. */
 export type HandlerPrototype<Interactor extends ZanixInteractorGeneric, Extensions = never> =
   | never
   | TargetBaseClass['_znx_props_']
@@ -43,18 +45,24 @@ export type HandlerPrototype<Interactor extends ZanixInteractorGeneric, Extensio
   }>)
   | Extensions
 
+/** The extra shape available on a `ZanixWebSocket` prototype: event handlers and socket state. */
 export type SocketPrototype =
   | ((...args: any[]) => unknown)
   | Partial<WebSocket>
 
+/** The shape of a GraphQL resolver method: a payload/context pair returning any value. */
 export type GQLPrototype = (payload: any, ctx: HandlerContext) => unknown
 
+/** Represents any Zanix handler (controller, resolver, or WebSocket) instance. */
 export type ZanixHandlerGeneric = HandlerBaseClass<any, any>
 
+/** Represents any Zanix connector instance. */
 export type ZanixConnectorGeneric = ZanixConnector
 
+/** Represents any Zanix provider instance. */
 export type ZanixProviderGeneric = ZanixProvider<any>
 
+/** Represents any Zanix cache connector instance for a given `CoreCacheConnectors` type. */
 export type ZanixCacheConnectorGeneric<P extends CoreCacheConnectors> = ZanixCacheConnector<
   any,
   any,
@@ -152,6 +160,7 @@ export type ZanixConnectorClass<
  * @property {ZanixAsyncMQProvider|} asyncmq - Optional provider for the asynchronous message queue.
  * @property {ZanixCacheProvider} cache - Optional provider for the cache.
  * @property {ZanixDatabaseConnector} database - Optional connector for the database.
+ * @property {ZanixKVConnector} kvLocal - Optional connector for the local key-value store.
  */
 export type CoreConnectorTemplates = {
   worker?: ZanixWorkerProvider
@@ -185,10 +194,7 @@ export type ConnectorAutoInitOptions =
   }
 
 /**
- * Configuration options for general connector lifecycle event handlers.
- *
- * These callbacks allow consumers to respond to connection and disconnection events,
- * providing a consistent way to track the connector’s lifecycle.
+ * General configuration options accepted by a connector's constructor.
  */
 export type ConnectorOptions = {
   /**

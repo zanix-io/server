@@ -14,6 +14,7 @@ import { HandlerBaseClass } from '../base.ts'
  */
 export abstract class ZanixResolver<Interactor extends ZanixInteractorGeneric = never>
   extends HandlerBaseClass<Interactor, GQLPrototype | HandlerContext> {
+  /** Creates the resolver instance, scoped to the current request's context. */
   constructor(protected context: HandlerContext) {
     super(context.id)
   }

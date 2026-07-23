@@ -14,6 +14,7 @@ import { HandlerGenericClass } from '../generic.ts'
  */
 export abstract class ZanixController<Interactor extends ZanixInteractorGeneric = never>
   extends HandlerGenericClass<Interactor, HandlerContext> {
+  /** Creates the controller instance, scoped to the current request's context. */
   constructor(protected context: HandlerContext) {
     super(context.id)
   }

@@ -24,7 +24,7 @@ import ProgramModule from './mod.ts'
  * @exports Program
  */
 
-class Program {
+export class Program {
   /**
    * AsyncLocalStorage instance that manages a context shared across
    * asynchronous operations within the same request or logical scope.

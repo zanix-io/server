@@ -11,7 +11,18 @@ import { defineSocketDecorator } from './assembly.ts'
  * handler bound to the specified route.
  *
  * @param {string} route - The WebSocket route path.
+ * @throws {InternalError} If the decorated class does not extend `ZanixWebSocket`.
  * @returns {ZanixClassDecorator} The class decorator.
+ *
+ * @example
+ * ```ts
+ * \@Socket('chat')
+ * class ChatSocket extends ZanixWebSocket {
+ *   protected override onmessage(ev: MessageEvent) {
+ *     return { echo: ev.data }
+ *   }
+ * }
+ * ```
  */
 export function Socket(
   route: string,
@@ -26,7 +37,18 @@ export function Socket(
  * @param {RtoTypes | RtoTypes['Body']} [options.rto] - Optional request transfer object(s) for
  *        validating socket event data (message body) and request parameters or query.
  * @param {ZanixInteractorClass} [options.Interactor] - Optional interactor class to inject for handling business logic.
+ * @throws {InternalError} If the decorated class does not extend `ZanixWebSocket`.
  * @returns {ZanixClassDecorator} The class decorator.
+ *
+ * @example
+ * ```ts
+ * \@Socket({ route: 'chat', Interactor: ChatInteractor })
+ * class ChatSocket extends ZanixWebSocket<ChatInteractor> {
+ *   protected override onmessage(ev: MessageEvent) {
+ *     return { reply: this.interactor.handle(ev.data) }
+ *   }
+ * }
+ * ```
  */
 export function Socket(options: {
   /** Route path */

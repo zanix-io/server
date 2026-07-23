@@ -3,6 +3,7 @@ import type { Middlewares } from './middlewares.ts'
 import type { MetadataTargetSymbols } from './program.ts'
 import type { WebServerTypes } from './server.ts'
 
+/** Any value a route handler may return: raw data, an array, a string, or a full `Response`. */
 export type HandlerResponse =
   | Record<string, unknown>[]
   | Record<string, unknown>
@@ -28,6 +29,7 @@ export type HandlerResponse =
  */
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
 
+/** The signature every registered route handler is normalized to before being invoked. */
 export type HandlerFunction = (
   ctx: HandlerContext,
   // deno-lint-ignore no-explicit-any

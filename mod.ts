@@ -9,6 +9,13 @@
 
 import ProgramModule from 'modules/program/public.ts'
 
+/**
+ * The primary runtime accessor for retrieving provider, connector, and interactor instances from
+ * outside any class context — useful in standalone scripts, tests, or custom middleware functions
+ * where no `this` is available. Exposes the same accessors used internally by classes.
+ *
+ * @module ProgramModule
+ */
 export { ProgramModule }
 export { AsyncContext } from 'modules/infra/base/storage.ts'
 export { BaseContainer as ProgramContainer } from 'modules/program/metadata/base.ts'
@@ -101,56 +108,118 @@ export {
 export type {
   BackoffOptions,
   MessageQueue,
+  Publish,
   QueueMessageOptions,
   QueuePriorities,
   ScheduleOptions,
 } from 'typings/queues.ts'
 export type {
+  ConnectorTypes,
   CoreCacheConnectors,
+  CoreCacheTypes,
   CoreConnectors,
+  CoreProviders,
   GeneralTargetTypes,
+  GenericTargets,
+  HandlerTypes,
+  Lifetime,
+  MetadataInstances,
+  MetadataObjects,
+  MetadataTargetSymbols,
+  MetadataTypes,
   ModuleTypes,
+  ProviderTypes,
   StartMode,
+  ZanixGlobalExports,
 } from 'typings/program.ts'
 export type {
+  Async,
   CacheProviderSetOptions,
   CacheSetOptions,
   ConnectionStatusHandler,
+  GzipOptions,
+  GzipSettings,
   Seeders,
 } from 'typings/general.ts'
 export type {
   BootstrapServerOptions,
+  CorsAllowedMethods,
+  ServerHandler,
   ServerID,
+  ServerManagerData,
   ServerManagerOptions,
+  ServerOptions,
   WebServerTypes,
 } from 'typings/server.ts'
 export type {
+  CorsOptions,
+  CorsOrigin,
+  GlobalMidContext,
+  GlobalMiddlewareContext,
+  GuardContext,
+  GuardResponse,
   MiddlewareGlobalGuard,
   MiddlewareGlobalInterceptor,
   MiddlewareGlobalPipe,
   MiddlewareGuard,
   MiddlewareInterceptor,
   MiddlewarePipe,
+  MiddlewareTypes,
 } from 'typings/middlewares.ts'
-export type { HandlerContext, ScopedContext, Session } from 'typings/context.ts'
 export type {
+  BaseContext,
+  GenericPayload,
+  HandlerContext,
+  InstanceContext,
+  InstanceOptions,
+  Payload,
+  ScopedContext,
+  Session,
+  SessionTypes,
+} from 'typings/context.ts'
+export type {
+  ClassConstructor,
+  ConnectorAutoInitOptions,
   ConnectorOptions,
   CoreConnectorTemplates,
+  GQLPrototype,
+  HandlerPrototype,
+  SocketPrototype,
+  ZanixCacheConnectorGeneric,
   ZanixConnectorClass,
+  ZanixConnectorGeneric,
   ZanixConnectorsGetter,
+  ZanixHandlerGeneric,
   ZanixInteractorClass,
   ZanixInteractorGeneric,
   ZanixInteractorsGetter,
   ZanixProviderClass,
+  ZanixProviderGeneric,
   ZanixProvidersGetter,
 } from 'typings/targets.ts'
-export type { HttpMethod } from 'typings/router.ts'
+export type { GqlOptions, RestFullOptions } from 'typings/clients.ts'
+export type { HandlerFunction, HandlerResponse, HttpMethod } from 'typings/router.ts'
 export type {
+  ConnectorDecoratorOptions,
+  HandlerDecoratorMethodOptions,
+  InteractorDecoratorOptions,
+  ProviderDecoratorOptions,
+  ResolverRequestOptions,
+  StartModeOnTransient,
   ZanixClassDecorator,
   ZanixFunctionDecorator,
   ZanixGenericDecorator,
   ZanixMethodDecorator,
 } from 'typings/decorators.ts'
+
+// Base/internal classes referenced by the public API's inheritance chains and signatures
+export type { Program } from 'modules/program/public.ts'
+export type { HandlerBaseClass } from 'modules/infra/handlers/base.ts'
+export type { ContextualBaseClass } from 'modules/infra/base/contextual.ts'
+export type { CoreBaseClass } from 'modules/infra/base/core.ts'
+export type { TargetBaseClass } from 'modules/infra/base/target.ts'
+export type { BaseInstancesContainer } from 'modules/program/metadata/targets/instances.ts'
+export type { RegistryContainer } from 'modules/program/metadata/registry.ts'
 
 // Main
 export { WebServerManager } from 'modules/webserver/manager.ts'

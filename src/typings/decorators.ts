@@ -128,10 +128,12 @@ export type SocketDecoratorOptions =
     Interactor?: ZanixInteractorClass
   }
 
-type StartModeOnTransient<L extends Lifetime> = L extends 'TRANSIENT'
+/** Requires a non-`'lazy'` `startMode` when `L` is `'TRANSIENT'`; otherwise it stays optional. */
+export type StartModeOnTransient<L extends Lifetime> = L extends 'TRANSIENT'
   ? { startMode: Exclude<StartMode, 'lazy'> }
   : { startMode?: StartMode }
 
+/** Options accepted by the `@Interactor` class decorator. */
 export type InteractorDecoratorOptions<
   C extends typeof ZanixConnector,
   P extends typeof ZanixProvider,
@@ -142,6 +144,7 @@ export type InteractorDecoratorOptions<
   lifetime?: L
 } & StartModeOnTransient<L>
 
+/** Options accepted by the object-argument overload of the `@Connector` class decorator. */
 export type ConnectorDecoratorOptions<L extends Lifetime> = {
   type?: ConnectorTypes
   lifetime?: L
@@ -157,12 +160,14 @@ export type ConnectorDecoratorOptions<L extends Lifetime> = {
   autoInitialize?: ConnectorAutoInitOptions
 } & StartModeOnTransient<L>
 
+/** Options accepted by the object-argument overload of the `@Provider` class decorator. */
 export type ProviderDecoratorOptions<L extends Exclude<Lifetime, 'TRANSIENT'>> = {
   type?: ProviderTypes
   lifetime?: L
   startMode?: StartMode
 }
 
+/** Internal shape shared by REST/socket method decorators for their `(path?, rto?)` overloads. */
 export type HandlerDecoratorMethodOptions = {
   pathOrRTO?: string | RtoTypes
   rto?: RtoTypes
@@ -170,6 +175,7 @@ export type HandlerDecoratorMethodOptions = {
 
 export type ResolverTypes = 'Query' | 'Mutation'
 
+/** Options accepted by the `@Query`/`@Mutation` method decorators. */
 export type ResolverRequestOptions = {
   /**
    * Request name

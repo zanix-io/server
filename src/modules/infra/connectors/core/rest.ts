@@ -37,11 +37,13 @@ import { cleanRoute } from 'utils/routes.ts'
  */
 export class RestClient extends ZanixConnector {
   #options
+  /** Convenience methods (`get`, `post`, `put`, `patch`, `delete`) for issuing REST requests. */
   public http: Record<
     Exclude<Lowercase<HttpMethod>, 'options' | 'head'>,
     <T>(endpoint: string, options?: RestFullOptions) => Promise<T>
   >
 
+  /** Creates the REST client, merging the given options with the default JSON content headers. */
   constructor({ contextId, autoInitialize, ...options }: RequestOptions = {}) {
     super({ contextId, autoInitialize })
     this.#options = {
@@ -110,8 +112,11 @@ export class RestClient extends ZanixConnector {
     }
   }
 
+  /** No-op: a REST client has no persistent connection to establish. */
   protected override initialize(): void {}
+  /** No-op: a REST client has no persistent connection to tear down. */
   protected override close() {}
+  /** Always `true`: a REST client has no connection state to check. */
   public override isHealthy(): boolean {
     return true
   }

@@ -145,4 +145,27 @@ Deno.test('Cors validation pipe', async () => {
 
   assertEquals(response5.response?.status, preflightsResp.status)
   assertEquals(response5.response?.headers.values(), preflightsResp.headers.values())
+
+  // method not allowed
+  assertThrows(
+    () =>
+      cors({
+        req: new Request(baseUrl, { method: 'DELETE' }),
+        ...baseOpts,
+      }),
+    HttpError,
+  )
+
+  // no origin header -> wildcard fallback
+  const response6 = await cors({
+    req: new Request(baseUrl),
+    ...baseOpts,
+  })
+
+  assertEquals(response6.headers, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Expose-Headers': 'Content-Length',
+  })
 })

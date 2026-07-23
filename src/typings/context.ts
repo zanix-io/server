@@ -1,7 +1,8 @@
 // deno-lint-ignore-file no-explicit-any
 import type { BaseRTO } from '@zanix/validator'
 
-type GenericPayload = {
+/** The raw, untyped shape of a request payload's `params`/`search`/`body` sections. */
+export type GenericPayload = {
   params: any
   search: any
   body: any
@@ -30,7 +31,8 @@ export type BaseContext = Readonly<{
   id: string
 }>
 
-type SessionTypes = 'user' | 'api' | 'anonymous'
+/** The three kinds of session a request can carry. */
+export type SessionTypes = 'user' | 'api' | 'anonymous'
 
 /**
  * A Session object that represents a user, API, or anonymous session with related roles and configuration.

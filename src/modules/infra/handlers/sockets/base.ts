@@ -14,7 +14,7 @@ import logger from '@zanix/logger'
  * Classes extending `ZanixWebSocket` must implement the logic to handle TCP or TLS requests and return appropriate responses.
  * Additionally, they must override the protected methods as needed to handle specific WebSocket events.
  *
- * @extends HandlerBaseClass
+ * @extends HandlerGenericClass
  * @template Interactor - The generic type representing the type of interactors used in the controller.
  *                        By default, it is set to `never`, meaning no interactor is provided unless specified.
  *
@@ -49,6 +49,7 @@ export abstract class ZanixWebSocket<Interactor extends ZanixInteractorGeneric =
   extends HandlerGenericClass<Interactor, SocketPrototype | HandlerContext | RegistryContainer> {
   #context: HandlerContext
 
+  /** Creates the WebSocket handler instance, wiring the internal `onmessage` reply logic. */
   constructor(context: HandlerContext) {
     super(context.id)
 
@@ -74,6 +75,7 @@ export abstract class ZanixWebSocket<Interactor extends ZanixInteractorGeneric =
   /** WebSocket connection, excluding the default events */
   #socket!: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>
 
+  /** The underlying WebSocket connection, excluding the default event handlers. */
   protected get socket(): Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'> {
     return this.#socket
   }
@@ -82,6 +84,7 @@ export abstract class ZanixWebSocket<Interactor extends ZanixInteractorGeneric =
     this.#socket = value
   }
 
+  /** Sets the current request's context. */
   protected set context(ctx: HandlerContext) {
     this.#context = ctx
   }

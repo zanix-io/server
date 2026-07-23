@@ -14,6 +14,16 @@ import { defineProviderDecorator } from 'providers/decorators/assembly.ts'
  * Defaults: `type`='custom', `startMode`='lazy', `lifetime`='SINGLETON'
  *
  * @returns {ZanixClassDecorator} The class decorator function.
+ *
+ * @example
+ * ```ts
+ * \@Provider()
+ * class NotificationsProvider extends ZanixProvider {
+ *   public override use(target: unknown) {
+ *     return this.getProviderConnector(target as ZanixConnectorClass)
+ *   }
+ * }
+ * ```
  */
 export function Provider(type?: ProviderTypes): ZanixClassDecorator
 /**

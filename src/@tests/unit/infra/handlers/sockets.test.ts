@@ -100,6 +100,55 @@ Deno.test('ZanixWebSocket onerror logs correctly', () => {
   logSpy.restore()
 })
 
+Deno.test('ZanixWebSocket onmessage wrapper sends the sync response through the socket', () => {
+  class SyncWebSocket extends ZanixWebSocket {
+    protected override onmessage() {
+      return { reply: 'sync' }
+    }
+  }
+
+  const ws = new SyncWebSocket({ id: 'context-id' } as never)
+  const sendSpy = spy((_data: string) => {})
+  ;(ws as any).socket = { send: sendSpy }
+  ;(ws as any).onmessage(new MessageEvent('message', { data: '{}' }))
+
+  assertSpyCalls(sendSpy, 1)
+  assertEquals(sendSpy.calls[0].args[0], JSON.stringify({ reply: 'sync' }))
+})
+
+Deno.test('ZanixWebSocket onmessage wrapper ignores a falsy resolved promise', async () => {
+  class AsyncWebSocket extends ZanixWebSocket {
+    protected override onmessage() {
+      return Promise.resolve(undefined)
+    }
+  }
+
+  const ws = new AsyncWebSocket({ id: 'context-id' } as never)
+  const sendSpy = spy((_data: string) => {})
+  ;(ws as any).socket = { send: sendSpy }
+  ;(ws as any).onmessage(new MessageEvent('message', { data: '{}' }))
+  await new Promise((resolve) => setTimeout(resolve, 10))
+
+  assertSpyCalls(sendSpy, 0)
+})
+
+Deno.test('ZanixWebSocket onmessage wrapper sends a truthy resolved promise response', async () => {
+  class AsyncWebSocket extends ZanixWebSocket {
+    protected override onmessage() {
+      return Promise.resolve({ reply: 'async' })
+    }
+  }
+
+  const ws = new AsyncWebSocket({ id: 'context-id' } as never)
+  const sendSpy = spy((_data: string) => {})
+  ;(ws as any).socket = { send: sendSpy }
+  ;(ws as any).onmessage(new MessageEvent('message', { data: '{}' }))
+  await new Promise((resolve) => setTimeout(resolve, 10))
+
+  assertSpyCalls(sendSpy, 1)
+  assertEquals(sendSpy.calls[0].args[0], JSON.stringify({ reply: 'async' }))
+})
+
 Deno.test('socketHandler throws HttpError if not websocket upgrade', () => {
   const ctx = {
     req: { headers: new Map() },

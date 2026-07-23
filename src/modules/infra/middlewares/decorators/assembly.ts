@@ -25,27 +25,18 @@ import ProgramModule from 'modules/program/mod.ts'
  *               - If `T` is `'pipe'`, `M` is a `MiddlewarePipe`.
  *               - If `T` is `'interceptor'`, `M` is a `MiddlewareInterceptor`.
  *
+ * @param {T} type - The middleware kind to register: `'guard'`, `'pipe'`, or `'interceptor'`.
  * @param {M} middleware - The middleware function to be registered. Its type is determined by the `T` parameter.
- * @returns {Function} A decorator function that registers the given middleware.
+ * @returns {ZanixGenericDecorator} A decorator function that registers the given middleware,
+ * either against the class (when applied at class level) or against a single method.
  *
  * @example
- * // Example usage for a guard middleware
- * const guardMiddleware = defineMiddlewareDecorator<'guard', MiddlewareGuard>((context) => {
+ * ```ts
+ * const guardDecorator = defineMiddlewareDecorator('guard', (context) => {
  *   // Guard logic here
- *   return true;
- * });
- *
- * // Example usage for a pipe middleware
- * const pipeMiddleware = defineMiddlewareDecorator<'pipe', MiddlewarePipe>((data) => {
- *   // Pipe logic here (e.g., transforming data)
- *   return data;
- * });
- *
- * // Example usage for an interceptor middleware
- * const interceptorMiddleware = defineMiddlewareDecorator<'interceptor', MiddlewareInterceptor>((response) => {
- *   // Interceptor logic here (e.g., modifying response)
- *   return response;
- * });
+ *   return {}
+ * })
+ * ```
  */
 export function defineMiddlewareDecorator<
   T extends MiddlewareTypes,

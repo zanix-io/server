@@ -22,6 +22,7 @@ export type HandlerTypes =
  *
  * - `'connector'`: Used for external service or database integrations.
  * - `'interactor'`: Contains business logic, often called use-cases.
+ * - `'provider'`: Technical orchestration layer bridging interactors and connectors.
  */
 export type GeneralTargetTypes =
   | 'connector'
@@ -41,6 +42,7 @@ export type ModuleTypes =
   | HandlerTypes
   | GeneralTargetTypes
 
+/** Marker for a user-defined ("custom") connector/provider type, as opposed to a core one. */
 export type GenericTargets = 'custom'
 
 /**
@@ -55,6 +57,7 @@ export type GenericTargets = 'custom'
  */
 export type CoreCacheConnectors = 'local' | 'memcached' | 'redis' | GenericTargets
 
+/** Maps each `CoreCacheConnectors` value to the concrete client type it resolves to. */
 export type CoreCacheTypes<K> = {
   redis: Promise<RedisClientType>
   // deno-lint-ignore no-explicit-any
@@ -65,11 +68,11 @@ export type CoreCacheTypes<K> = {
 }
 
 /**
- * Defines the available connectors in the system, including cache, worker, async message queues, and database systems.
+ * Defines the available connectors in the system, including cache, async message queues,
+ * database and key-value store systems.
  *
  * This type includes connectors for different system components:
  * - `cache:{CoreCacheConnectors}`: Represents cache connectors, such as Redis or Memcached.
- * - `worker:{CoreWorkerConnectors}`: Represents worker connectors, such as Bull or local worker systems.
  * - `'asyncmq'`: Represents an asynchronous message queue system.
  * - `'database'`: Represents a generic database connector.
  * - `'kvLocal'`: Represents a generic key-value store connector.
@@ -80,8 +83,11 @@ export type CoreConnectors =
   | 'database'
   | 'kvLocal'
 
+/** Defines the available core provider types in the system. */
 export type CoreProviders = 'asyncmq' | 'cache' | 'worker'
+/** Any valid connector type: a core connector, or a `GenericTargets` (`'custom'`) one. */
 export type ConnectorTypes = CoreConnectors | GenericTargets
+/** Any valid provider type: a core provider, or a `GenericTargets` (`'custom'`) one. */
 export type ProviderTypes = CoreProviders | GenericTargets
 
 /**
@@ -106,18 +112,22 @@ export type Lifetime = 'SINGLETON' | 'SCOPED' | 'TRANSIENT'
  */
 export type StartMode = 'onSetup' | 'onBoot' | 'postBoot' | 'lazy'
 
+/** The two metadata namespaces tracked internally by `BaseContainer` implementations. */
 export type MetadataTypes = 'data' | 'target'
 
 export type MetadataTypesKey = `${MetadataTypes}:${string}`
 
+/** Any value storable as raw metadata: an object, string, number, or boolean. */
 export type MetadataObjects = object | string | number | boolean
 
+/** Identifies a class target (and, optionally, one of its properties) within the metadata registry. */
 export type MetadataTargetSymbols = {
   Target?: ClassConstructor
   propertyKey?: string // property or class symbol
   type?: 'handler' | 'general'
 }
 
+/** Registration data used to define and instantiate a target class. */
 export type MetadataInstances<
   T extends ClassConstructor = ClassConstructor,
 > = {
@@ -133,4 +143,5 @@ export type MetadataInstances<
   dataProps?: Record<string, MetadataObjects | undefined>
 }
 
+/** Wraps a global middleware definition's scoping data under an optional `exports` field. */
 export type ZanixGlobalExports<T> = { exports?: T }

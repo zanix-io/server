@@ -10,7 +10,7 @@ import ProgramModule from 'modules/program/mod.ts'
  *  1. Adds a new `ScopedContext` to the `ProgramModule.context` using the context's `id`.
  *  2. Processes the incoming payload through `processScopedPayload` before storing it.
  */
-export const contextSettingPipe: MiddlewarePipe = (context) => {
+export const contextSettingPipe: MiddlewarePipe = (context): void => {
   context.session = context.session || context.locals.session
     ? { ...context.session, ...context.locals.session } as Session
     : undefined
@@ -36,7 +36,7 @@ export const contextSettingPipe: MiddlewarePipe = (context) => {
  * @remarks
  * This ensures that no stale or leftover data remains after the request/process finishes.
  */
-export const cleanUpPipe: MiddlewarePipe = async (context) => {
+export const cleanUpPipe: MiddlewarePipe = async (context): Promise<void> => {
   ProgramModule.context.deleteContext(context.id)
   await ProgramModule.targets.resetScopedInstances(context.id)
 }

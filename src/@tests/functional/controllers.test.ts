@@ -34,6 +34,10 @@ Deno.test('Verifying controller api rest basic', async () => {
   const responseRelativeNotAllowed = await relativaNotAllowed.json()
   assertEquals(responseRelativeNotAllowed.message, 'METHOD_NOT_ALLOWED')
 
+  const relativeGet = await fetch(`${restUrl}/param/not-allowed`)
+  const responseRelativeGet = await relativeGet.text()
+  assertEquals(responseRelativeGet, 'response not allowed')
+
   // Post route bad request
   const queryPost = await fetch(`${restUrl}/test`, {
     method: 'POST',

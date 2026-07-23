@@ -24,7 +24,7 @@ import { defineMiddlewareDecorator } from './assembly.ts'
  *   // handler logic here
  * }
  * ```
- * @returns {MethodDecorator} The method decorator that registers the pipe for the target handler.
+ * @returns {ZanixGenericDecorator} The method decorator that registers the pipe for the target handler.
  */
 export function Pipe(pipe: MiddlewarePipe): ZanixGenericDecorator {
   return defineMiddlewareDecorator('pipe', pipe)

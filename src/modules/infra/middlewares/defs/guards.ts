@@ -16,8 +16,8 @@ import { getTargetKey } from 'utils/targets.ts'
  * Unlike Pipes, Guards can access to `connectors` and `providers`, also can return a fully custom `Response`,
  * including specific headers or status codes (e.g., `401 Unauthorized` or `429 Too Many Requests`),
  * because they can terminate the request flow before it reaches the handler or any interceptors.
- * Additionally, **Guards can prepare headers** or metadata that will be applied to the final
- * `Response` after the handler and interceptors run.
+ * Additionally, **Guards can prepare headers** or metadata that will be applied to the
+ * `Response` right after the handler produces it, before any interceptors run.
  *
  * The provided guard function must implement the {@link MiddlewareGlobalGuard} signature,
  * and can be either synchronous or asynchronous. It will be invoked with the

@@ -4,7 +4,7 @@ Zanix Server includes an advanced error logging mechanism based on
 **[ZanixLogger](https://jsr.io/@zanix/utils)** that helps to efficiently manage and track errors in
 your application. Here’s an overview of how errors are handled and logged:
 
-## Logging Criteria:
+## Logging Criteria
 
 - **Unknown Errors**: If the error does not have the `_logged` property, it is considered unknown,
   and the system will log it.
@@ -13,14 +13,14 @@ your application. Here’s an overview of how errors are handled and logged:
 - **Explicitly Marked Errors**: If the `_logged` property is set to `false`, the error will **not**
   be logged, unless it meets certain conditions (see below).
 
-## Special Exceptions:
+## Special Exceptions
 
 1. **Concurrent HTTP Errors**: Errors caused by concurrent HTTP requests will be logged, even if
    their `_logged` property is set to `false`.
 2. **Server Errors (HTTP Status >= 500)**: Errors with an HTTP status code of 500 or higher
    (server-side errors) will **always** be logged, regardless of the `_logged` property value.
 
-## Error Status Validation:
+## Error Status Validation
 
 The logging system also checks the `status` property of the error object. The `status` property is
 defined as `{ value: number }`, and it is used to validate the error's severity. This is
@@ -29,14 +29,17 @@ particularly important for HTTP errors:
 - **HTTP Status Validation**: If an error has a `status` property with a value of **500 or higher**,
   it will be treated as a server error and logged, regardless of the `_logged` property.
 
-## Error Concurrency:
+## Error Concurrency
 
-To prevent excessive logging of the same Http error, Zanix Server uses a concurrency system:
+To prevent excessive logging of the same HTTP error, Zanix Server tracks how many times each status
+code has occurred within a rolling one-hour window:
 
-- If an error occurs more than **50 times within the last hour**, it will not be logged to avoid
-  flooding the logs with repetitive entries.
-- If the error exceeds the concurrency limit or the expiration time (one hour), a new log entry will
-  be created.
+- Occurrences are **suppressed** (not logged) while the count for that status code stays under 50
+  within the current hour, to avoid flooding the logs with repetitive entries.
+- Once the count **exceeds 50** within that window, that occurrence **is logged** — once, with
+  metadata noting the concurrency threshold was exceeded — and the window resets.
+- If the hour elapses before the threshold is reached, the window resets without logging that
+  occurrence.
 
 ---
 
@@ -53,3 +56,30 @@ the `_logged` property and benefit from predefined behavior and additional metad
 If you need to create custom errors, ensure they follow the structure expected by the error logging
 system. You should include both the `_logged` property and the `status` property as needed to
 control whether an error is logged and how it is handled.
+
+## Utilities
+
+Zanix Server also exports a few lower-level helpers for building error responses manually — useful
+in custom middlewares, scripts, or when integrating with code outside the normal handler flow.
+
+```ts
+import { httpErrorResponse } from 'jsr:@zanix/server@[version]'
+
+const error = { status: { value: 404 }, message: 'Not Found' }
+const response = httpErrorResponse(error)
+// response.status === 404
+// response.headers.get('Content-Type') === 'application/json'
+```
+
+| Export                                          | Purpose                                                                                                                                                                                                                                                                        |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `httpErrorResponse(error, options?)`            | Builds a JSON `Response` for an error, using its `status.value` (defaults to `400`) and merging in any extra `options.headers`.                                                                                                                                                |
+| `getSerializedErrorResponse(error, contextId?)` | Serializes an error into the JSON string used by `httpErrorResponse`, without building a `Response`.                                                                                                                                                                           |
+| `attachGlobalErrorHandlers(self)`               | Registers global handlers for uncaught errors and unhandled promise rejections on the given `Window`-like object, forwarding them into the logging system described above. Called automatically on startup — you generally don't need to call it yourself.                     |
+| `TargetError`                                   | Internal factory used by connectors/providers/interactors to build a lifecycle-aware error (`InternalError` outside `'lazy'` start mode, `HttpError` otherwise). Mentioned here for completeness; application code should prefer the standard error types from `@zanix/utils`. |
+
+## See also
+
+- [Dependency Injection](./DEPENDENCY-INJECTION.md) — the `startMode`/`lifetime` values referenced
+  by `TargetError`.
+- [Middlewares](./MIDDLEWARES.md) — how thrown errors from guards/pipes become HTTP responses.

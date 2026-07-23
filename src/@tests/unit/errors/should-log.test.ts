@@ -94,6 +94,33 @@ Deno.test('shouldNotLogError - known error with more than 50', () => {
   assert(newResult, 'It should return true because the error counter has been reset')
 })
 
+// Test: shouldNotLogError with a known error without a pre-existing `meta` object
+Deno.test('shouldNotLogError - known error with more than 50 and no existing meta', () => {
+  const knownError: { status: { value: number }; _logged: boolean; meta?: unknown } = {
+    status: { value: 403 },
+    _logged: false,
+  }
+
+  const errorStatus = getStatusError(knownError) || 0
+  assert(errorStatus >= 400 && errorStatus < 500)
+
+  setErrorConcurrency(errorStatus)
+  statusErrorConcurrency.set(errorStatus, {
+    value: 49,
+    expiredTime: Date.now() + 1000,
+  })
+
+  const result = shouldNotLogError(knownError)
+
+  assertEquals(knownError.meta, {
+    reason: 'Concurrent error rate exceeded: 50 errors per hour',
+    description:
+      'Error triggered by exceeding 50 errors in the past hour, possibly due to system overload or recurring issues.',
+    resolution: 'Check system load or request patterns to address potential causes.',
+  })
+  assertFalse(result, 'It should return false because more than 50 errors have occurred')
+})
+
 // Test: shouldNotLogError with a known error and expired time
 Deno.test('shouldNotLogError - known error with more than 50 errors and expired time', () => {
   const knownError = new HttpError('CONFLICT')

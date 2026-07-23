@@ -20,6 +20,19 @@ import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
  * since its reference will be discarded immediately after use.
  *
  * @returns {ZanixClassDecorator} The class decorator function.
+ *
+ * @example
+ * ```ts
+ * \@Connector()
+ * class CacheConnector extends ZanixConnector {
+ *   protected override initialize() {
+ *     // connect to the underlying resource
+ *   }
+ *   public override isHealthy() {
+ *     return true
+ *   }
+ * }
+ * ```
  */
 export function Connector(type?: ConnectorTypes): ZanixClassDecorator
 /**
@@ -49,6 +62,16 @@ export function Connector(type?: ConnectorTypes): ZanixClassDecorator
  * since its reference will be discarded immediately after use.
  *
  * @returns {ZanixClassDecorator} The class decorator function.
+ *
+ * @example
+ * ```ts
+ * \@Connector({ startMode: 'onBoot', lifetime: 'SINGLETON' })
+ * class DatabaseConnector extends ZanixConnector {
+ *   protected override initialize() {
+ *     // connect to the underlying resource
+ *   }
+ * }
+ * ```
  */
 export function Connector<L extends Lifetime>(
   options: ConnectorDecoratorOptions<L>,

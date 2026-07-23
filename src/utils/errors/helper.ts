@@ -129,9 +129,10 @@ export const getSerializedErrorResponse = (error: unknown, contextId?: string): 
  *
  * @param {unknown} error - The error object to be processed. The error should contain a `status` field with a `value`
  *                           that determines the response status code. If not, a 400 status is used.
- * @param {Record<string, unknown>} [option.headers={}] - Optional additional headers to be included in the response. These headers
+ * @param {Object} [options={}] - Additional response options.
+ * @param {Record<string, unknown>} [options.headers={}] - Optional additional headers to be included in the response. These headers
  *                                                 will be merged with the default `JSON_CONTENT_HEADER`.
- * @param {string} [option.contextId] - Optional request context id to be sent with the error.
+ * @param {string} [options.contextId] - Optional request context id to be sent with the error.
  *
  * @returns {Response} A Response object containing the formatted error message and status code.
  *
@@ -155,11 +156,12 @@ export const httpErrorResponse = (
 /**
  * Logs a app error with optional additional details.
  *
- * @param {Object} option - The options object containing error details.
- * @param {string} [option.message] - The error message describing the issue.
- * @param {string} [option.code] - A unique code representing the error.
- * @param {string} [option.meta] - Optional metadata related to the error (e.g., stack trace or additional context).
- * @param {string} [option.contextId] - An optional identifier for the request context, useful for correlating errors with specific requests.
+ * @param {unknown} e - The original error being logged.
+ * @param {Object} options - The options object containing error details.
+ * @param {string} options.message - The error message describing the issue.
+ * @param {string} options.code - A unique code representing the error.
+ * @param {Record<string, unknown>} [options.meta] - Optional metadata related to the error (e.g., stack trace or additional context).
+ * @param {string} [options.contextId] - An optional identifier for the request context, useful for correlating errors with specific requests.
  */
 export const logAppError = (
   e: unknown,

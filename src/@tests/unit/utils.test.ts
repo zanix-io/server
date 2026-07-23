@@ -17,6 +17,7 @@ Deno.test('cleanRoute should return the correct route', () => {
   assertEquals(cleanRoute('///user//desktop//file///'), '/user/desktop/file')
   assertEquals(cleanRoute('Mayus/ROute/'), '/mayus/route')
   assertEquals(cleanRoute(''), '/')
+  assertEquals(cleanRoute('\\api\\users\\'), '/api/users')
 })
 
 Deno.test('pathToRegex should be return a correct regex for a route with params', () => {

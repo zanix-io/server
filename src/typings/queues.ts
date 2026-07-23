@@ -1,4 +1,5 @@
-type Publish = {
+/** AMQP-style publish options accepted when enqueuing a message (headers, priority hints, etc). */
+export type Publish = {
   expiration?: string | number
   userId?: string
   CC?: string | string[]

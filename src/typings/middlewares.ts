@@ -9,14 +9,18 @@ import type {
   ZanixProvidersGetter,
 } from './targets.ts'
 
-type GuardResponse = { response?: Response; headers?: Record<string, string> }
-type GuardContext = HandlerContext & {
+/** What a guard may return: a short-circuiting `response`, extra `headers`, or neither. */
+export type GuardResponse = { response?: Response; headers?: Record<string, string> }
+/** The context passed to a per-handler guard: `HandlerContext` plus DI getters. */
+export type GuardContext = HandlerContext & {
   interactors: ZanixInteractorsGetter
   providers: ZanixProvidersGetter
   connectors: ZanixConnectorsGetter
 }
-type GlobalMidContext = HandlerContext & { interactors: ZanixInteractorsGetter }
+/** The context passed to a global pipe/interceptor: `HandlerContext` plus the interactors getter. */
+export type GlobalMidContext = HandlerContext & { interactors: ZanixInteractorsGetter }
 
+/** Declares which server types (or `'all'`) a global middleware definition applies to. */
 export type GlobalMiddlewareContext = ZanixGlobalExports<{ server: (WebServerTypes | 'all')[] }>
 
 export type MiddlewareInternalGuard<A extends unknown[] = any[]> = (
@@ -25,10 +29,14 @@ export type MiddlewareInternalGuard<A extends unknown[] = any[]> = (
 ) => GuardResponse | Promise<GuardResponse>
 
 /**
- * Represents a middleware guard function that performs side effects after request handling.
+ * Represents a middleware guard function that runs before the handler (and any pipes/interceptors),
+ * deciding whether the request is allowed to proceed.
  *
- * It receives the `GuardContext` and any number of additional arguments, and may return
- * `void` or a `Promise<void>`. Guards are typically used for rate limit, authentication, etc.
+ * It receives the `GuardContext` — which extends `HandlerContext` with `interactors`, `providers`
+ * and `connectors` getters — and any number of additional arguments. It may return a `GuardResponse`
+ * (an object with optional `response`/`headers`) or a `Promise` resolving to one: returning a
+ * `response` short-circuits the request, terminating the flow before it reaches the handler.
+ * Guards are typically used for authentication, authorization, or rate limiting.
  *
  * @template A - Tuple of additional argument types passed to the middleware.
  */
@@ -64,10 +72,13 @@ export type MiddlewareInterceptor<A extends unknown[] = any[]> = (
 ) => Response | Promise<Response>
 
 /**
- * A global middleware pipe function that performs side effects across all requests, with access to global context.
+ * A global middleware guard function that decides whether requests across all (or selected)
+ * servers are allowed to proceed, with access to global context.
  *
- * Combines `GlobalMiddlewareContext` with a pipe function that also receives the `ZanixInteractorsGetter`
- * and any additional arguments. Useful for global cross-cutting concerns like analytics or tracing.
+ * Combines `GlobalMiddlewareContext` with a guard function that receives the `GuardContext`
+ * (`interactors`, `providers` and `connectors` getters) and any additional arguments, returning
+ * a `GuardResponse | Promise<GuardResponse>`. Useful for global cross-cutting concerns like
+ * authentication or rate limiting.
  *
  * @template A - Tuple of additional argument types passed to the middleware.
  */
@@ -107,8 +118,10 @@ export type MiddlewareGlobalInterceptor<A extends unknown[] = any[]> =
     ...args: A
   ) => Response | Promise<Response>)
 
+/** The three kinds of per-handler middleware supported by the framework. */
 export type MiddlewareTypes = 'guard' | 'pipe' | 'interceptor'
 
+/** The credentials/origins portion of `CorsOptions`. */
 export type CorsOrigin = {
   /**
    * Indicates whether cross-origin requests are allowed to include credentials

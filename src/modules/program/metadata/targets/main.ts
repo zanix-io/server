@@ -162,6 +162,9 @@ export class TargetContainer extends BaseInstancesContainer {
     key: string,
     options?: { contextId?: string; verbose?: boolean },
   ): T
+  /**
+   * Getting a connector instance, without creating a new one if it doesn't already exist.
+   */
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
     options: { useExistingInstance?: true; verbose?: boolean },

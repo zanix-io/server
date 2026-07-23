@@ -38,6 +38,22 @@ function maybeGzip(
 
 /**
  * Creates a GZIP-compressed Response from an existing Response if appropriate.
+ *
+ * The response body is only compressed when its size (in bytes) is greater than or equal to
+ * `threshold` AND its `content-type` header matches a compressible type (text, json, javascript,
+ * xml, svg, css, html). Otherwise, a clone of the original response is returned unmodified.
+ * When compressed, the `content-encoding` header is set to `gzip` and `content-length` is removed.
+ *
+ * @param {Response} response - The source response to conditionally compress.
+ * @param {Object} [options] - Compression options.
+ * @param {number} [options.threshold=1024] - Minimum body size, in bytes, required for compression to apply.
+ * @returns {Promise<Response>} A new `Response` with the same status/statusText, gzip-compressed when applicable.
+ *
+ * @example
+ * ```ts
+ * const response = await fetch('https://example.com/data.json')
+ * return gzipResponseFromResponse(response, { threshold: 512 })
+ * ```
  */
 export async function gzipResponseFromResponse(
   response: Response,
@@ -57,6 +73,21 @@ export async function gzipResponseFromResponse(
 
 /**
  * Creates a GZIP-compressed Response from a string body if appropriate.
+ *
+ * The body is encoded and sent with the {@link JSON_CONTENT_HEADER} content-type header, then
+ * only compressed when its encoded size (in bytes) is greater than or equal to `threshold`.
+ * Otherwise, the response is returned uncompressed. When compressed, the `content-encoding`
+ * header is set to `gzip` and `content-length` is removed.
+ *
+ * @param {string} body - The response body to (optionally) compress. Typically a JSON string.
+ * @param {GzipSettings} [options] - Compression options.
+ * @param {number} [options.threshold=1024] - Minimum body size, in bytes, required for compression to apply.
+ * @returns {Response} A `Response` with `application/json` headers, gzip-compressed when applicable.
+ *
+ * @example
+ * ```ts
+ * return gzipResponse(JSON.stringify({ data: largePayload }))
+ * ```
  */
 export function gzipResponse(
   body: string,

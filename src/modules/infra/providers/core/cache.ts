@@ -12,8 +12,9 @@ import { InternalError } from '@zanix/errors'
  * This class extends {@link ZanixProvider} and is intended to be used as the foundation
  * for implementing providers to caching using `ZanixCacheConnectors`
  *
- * It inherits lifecycle management logic from `ZanixProvider`, ensuring safe and consistent
- * handling of connection setup and teardown.
+ * It inherits connector-resolution logic (`use`, `getProviderConnector`) from `ZanixProvider`,
+ * ensuring safe and consistent access to the underlying cache connector instances — connection
+ * setup and teardown remain the responsibility of the resolved `ZanixCacheConnector`, not this class.
  *
  * Extend this class to create custom cache providers implementations suited to your application's needs.
  *

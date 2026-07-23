@@ -1,4 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
+import type { MiddlewareGuard, MiddlewareInterceptor, MiddlewarePipe } from 'typings/middlewares.ts'
+
 import { assertSpyCalls, spy } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
 import {
@@ -8,15 +10,15 @@ import {
 import { assertEquals } from '@std/assert/assert-equals'
 
 // Mock Middleware Functions
-function DummyPipe(_: any, next: any) {
+const DummyPipe: MiddlewarePipe = (_: any, next: any) => {
   return next()
 }
 
-function DummyGuard(_: any, next: any) {
+const DummyGuard: MiddlewareGuard = (_: any, next: any) => {
   return next()
 }
 
-function DummyInterceptor(_: any, next: any) {
+const DummyInterceptor: MiddlewareInterceptor = (_: any, next: any) => {
   return next()
 }
 

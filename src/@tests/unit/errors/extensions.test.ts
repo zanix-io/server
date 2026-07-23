@@ -31,6 +31,13 @@ Deno.test('getExtendedErrorResponse should add contextId if provided', () => {
   assertEquals(response.contextId, contextId)
 })
 
+Deno.test('getExtendedErrorResponse should handle a falsy error gracefully', () => {
+  const response = getExtendedErrorResponse(null)
+
+  assertExists(response.id)
+  assertEquals(response.id.length, 36)
+})
+
 Deno.test('getExtendedErrorResponse should generate a unique UUID when no id exists', () => {
   const error1 = { message: 'Test error 1' }
   const error2 = { message: 'Test error 2' }
@@ -84,6 +91,13 @@ Deno.test('getExtendedErrorResponse should create new object to override it', as
     response.cause.cause.cause,
     'The provided token signature does not match the expected signature',
   )
+})
+
+Deno.test('logAppError should not throw when the error object cannot be mutated', () => {
+  console.error = () => {}
+  const error = Object.freeze(new Error('frozen error'))
+
+  logAppError(error, { message: 'message', code: 'CODE' })
 })
 
 Deno.test('httpErrorResponse should return all data after log', async () => {

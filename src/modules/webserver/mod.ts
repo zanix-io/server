@@ -6,6 +6,14 @@ import ProgramModule from 'modules/program/mod.ts'
 import { WebServerManager } from './manager.ts'
 import { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
 
+/**
+ * Web server bootstrap and management: exposes `webServerManager` for creating, starting,
+ * stopping, and inspecting REST, GraphQL, and WebSocket servers, and `bootstrapServers` for
+ * booting them from a `BootstrapServerOptions` configuration.
+ *
+ * @module webServer
+ */
+
 /** Attach global errors */
 attachGlobalErrorHandlers(self)
 
@@ -25,21 +33,21 @@ self.addEventListener('unload', async () => {
  * Example usage:
  *
  * ```typescript
- * // Create a server with custom handler
- * const server = webServerManager.create('rest', { handler: () => {
+ * // Create a server with a custom handler; `create` returns a ServerID, not the type string
+ * const serverId = webServerManager.create('rest', { handler: () => {
  *   return new Response('Hello World');
  * }});
  *
- * // Start the server
- * webServerManager.start('rest');
+ * // Start the server (must be called with the ServerID returned by `create`)
+ * webServerManager.start(serverId);
  *
  * // Retrieve server info
- * const serverInfo = webServerManager.info('rest');
- * console.log(serverInfo);  // { addr: 'localhost:8000', protocol: 'http' }
+ * const serverInfo = webServerManager.info(serverId);
+ * console.log(serverInfo);  // { addr: Deno.NetAddr, protocol: 'http', type: 'rest' }
  *
  * // Stop and delete the server
- * webServerManager.stop('rest');
- * webServerManager.delete('rest');
+ * await webServerManager.stop(serverId);
+ * webServerManager.delete(serverId);
  * ```
  *
  * The instance provides an easy-to-use API to handle different types of web servers dynamically and interactively.
@@ -57,13 +65,12 @@ export const webServerManager: Readonly<WebServerManager> = Object.freeze(new We
  *
  * @param {BootstrapServerOptions} [server={}] - A configuration object where each key
  * represents a server type (`'graphql'`, `'rest'`, or `'socket'`), and each value contains specific
- * options for that server. Each configuration may also include an optional `onCreate` callback, which
- * is invoked with the server `id` when the server is created.
+ * options for that server, including its own optional `isInternal` and `onCreate` properties.
  *
- * @param {boolean} [server.isInternal=false] - When `true`, all servers created by this
- * function are considered internal. Each internal server will be assigned its own
- * dynamically generated UUID as the global prefix. This helps distinguish and isolate
- * internal server instances from public ones.
+ * `isInternal` is set **per server type** (e.g. `server.rest.isInternal`), not globally: when
+ * `true` for a given type, that server is considered internal and is assigned its own
+ * dynamically generated UUID as the global prefix, isolating it from public servers.
+ * `onCreate`, when provided, is invoked with the server `id` once that server is created.
  *
  * Example:
  * ```ts

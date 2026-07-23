@@ -18,15 +18,15 @@ import { defineMiddlewareDecorator } from './assembly.ts'
  * @example
  * ```ts
  * \@RequestValidation({
- *   body: CreateUserBodyRTO,
- *   params: UserParamsRTO,
- *   query: UserQueryRTO,
+ *   Body: CreateUserBodyRTO,
+ *   Params: UserParamsRTO,
+ *   Search: UserQueryRTO,
  * })
  * public async createUser(ctx: HandlerContext) {
  *   // Handler logic here, with validated input
  * }
  * ```
- * @returns {MethodDecorator} The method decorator that applies the validation to the target handler.
+ * @returns {ZanixGenericDecorator} The method decorator that applies the validation to the target handler.
  */
 export function RequestValidation(rto: RtoTypes): ZanixGenericDecorator {
   return defineMiddlewareDecorator('pipe', (ctx) => requestValidationPipe(ctx, rto))

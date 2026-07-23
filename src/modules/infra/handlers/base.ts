@@ -22,12 +22,14 @@ export abstract class HandlerBaseClass<
 > extends TargetBaseClass {
   #interactor
   #contextId
+  /** Creates the handler instance, scoped to the given context id. */
   constructor(contextId: string) {
     super()
     this.#interactor = this[ZANIX_PROPS].data.interactor as string
     this.#contextId = contextId
   }
 
+  /** Index signature allowing framework-injected handler members (RTO validation, DI props, etc). */
   [key: string | symbol]: HandlerPrototype<Interactor, Extensions>
 
   /**

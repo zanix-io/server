@@ -1,6 +1,6 @@
 # Zanix - Server
 
-[![Version](https://img.shields.io/jsr/v/@zanix/server?color=blue&label=jsr)](https://jsr.io/@zanix/zerver/versions)
+[![Version](https://img.shields.io/jsr/v/@zanix/server?color=blue&label=jsr)](https://jsr.io/@zanix/server/versions)
 
 [![Release](https://img.shields.io/github/v/release/zanix-io/server?color=blue&label=git)](https://github.com/zanix-io/server/releases)
 
@@ -14,8 +14,9 @@
 4. [Basic Usage](#basic-usage)
 5. [Documentation](#documentation)
 6. [Contributing](#contributing)
-7. [License](#license)
-8. [Resources](#resources)
+7. [Changelog](#changelog)
+8. [License](#license)
+9. [Resources](#resources)
 
 ## Description
 
@@ -75,6 +76,10 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
 +-------------------------------------------------+
 ```
 
+The `DEPENDENCIES (DSL/Defs)` layer is consumed by all four layers above it (handlers, interactors,
+providers, and connectors) — the diagram only draws its two most direct connections to keep the
+ASCII art readable.
+
 ---
 
 ### **Component Descriptions**
@@ -95,7 +100,7 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
   (databases, caches, APIs, queues, etc.). They are pure infrastructure components with no domain
   logic.
 
-- **Dependencies /Definitions / DSL** (`*.defs.ts`): Contain domain definitions, metadata
+- **Dependencies / Definitions / DSL** (`*.defs.ts`): Contain domain definitions, metadata
   structures, and DSL-based declarations used to define, create, or register entities within the
   module. These files establish the foundational contracts, schemas, and configurable behaviors—such
   as middleware pipes, queues, jobs, auth guards, or model utilities—that other components
@@ -112,6 +117,11 @@ Below is a high-level overview of the architecture of a **ZANIX** application:
 | Provider                 | `.provider.ts`   | `user.provider.ts`     |
 | Connector                | `.connector.ts`  | `payment.connector.ts` |
 | Definitions (DSL/Domain) | `.defs.ts`       | `model.defs.ts`        |
+
+`@zanix/server` itself doesn't scan the filesystem — a class registers as soon as its decorator
+runs, regardless of file name, as long as something imports it. These suffixes (and their resolution
+order, exported as `ZANIX_SERVER_MODULES` — see [Configuration](./docs/CONFIGURATION.md)) matter for
+tooling that auto-discovers modules by convention, such as `@zanix/core`'s bootstrap.
 
 ---
 
@@ -130,160 +140,8 @@ imports:
 import * as server from 'jsr:@zanix/server@[version]'
 ```
 
-### Importing Features
-
-To use specific features from **Zanix Server** in your project, you can import various handlers,
-interactors, connectors, middlewares, and constants as needed. Below is an example of how to import
-different components:
-
-#### 1. **Handlers**
-
-Handlers allow you to define the behavior of different types of servers, such as REST, GraphQL, and
-WebSocket. You can import them individually based on your needs:
-
-- **REST Handlers** For REST API endpoints, you can import the core controllers and decorators:
-
-  ```typescript
-  import {
-    Controller,
-    Delete,
-    Get,
-    Patch,
-    Post,
-    Put,
-    Request,
-    ZanixController,
-  } from 'jsr:@zanix/server@[version]'
-  ```
-
-  Use these decorators to define the routing for different HTTP methods, such as `@Get()`,
-  `@Post()`, etc.
-
-- **GraphQL Handlers** For GraphQL-based endpoints, you can import the resolvers and their
-  respective decorators:
-
-  ```typescript
-  import { GQLRequest, Mutation, Query, Resolver, ZanixResolver } from 'jsr:@zanix/server@[version]'
-  ```
-
-- **WebSocket Handlers** For real-time communication with WebSockets, you can import the base
-  WebSocket handler and socket decorators:
-
-  ```typescript
-  import { Socket, ZanixWebSocket } from 'jsr:@zanix/server@[version]'
-  ```
-
-#### 2. **Interactors**
-
-Interactors handle the business logic of your application. You can import them to integrate complex
-operations seamlessly:
-
-```typescript
-import { Interactor, ZanixInteractor } from 'jsr:@zanix/server@[version]'
-```
-
-#### 3. **Connectors**
-
-Connectors help integrate external services, databases, and communication layers into your
-application. You can import connectors based on the service you need to integrate:
-
-- **Database Connector** Provides a standardized foundation for implementing connectors to
-  relational or non-relational databases.
-
-  ```typescript
-  import { ZanixDatabaseConnector } from 'jsr:@zanix/server@[version]'
-  ```
-
-- **Async Message Queue Connector** Serves as a specialized foundation for implementing connectors
-  to message brokers such as RabbitMQ, Kafka, MQTT, etc.
-
-  ```typescript
-  import { ZanixAsyncmqConnector } from 'jsr:@zanix/server@[version]'
-  ```
-
-- **Cache Connector** Is intended to be used as the foundation for implementing connectors to
-  caching backends such as Redis, Memcached, or in-memory stores.
-
-  ```typescript
-  import { ZanixCacheConnector } from 'jsr:@zanix/server@[version]'
-  ```
-
-- **KV Store Connector** For connectors that integrate key-value stores, with optional TTL
-  (Time-To-Live) support.
-
-  ```typescript
-  import { ZanixKVConnector } from 'jsr:@zanix/server@[version]'
-  ```
-
-- **Client Connectors** Provides a unified foundation for implementing connectors that operate as
-  clients, including REST and GraphQL.
-
-  ```typescript
-  import { GraphQLClient, RestClient } from 'jsr:@zanix/server@[version]'
-  ```
-
-#### 4. **Providers**
-
-Providers act as a technical orchestration layer, connecting interactors with connectors. They can
-combine repository and data service responsibilities, managing multiple connectors while keeping
-domain logic separate.
-
-```typescript
-import {
-  ZanixAsyncmqProvider,
-  ZanixCacheProvider,
-  ZanixProvider,
-  ZanixWorkerProvider,
-} from 'jsr:@zanix/server@[version]'
-```
-
-#### 5. **Middlewares**
-
-Middlewares provide hooks for managing requests, validation, or transformations. You can import
-global middlewares or specific decorators to apply functionality to your server:
-
-- **Global Interceptors, Guards and Pipes**
-
-  ```typescript
-  import {
-    registerGlobalGuard,
-    registerGlobalInterceptor,
-    registerGlobalPipe,
-  } from 'jsr:@zanix/server@[version]'
-  ```
-
-- **Specific Middlewares (Validation, Interceptors, etc.)**
-
-  ```typescript
-  import { Guard, Interceptor, Pipe, RequestValidation } from 'jsr:@zanix/server@[version]'
-  ```
-
-#### 6. **Constants**
-
-You may also need constants for specific configurations like GraphQL ports, socket ports, and
-content headers. Here’s how you can import them:
-
-```typescript
-import { GRAPHQL_PORT, JSON_CONTENT_HEADER, SOCKET_PORT } from 'jsr:@zanix/server@[version]'
-```
-
-#### 7. **WebServerManager**
-
-The `webServerManager` instance helps you manage different types of web servers dynamically. You can
-import and use it to create, start, stop, and retrieve information about your servers:
-
-```typescript
-import { webServerManager } from 'jsr:@zanix/server@[version]'
-
-// Example of starting a REST server:
-const server = webServerManager.create('rest', { handler: () => new Response('Hello World') })
-webServerManager.start('rest')
-```
-
-By importing the required modules and using the provided classes, decorators, and utilities, you can
-easily configure and run your desired server types within the Zanix framework.
-
----
+> Requires **Deno 2.9 or later** (see the [CHANGELOG](./CHANGELOG.md) for version compatibility
+> notes).
 
 **Important:**
 
@@ -303,38 +161,76 @@ easily configure and run your desired server types within the Zanix framework.
 
 ---
 
-## Basic Usage
+### Importing Features
 
-Here’s a basic example of how to use the module:
+Rather than the wildcard import above, you'll typically import only what you need. The table below
+groups the main exports by category — each links to a guide with full usage examples:
+
+| Category           | Key exports                                                                                                                              | Guide                                                  |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| REST Handlers      | `Controller`, `Get`, `Post`, `Patch`, `Put`, `Delete`, `Request`, `ZanixController`                                                      | [Handlers](./docs/HANDLERS.md)                         |
+| GraphQL Handlers   | `Resolver`, `Query`, `Mutation`, `GQLRequest`, `ZanixResolver`                                                                           | [Handlers](./docs/HANDLERS.md)                         |
+| WebSocket Handlers | `Socket`, `ZanixWebSocket`                                                                                                               | [Handlers](./docs/HANDLERS.md)                         |
+| Interactors        | `Interactor`, `ZanixInteractor`                                                                                                          | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
+| Connectors         | `Connector`, `ZanixDatabaseConnector`, `ZanixAsyncmqConnector`, `ZanixCacheConnector`, `ZanixKVConnector`, `RestClient`, `GraphQLClient` | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
+| Providers          | `Provider`, `ZanixProvider`, `ZanixCacheProvider`, `ZanixWorkerProvider`, `ZanixAsyncMQProvider`                                         | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
+| Middlewares        | `Guard`, `Pipe`, `Interceptor`, `RequestValidation`, `registerGlobalGuard`, `registerGlobalPipe`, `registerGlobalInterceptor`            | [Middlewares](./docs/MIDDLEWARES.md)                   |
+| Constants          | `GRAPHQL_PORT`, `SOCKET_PORT`, `JSON_CONTENT_HEADER`, and more                                                                           | [Configuration](./docs/CONFIGURATION.md)               |
+| Server management  | `webServerManager`, `bootstrapServers`                                                                                                   | [Getting Started](./docs/GETTING-STARTED.md)           |
+| Program access     | `ProgramModule`                                                                                                                          | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
 
 ```typescript
-import { webServerManager } from 'jsr:@zanix/server@[version]'
-
-// Example of starting a REST server:
-const serverId = webServerManager.create('rest', { handler: () => new Response('Hello World') })
-webServerManager.start(serverId)
+import { Controller, Get, ZanixController } from 'jsr:@zanix/server@[version]'
 ```
 
-### 🔧 Special Environment Variables
+> For a guided walkthrough of handlers, middlewares, and dependency injection, see the
+> [documentation](#documentation) section below.
 
-Zanix Server provides the following environment variables to customize and configure different parts
-of your development environment:
+---
 
-| Name            | Description                           |
-| --------------- | ------------------------------------- |
-| `SSL_KEY_PATH`  | Path to the SSL private key file      |
-| `SSL_CERT_PATH` | Path to the SSL certificate file      |
-| `PORT`          | Base/default port for the application |
-| `PORT_GRAPHQL`  | Port for the GraphQL API              |
-| `PORT_SOCKET`   | Port for WebSocket connections        |
-| `PORT_REST`     | Port for the REST API                 |
+## Basic Usage
 
-Refer to the full documentation for more advanced usage and examples.
+Define a controller and start the server — the recommended, decorator-based way to use Zanix Server:
+
+```typescript
+import { bootstrapServers, Controller, Get, ZanixController } from 'jsr:@zanix/server@[version]'
+
+@Controller('hello')
+class HelloController extends ZanixController {
+  @Get()
+  public sayHello() {
+    return { message: 'Hello from Zanix!' }
+  }
+}
+
+await bootstrapServers({ rest: { globalPrefix: '/api' } })
+```
+
+This starts a REST server exposing `GET /api/hello`. For manual control over individual servers —
+without controllers — see
+[Getting Started: manual server control](./docs/GETTING-STARTED.md#advanced-manual-server-control).
+
+### Special Environment Variables
+
+Zanix Server reads a handful of environment variables to configure SSL and per-server-type ports —
+see the [Configuration](./docs/CONFIGURATION.md#environment-variables) guide for the full list.
 
 ## Documentation
 
-For full documentation, check out the [official Zanix website](https://github.com/zanix-io) for
-detailed usage, advanced examples, and more.
+- [Getting Started](./docs/GETTING-STARTED.md) — build and run your first server end to end.
+- [Handlers](./docs/HANDLERS.md) — REST controllers, GraphQL resolvers, WebSocket handlers, and
+  request validation.
+- [Middlewares](./docs/MIDDLEWARES.md) — guards, pipes, interceptors, and global middleware
+  registration.
+- [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) — connectors, providers, interactors, and
+  their lifecycle (`lifetime`/`startMode`).
+- [Configuration](./docs/CONFIGURATION.md) — default ports, constants, and environment variables.
+- [Error Handling](./docs/ERRORS.md) — how errors are logged, serialized, and returned to clients.
+- [Utilities Reference](./docs/UTILITIES.md) — routing, compression, and target-management helpers.
+
+The full API reference (every exported class, decorator, and type, generated from source) is
+published on [jsr.io/@zanix/server](https://jsr.io/@zanix/server/doc). For the broader Zanix
+ecosystem, see the [Zanix organization on GitHub](https://github.com/zanix-io).
 
 ## Contributing
 
@@ -358,12 +254,11 @@ If you'd like to contribute to this library, please follow these steps:
 
 ## Changelog
 
-For a detailed list of changes, please refer to the [CHANGELOG](./docs/CHANGELOG.md) file.
+For a detailed list of changes, please refer to the [CHANGELOG](./CHANGELOG.md) file.
 
 ## License
 
-This library is licensed under the MIT License. See the [LICENSE](./docs/LICENSE) file for more
-details.
+This library is licensed under the MIT License. See the [LICENSE](./LICENSE) file for more details.
 
 ## Resources
 

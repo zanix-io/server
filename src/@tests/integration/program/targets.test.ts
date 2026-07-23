@@ -2,8 +2,12 @@
 import { assert } from '@std/assert/assert'
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertArrayIncludes } from '@std/assert/assert-array-includes'
+import { assertThrows } from '@std/assert/assert-throws'
 import { TargetContainer } from 'modules/program/metadata/targets/main.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
+import { HttpError } from '@zanix/errors'
+
+console.error = () => {}
 
 // Type mocks
 type ClassConstructor = new (...args: unknown[]) => unknown
@@ -70,4 +74,68 @@ Deno.test('TargetContainer: getProperties returns empty array if none added', ()
 
   const properties = container.getProperties({ Target })
   assertEquals(properties, [])
+})
+
+Deno.test('TargetContainer: getInstance throws INVALID_INSTANCE when construction fails', () => {
+  const container = new TargetContainer()
+
+  class ThrowingClass {
+    constructor() {
+      throw new Error('boom')
+    }
+  }
+
+  container.defineTarget('throwing', {
+    Target: ThrowingClass as any,
+    type: 'interactor',
+    lifetime: 'TRANSIENT',
+  })
+
+  assertThrows(
+    () => container.getInteractor('throwing'),
+    HttpError,
+    'This action cannot be completed at the moment.',
+  )
+})
+
+Deno.test({
+  name: 'TargetContainer: resetScopedInstances resolves immediately when nothing is scoped',
+  fn: async () => {
+    const container = new TargetContainer()
+    await container.resetScopedInstances('any-key')
+  },
+})
+
+Deno.test({
+  name: 'TargetContainer: resetScopedInstances closes connector instances and clears scoped data',
+  fn: async () => {
+    const container = new TargetContainer()
+
+    let closed = false
+    let destroyed = false
+
+    class ScopedConnector {
+      public close() {
+        closed = true
+        return true
+      }
+      public onDestroy() {
+        destroyed = true
+      }
+    }
+
+    container.defineTarget('scopedConn', {
+      Target: ScopedConnector as any,
+      type: 'connector',
+      lifetime: 'SCOPED',
+    })
+
+    const instance = container.getConnector('scopedConn', { contextId: 'ctx-1' })
+    assert(instance)
+
+    await container.resetScopedInstances('ctx-1')
+
+    assert(closed)
+    assert(destroyed)
+  },
 })

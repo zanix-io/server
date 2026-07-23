@@ -11,6 +11,7 @@ import { AsyncLocalStorage, type AsyncLocalStorageOptions } from 'async_hooks'
  */
 // deno-lint-ignore no-explicit-any
 export class AsyncContext extends AsyncLocalStorage<BaseContext & Record<string, any>> {
+  /** Creates the async context store, named `zanix-async-context` unless overridden. */
   constructor(options?: AsyncLocalStorageOptions) {
     super({ name: 'zanix-async-context', ...options })
   }
@@ -25,12 +26,12 @@ export class AsyncContext extends AsyncLocalStorage<BaseContext & Record<string,
   }
 
   /**
-   * Executes a callback within a specific context, passing the context along with the callback.
-   * This method wraps around the `runWith` method, providing an additional abstraction
-   * for running the callback with the given context.
+   * Executes a callback within a specific context, storing only the given context ID.
+   * This method wraps around `AsyncLocalStorage.run`, providing a narrower abstraction
+   * that only requires the context ID rather than a full `BaseContext` object.
    *
-   * @param {BaseContext} contextId The context to set in the async storage.
-   * @param {R} callback The callback function to execute with the provided context.
+   * @param {BaseContext['id']} contextId The ID to set as the current context in the async storage.
+   * @param {() => R} callback The callback function to execute with the provided context.
    *
    * @returns {R} The result of executing the callback.
    *

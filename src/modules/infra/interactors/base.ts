@@ -39,6 +39,7 @@ export abstract class ZanixInteractor<
   #provider
   #key
 
+  /** Creates the interactor instance, scoped to the given context id. */
   constructor(contextId?: string) {
     super(contextId)
     const { key, data } = this[ZANIX_PROPS]
