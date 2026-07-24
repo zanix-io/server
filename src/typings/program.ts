@@ -59,10 +59,14 @@ export type CoreCacheConnectors = 'local' | 'memcached' | 'redis' | GenericTarge
 
 /** Maps each `CoreCacheConnectors` value to the concrete client type it resolves to. */
 export type CoreCacheTypes<K> = {
+  /** The connected Redis client, resolved once the connector finishes initializing. */
   redis: Promise<RedisClientType>
+  /** An in-process `Map` used as the local cache store. */
   // deno-lint-ignore no-explicit-any
   local: Map<K, any>
+  /** The Memcached client instance. */
   memcached: object
+  /** The client instance for a custom, user-defined cache connector. */
   // deno-lint-ignore no-explicit-any
   custom: any
 }
@@ -122,8 +126,11 @@ export type MetadataObjects = object | string | number | boolean
 
 /** Identifies a class target (and, optionally, one of its properties) within the metadata registry. */
 export type MetadataTargetSymbols = {
+  /** The class constructor the metadata is registered against. */
   Target?: ClassConstructor
-  propertyKey?: string // property or class symbol
+  /** The property or class symbol the metadata refers to. */
+  propertyKey?: string
+  /** Whether the metadata is scoped to a handler or to the class in general. */
   type?: 'handler' | 'general'
 }
 
@@ -144,4 +151,7 @@ export type MetadataInstances<
 }
 
 /** Wraps a global middleware definition's scoping data under an optional `exports` field. */
-export type ZanixGlobalExports<T> = { exports?: T }
+export type ZanixGlobalExports<T> = {
+  /** The scoping data exported by the global middleware definition. */
+  exports?: T
+}

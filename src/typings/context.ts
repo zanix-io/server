@@ -3,15 +3,21 @@ import type { BaseRTO } from '@zanix/validator'
 
 /** The raw, untyped shape of a request payload's `params`/`search`/`body` sections. */
 export type GenericPayload = {
+  /** The raw route parameters section of the request. */
   params: any
+  /** The raw URL search/query parameters section of the request. */
   search: any
+  /** The raw request body section. */
   body: any
 }
 
 /** Payload type */
 export type Payload = {
+  /** Retrieves a typed route parameter by key. */
   params: <T extends BaseRTO>(key: keyof T) => T[keyof T]
+  /** Retrieves a typed URL search/query parameter by key. */
   search: <T extends BaseRTO>(key: keyof T) => T[keyof T]
+  /** Retrieves a typed request body field by key. */
   body: <T extends BaseRTO>(key: keyof T) => T[keyof T]
 }
 
@@ -20,9 +26,13 @@ export type InstanceContext = string | Partial<BaseContext> | undefined
 
 /** Instance options */
 export type InstanceOptions = {
+  /** The context passed to the instance when it's created (used to build its `contextId`). */
   params?: InstanceContext
+  /** Identifies the scoped instance to reuse; required to isolate `SCOPED` instances per request. */
   keyId?: string
+  /** If `true`, returns the current instance without deleting/recreating it, even for `SINGLETON`/`TRANSIENT` lifetimes. */
   useExistingInstance?: boolean
+  /** Whether to log instance creation/retrieval. Defaults to `true`. */
   verbose?: boolean
 }
 

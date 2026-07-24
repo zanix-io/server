@@ -10,7 +10,12 @@ import type {
 } from './targets.ts'
 
 /** What a guard may return: a short-circuiting `response`, extra `headers`, or neither. */
-export type GuardResponse = { response?: Response; headers?: Record<string, string> }
+export type GuardResponse = {
+  /** If set, short-circuits the request and is sent back as-is instead of reaching the handler. */
+  response?: Response
+  /** Extra headers to merge into the eventual response. */
+  headers?: Record<string, string>
+}
 /** The context passed to a per-handler guard: `HandlerContext` plus DI getters. */
 export type GuardContext = HandlerContext & {
   interactors: ZanixInteractorsGetter

@@ -29,8 +29,11 @@ export type ConnectionStatusHandler = <T extends Error | 'OK' | 'unknownError'>(
 
 /** Async return */
 export type Async<V> = {
+  /** Either resolved synchronously or asynchronously, depending on the caller. */
   never: Promise<V> | V
+  /** Always resolved asynchronously, as a `Promise`. */
   async: Promise<V>
+  /** Always resolved synchronously, with no `Promise` wrapper. */
   sync: V
 }
 

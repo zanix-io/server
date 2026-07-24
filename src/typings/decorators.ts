@@ -162,14 +162,19 @@ export type ConnectorDecoratorOptions<L extends Lifetime> = {
 
 /** Options accepted by the object-argument overload of the `@Provider` class decorator. */
 export type ProviderDecoratorOptions<L extends Exclude<Lifetime, 'TRANSIENT'>> = {
+  /** The kind of provider being registered. */
   type?: ProviderTypes
+  /** The instance lifetime strategy (`'SINGLETON'` or `'SCOPED'`). */
   lifetime?: L
+  /** The initialization mode for the provider's instance. */
   startMode?: StartMode
 }
 
 /** Internal shape shared by REST/socket method decorators for their `(path?, rto?)` overloads. */
 export type HandlerDecoratorMethodOptions = {
+  /** Either the route path or, when omitted, the RTO passed as the first positional argument. */
   pathOrRTO?: string | RtoTypes
+  /** The RTO used to validate the request/event data, when a path is also given. */
   rto?: RtoTypes
 }
 

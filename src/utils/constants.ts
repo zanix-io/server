@@ -32,7 +32,10 @@ export const ADMIN_STATIC_PORT = 30251
 /**
  * Content header for http JSON application
  */
-export const JSON_CONTENT_HEADER = { 'Content-Type': 'application/json' }
+export const JSON_CONTENT_HEADER = {
+  /** The MIME type for a JSON request/response body. */
+  'Content-Type': 'application/json',
+}
 
 export const LIFETIME_MODE: Record<Lifetime, Lifetime> = {
   SINGLETON: 'SINGLETON',

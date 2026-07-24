@@ -19,6 +19,7 @@ import type { RtoTypes } from '@zanix/types'
 /** The constructor shape of any Zanix target class (connector, provider, interactor, handler). */
 export type ClassConstructor<T extends TargetBaseClass = TargetBaseClass> = {
   new (...args: any[]): T
+  /** The class's prototype, i.e., the instance shape produced by `new`. */
   prototype: T
 }
 
@@ -83,6 +84,7 @@ export type ZanixInteractorGeneric = ZanixInteractor<any>
  *   Retrieves an instance of the given Interactor class.
  */
 export type ZanixInteractorsGetter = {
+  /** Retrieves an instance of the given Interactor class. */
   get: <D extends ZanixInteractorGeneric>(Interactor: ZanixInteractorClass<D>) => D
 }
 
@@ -97,6 +99,7 @@ export type ZanixInteractorsGetter = {
  *   Retrieves an instance of the given Connector.
  */
 export type ZanixConnectorsGetter = {
+  /** Retrieves an instance of the given Connector. */
   get: <D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D> | CoreConnectors) => D
 }
 
@@ -111,6 +114,7 @@ export type ZanixConnectorsGetter = {
  *   Retrieves an instance of the given Provider.
  */
 export type ZanixProvidersGetter = {
+  /** Retrieves an instance of the given Provider. */
   get: <D extends ZanixProviderGeneric>(Provider: ZanixProviderClass<D> | CoreProviders) => D
 }
 
@@ -163,10 +167,15 @@ export type ZanixConnectorClass<
  * @property {ZanixKVConnector} kvLocal - Optional connector for the local key-value store.
  */
 export type CoreConnectorTemplates = {
+  /** Optional provider for the worker part of the system. */
   worker?: ZanixWorkerProvider
+  /** Optional provider for the asynchronous message queue. */
   asyncmq?: ZanixAsyncMQProvider
+  /** Optional provider for the cache. */
   cache?: ZanixCacheProvider
+  /** Optional connector for the database. */
   database?: ZanixDatabaseConnector
+  /** Optional connector for the local key-value store. */
   kvLocal?: ZanixKVConnector
 }
 /**
