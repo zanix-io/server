@@ -94,9 +94,10 @@ export { TargetError } from 'utils/errors/target.ts'
 export { cleanRoute } from 'utils/routes.ts'
 export { processUrlParams } from 'utils/params.ts'
 export { gzipResponse, gzipResponseFromResponse } from 'utils/gzip.ts'
-export { httpErrorResponse } from 'utils/errors/helper.ts'
+export { ErrorLogThrottle, httpErrorResponse } from 'utils/errors/helper.ts'
 export { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
 export { getSerializedErrorResponse } from 'utils/errors/helper.ts'
+export type { ErrorLogThrottleConfig, ErrorLogThrottleStore } from 'utils/errors/helper.ts'
 export {
   cleanupInitializationsMetadata,
   closeAllConnections,

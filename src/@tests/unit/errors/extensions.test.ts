@@ -93,11 +93,11 @@ Deno.test('getExtendedErrorResponse should create new object to override it', as
   )
 })
 
-Deno.test('logAppError should not throw when the error object cannot be mutated', () => {
+Deno.test('logAppError should not throw when the error object cannot be mutated', async () => {
   console.error = () => {}
   const error = Object.freeze(new Error('frozen error'))
 
-  logAppError(error, { message: 'message', code: 'CODE' })
+  await logAppError(error, { message: 'message', code: 'CODE' })
 })
 
 Deno.test('httpErrorResponse should return all data after log', async () => {
@@ -106,7 +106,7 @@ Deno.test('httpErrorResponse should return all data after log', async () => {
 
   console.error = () => {}
 
-  logAppError(error, {
+  await logAppError(error, {
     message: 'message',
     code: 'CODE',
   })

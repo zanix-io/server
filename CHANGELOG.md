@@ -7,6 +7,35 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-07-23
+
+### Added
+
+- **`ErrorLogThrottle`**: configurable throttling for repeated HTTP error logs, replacing the fixed
+  "50 per hour" in-memory-only behavior. New public exports `ErrorLogThrottle`,
+  `ErrorLogThrottleStore`, and `ErrorLogThrottleConfig` let you tune the `threshold`/`windowMs`,
+  pass a custom `store` to share the count across a fleet of instances (e.g. Redis, Deno KV), raise
+  `maxStatus` to also throttle server errors (>= 500, which are otherwise always logged
+  unconditionally), or `excludeStatuses` to keep specific codes (e.g. `401`) fully visible while
+  throttling the rest. Documented in [Error Handling](./docs/ERRORS.md#error-log-throttling),
+  including how to back the store with a Zanix-managed provider/connector via `ProgramModule`.
+- **`ProgramModule.providers`/`ProgramModule.connectors`**: shorthand getters for `getProviders()`/
+  `getConnectors()` with no context — the common case for `SINGLETON`-lifetime providers/connectors,
+  which ignore `ctxId` in resolution anyway. Documented in
+  [Dependency Injection](./docs/DEPENDENCY-INJECTION.md#accessing-instances-outside-any-class-programmodule).
+
+### Fixed
+
+- Internal DI metadata (`ZANIX_PROPS`) no longer leaks through `JSON.stringify`/`Object.keys`/
+  object-spread on handler, provider, and connector instances — it's now defined as a non-enumerable
+  property instead of a plain assigned one. Fixed alongside: a subclass that doesn't register its
+  own metadata no longer incorrectly inherits an ancestor class's registered metadata through the
+  prototype chain; it now falls back to its own defaults, as before.
+- `defineScalars` (GraphQL custom scalar registration) now actually takes effect during query
+  execution. It previously replaced the entry in the schema's internal type map, but resolved fields
+  already referenced the original stub scalar object from the SDL, so a custom `serialize` never ran
+  — only introspection reflected the change. It now mutates the existing stub in place instead.
+
 ## [1.5.0] - 2026-07-23
 
 ### Added

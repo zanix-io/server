@@ -127,7 +127,7 @@ export const routerInterceptor: MiddlewareInterceptor = async (context, _, optio
 
     return acceptsGzip ? gzipResponseFromResponse(response, gzip) : response
   } catch (e) {
-    logAppError(e, {
+    await logAppError(e, {
       message: `An error occurred on route '${context.url.pathname}'`,
       meta: { route: context.url.pathname },
       contextId: context.id,

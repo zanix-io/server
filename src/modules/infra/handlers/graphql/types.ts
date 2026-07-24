@@ -16,8 +16,11 @@ const scalars = Object.values(scalarTypes)
 
 export const defineScalars = (schema: GraphQLSchema) => {
   for (const scalar of scalars) {
-    // TODO: review this hack, could not work
-    schema['_typeMap'][scalar.name] = scalar.definition
+    // Fields already reference the stub scalar `buildSchema` created from the SDL, so it
+    // must be mutated in place (not replaced) for serialize/parseValue to take effect.
+    const stub = schema.getType(scalar.name) as GraphQLScalarType | undefined
+    if (!stub) continue
+    Object.assign(stub, scalar.definition.toConfig())
   }
 }
 
@@ -25,7 +28,6 @@ export function getGqlTypes(dir = '.') {
   const parts: string[] = []
 
   // Adding scalar types
-  const scalars = Object.values(scalarTypes)
   for (const scalar of scalars) {
     parts.push(`"""${scalar.definition.description}"""\nscalar ${scalar.name}\n`)
   }

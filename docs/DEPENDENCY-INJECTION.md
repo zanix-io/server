@@ -209,6 +209,11 @@ import { ProgramModule } from 'jsr:@zanix/server@[version]'
 const provider = ProgramModule.getProviders().get(NotificationsProvider)
 const connector = ProgramModule.getConnectors('some-context-id').get(DatabaseConnector)
 const interactor = ProgramModule.getInteractors('some-context-id').get(UsersInteractor)
+
+// Shorthand for the common case: no context needed (SINGLETON providers/connectors ignore
+// ctxId anyway, which covers everything except SCOPED/TRANSIENT lookups)
+const sameProvider = ProgramModule.providers.get(NotificationsProvider)
+const sameConnector = ProgramModule.connectors.get(DatabaseConnector)
 ```
 
 | Method                            | Signature                                           | Notes                                                                                                                  |
@@ -216,8 +221,13 @@ const interactor = ProgramModule.getInteractors('some-context-id').get(UsersInte
 | `getProviders(ctxId?, verbose?)`  | returns `{ get(ProviderClass \| CoreProviders) }`   | `ctxId` is optional; omitted retrieves globally.                                                                       |
 | `getConnectors(ctxId?, verbose?)` | returns `{ get(ConnectorClass \| CoreConnectors) }` | `ctxId` is optional; omitted retrieves globally.                                                                       |
 | `getInteractors(ctxId, verbose?)` | returns `{ get(InteractorClass) }`                  | `ctxId` is **required** for interactors.                                                                               |
+| `providers`                       | returns `{ get(ProviderClass \| CoreProviders) }`   | Shorthand for `getProviders()` with no `ctxId`.                                                                        |
+| `connectors`                      | returns `{ get(ConnectorClass \| CoreConnectors) }` | Shorthand for `getConnectors()` with no `ctxId`.                                                                       |
 | `registry`                        | `RegistryContainer`                                 | The underlying DI metadata registry.                                                                                   |
 | `asyncContext`                    | `AsyncContext`                                      | The `AsyncLocalStorage` wrapper used for per-request context (see `enableALS` in [Handlers](./HANDLERS.md#enableals)). |
+
+There's no `interactors` shorthand: `getInteractors` requires a `ctxId` (interactors default to
+`SCOPED` lifetime, so there's no context-free "global" instance to shortcut to).
 
 > ⚠️ Use these accessors carefully: bypassing the normal injection flow can break lifecycle rules
 > (e.g. `SCOPED`/`TRANSIENT` semantics) or lead to unintended singleton/multi-instance behavior.

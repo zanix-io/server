@@ -1,5 +1,7 @@
 import type { Lifetime, MetadataObjects, ModuleTypes, StartMode } from 'typings/program.ts'
 
+import { ZANIX_PROPS } from 'utils/constants.ts'
+
 /**
  * Abstract base class for all core Zanix components, such as **handlers**, **providers**, **connectors**, and other targets.
  *
@@ -20,7 +22,19 @@ import type { Lifetime, MetadataObjects, ModuleTypes, StartMode } from 'typings/
  */
 export abstract class TargetBaseClass {
   constructor() {
-    Object.assign(this, this.constructor.prototype)
+    // Re-defined as non-enumerable so this internal DI metadata never leaks through
+    // JSON.stringify/object-spread/Object.keys on a handler/provider/connector instance.
+    // Only the class's OWN prototype props count (mirrors the previous Object.assign
+    // behavior, which copies own enumerable props only) so a subclass without its own
+    // registered metadata keeps this class's defaults instead of inheriting a parent's.
+    const prototype = this.constructor.prototype as Record<string, unknown>
+    const hasOwnZnxProps = Object.prototype.hasOwnProperty.call(prototype, ZANIX_PROPS)
+    Object.defineProperty(this, ZANIX_PROPS, {
+      value: hasOwnZnxProps ? prototype[ZANIX_PROPS] : this._znx_props_,
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    })
   }
   /** Stores injected data props for internal Zanix operations */
   private _znx_props_: {

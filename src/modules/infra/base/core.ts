@@ -92,8 +92,6 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
     return ProgramModule.registry
   }
 
-  // TODO: process public instances properties to restrict it for security issues
-
   /**
    * Retrieves the key-value local store connector associated with the instance.
    *

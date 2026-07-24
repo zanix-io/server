@@ -34,6 +34,30 @@ Deno.test('TargetContainer: defineTarget stores target class and options', () =>
   assertEquals(container.getConnector('serviceA')[ZANIX_PROPS].data, { foo: 'bar' })
 })
 
+Deno.test(
+  'TargetContainer: defineTarget stores Zanix Props as non-enumerable on the prototype',
+  () => {
+    const container = new TargetContainer()
+
+    class TestClass {}
+    const opts: MetadataTargetsProps<typeof TestClass> = {
+      Target: TestClass,
+      dataProps: { foo: 'bar' },
+      type: 'connector',
+    }
+
+    container.defineTarget('serviceB', opts as never)
+
+    assertEquals(Object.keys(TestClass.prototype).includes(ZANIX_PROPS), false)
+    assertEquals(
+      Object.prototype.propertyIsEnumerable.call(TestClass.prototype, ZANIX_PROPS),
+      false,
+    )
+    // Direct access still works: only enumeration is affected, not readability.
+    assertEquals((TestClass.prototype as any)[ZANIX_PROPS].data, { foo: 'bar' })
+  },
+)
+
 Deno.test('TargetContainer: addProperty adds single property', () => {
   const container = new TargetContainer()
   const Target = {} as any

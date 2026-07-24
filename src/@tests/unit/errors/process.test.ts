@@ -8,6 +8,10 @@ console.error = () => {}
 // deno-lint-ignore no-explicit-any
 type MockSelf = any
 
+// `onerror` fires `logAppError` fire-and-forget (it can't be awaited from a sync handler),
+// so tests must flush the microtask queue before asserting on the logger spy.
+const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0))
+
 function createMockSelf() {
   const listeners: Record<string, (event: unknown) => unknown> = {}
   const self: MockSelf = {
@@ -22,7 +26,7 @@ function createMockSelf() {
 
 Deno.test({
   name: 'attachGlobalErrorHandlers: onerror uses event.error and its message when available',
-  fn: () => {
+  fn: async () => {
     const { self } = createMockSelf()
     const logSpy = spy(logger, 'error')
 
@@ -33,6 +37,7 @@ Deno.test({
     })
 
     assertEquals(result, true)
+    await flushMicrotasks()
     assertStringIncludes(logSpy.calls[0].args[0] as string, 'boom')
     logSpy.restore()
   },
@@ -40,12 +45,13 @@ Deno.test({
 
 Deno.test({
   name: 'attachGlobalErrorHandlers: onerror falls back to the event itself when there is no .error',
-  fn: () => {
+  fn: async () => {
     const { self } = createMockSelf()
     const logSpy = spy(logger, 'error')
 
     self.onerror({ message: 'from event' })
 
+    await flushMicrotasks()
     assertStringIncludes(logSpy.calls[0].args[0] as string, 'from event')
     logSpy.restore()
   },
@@ -54,33 +60,39 @@ Deno.test({
 Deno.test({
   name:
     'attachGlobalErrorHandlers: onerror falls back to error.toString() when there is no message',
-  fn: () => {
+  fn: async () => {
     const { self } = createMockSelf()
     const logSpy = spy(logger, 'error')
 
     self.onerror({ error: { toString: () => 'stringified error' } })
 
+    await flushMicrotasks()
     assertStringIncludes(logSpy.calls[0].args[0] as string, 'stringified error')
     logSpy.restore()
   },
 })
 
-Deno.test('attachGlobalErrorHandlers: onerror falls back to "Unknown" as a last resort', () => {
-  const { self } = createMockSelf()
-  const logSpy = spy(logger, 'error')
+Deno.test({
+  name: 'attachGlobalErrorHandlers: onerror falls back to "Unknown" as a last resort',
+  fn: async () => {
+    const { self } = createMockSelf()
+    const logSpy = spy(logger, 'error')
 
-  self.onerror({ error: { toString: () => '' } })
+    self.onerror({ error: { toString: () => '' } })
 
-  assertStringIncludes(logSpy.calls[0].args[0] as string, 'Unknown')
-  logSpy.restore()
+    await flushMicrotasks()
+    assertStringIncludes(logSpy.calls[0].args[0] as string, 'Unknown')
+    logSpy.restore()
+  },
 })
 
-Deno.test('attachGlobalErrorHandlers: onerror tolerates a missing preventDefault', () => {
+Deno.test('attachGlobalErrorHandlers: onerror tolerates a missing preventDefault', async () => {
   const { self } = createMockSelf()
   const logSpy = spy(logger, 'error')
 
   self.onerror({ error: { message: 'no preventDefault here' } })
 
+  await flushMicrotasks()
   assertStringIncludes(logSpy.calls[0].args[0] as string, 'no preventDefault here')
   logSpy.restore()
 })

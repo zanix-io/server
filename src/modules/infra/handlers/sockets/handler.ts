@@ -20,7 +20,7 @@ const catcher = async (
     else response = cb
     return response
   } catch (e) {
-    logAppError(e, {
+    await logAppError(e, {
       message: 'An error occurred on socket',
       meta: { event: event.type },
       code: 'SOCKET_ERROR',

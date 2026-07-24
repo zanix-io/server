@@ -56,7 +56,7 @@ export abstract class ZanixConnector extends ContextualBaseClass {
             // Mark as initialized successfully
             resolve(true)
           } catch (error) {
-            logAppError(error, {
+            await logAppError(error, {
               message:
                 `Failed to initialize connector '${this.constructor.name}' during '${startMode}' startup mode.`,
               code: 'CONNECTOR_ERROR',

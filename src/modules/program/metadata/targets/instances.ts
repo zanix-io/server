@@ -21,13 +21,20 @@ export abstract class BaseInstancesContainer extends BaseContainer {
   protected toBeInstantiated(baseKey: string, opts: MetadataInstances): { key: string } {
     const { type, lifetime, startMode, dataProps, Target } = opts // default definitions
 
-    Target.prototype[ZANIX_PROPS] = {
-      lifetime,
-      startMode,
-      type,
-      key: baseKey,
-      data: dataProps || {},
-    }
+    // Defined as non-enumerable so it never leaks through JSON.stringify/spread/Object.keys
+    // on instances (or their prototypes) beyond this internal DI metadata's intended use.
+    Object.defineProperty(Target.prototype, ZANIX_PROPS, {
+      value: {
+        lifetime,
+        startMode,
+        type,
+        key: baseKey,
+        data: dataProps || {},
+      },
+      enumerable: false,
+      writable: true,
+      configurable: true,
+    })
 
     const key = this.#getKey(type, baseKey)
 

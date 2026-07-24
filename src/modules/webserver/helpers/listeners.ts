@@ -6,7 +6,7 @@ import logger from '@zanix/logger'
 export const onErrorListener =
   (currentErrorHandler: ServerOptions['onError'], serverName: string) =>
   async (error: unknown): Promise<Response> => {
-    logAppError(error, {
+    await logAppError(error, {
       message: `An error occurred on ${serverName} server`,
       code: 'SERVER_ERROR',
       meta: { serverName },

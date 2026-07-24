@@ -26,20 +26,22 @@ export const attachGlobalErrorHandlers: (self: Window) => void = (self): void =>
   self.onerror = (event) => {
     event.preventDefault?.()
     const error = event.error || event
+    // Fire-and-forget: onerror can't be awaited, but a rejection (e.g. a failing custom
+    // ErrorLogThrottleStore) must not surface as an unhandled promise rejection.
     logAppError(error, {
       message: `An uncaught error has been detected: ${
         error?.message || error.toString() || 'Unknown'
       }`,
       code: 'UNCAUGHT_ERROR',
-    })
+    }).catch(() => {})
 
     return true // Prevents the default error handling
   }
 
   self.addEventListener('unhandledrejection', async (event) => {
     event.preventDefault()
-    await event.promise.catch((err) => {
-      logAppError(typeof err === 'string' ? { message: err } : err, {
+    await event.promise.catch(async (err) => {
+      await logAppError(typeof err === 'string' ? { message: err } : err, {
         message: `An unhandled rejection error has been detected: ${
           event.reason?.message || err.message || err.toString() ||
           'Unknown'

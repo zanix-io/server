@@ -148,6 +148,32 @@ export class Program {
   })
 
   /**
+   * Shorthand for {@link getProviders} called with no `ctxId` — resolves globally, which is all
+   * that `SINGLETON`-lifetime providers (the default for `@Provider`) ever need, since `ctxId` is
+   * ignored for them regardless. Prefer {@link getProviders} directly when you do need to scope
+   * the lookup to a specific context (e.g. a `SCOPED` provider).
+   *
+   * @example
+   * const provider = ProgramModule.providers.get(MyProviderClass);
+   */
+  public get providers(): ZanixProvidersGetter {
+    return this.getProviders()
+  }
+
+  /**
+   * Shorthand for {@link getConnectors} called with no `ctxId` — resolves globally, which is all
+   * that `SINGLETON`-lifetime connectors (the default for `@Connector`) ever need, since `ctxId`
+   * is ignored for them regardless. Prefer {@link getConnectors} directly when you do need to
+   * scope the lookup to a specific context.
+   *
+   * @example
+   * const connector = ProgramModule.connectors.get(MyConnectorClass);
+   */
+  public get connectors(): ZanixConnectorsGetter {
+    return this.getConnectors()
+  }
+
+  /**
    * Provides access to the internal `RegistryContainer` used by the dependency
    * injection system.
    *
