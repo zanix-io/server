@@ -46,7 +46,7 @@ export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
     const { startMode } = this[ZANIX_PROPS]
 
     try {
-      return getConnectors(this.contextId, false).get<T>(connector)
+      return getConnectors(this.contextId, false, this).get<T>(connector)
     } catch {
       const connectorName = typeof connector === 'string' ? connector : connector.name
 

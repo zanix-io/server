@@ -1,11 +1,17 @@
 import { ZanixProvider } from 'providers/base.ts'
-import { assert, assertThrows } from '@std/assert'
+import { assert, assertEquals, assertThrows } from '@std/assert'
 import { getTargetKey } from 'utils/targets.ts'
 import Program from 'modules/program/mod.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { HttpError } from '@zanix/errors'
+import { spy } from '@std/testing/mock'
+import logger from '@zanix/logger'
 
 console.error = () => {}
+
+// `warnIfSingletonResolvesScoped` calls `logAppError` fire-and-forget, so tests asserting on the
+// logger spy must flush the microtask queue first.
+const flushMicrotasks = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 class TestProvider extends ZanixProvider {
   public override use(_: unknown): ZanixConnector {
@@ -87,6 +93,53 @@ Deno.test({
     )
   },
 })
+
+Deno.test(
+  'ZanixProvider: warns once when a SINGLETON provider resolves a SCOPED connector, ' +
+    'even across both connectors.get() and getProviderConnector() for the same class pair',
+  async () => {
+    class SingletonProvider extends ZanixProvider {
+      public override use(_: unknown): ZanixConnector {
+        throw new Error('n/a')
+      }
+    }
+    class ScopedConnector extends ZanixConnector {
+      protected override initialize(): Promise<void> | void {}
+      protected override close(): unknown {
+        return true
+      }
+      public override isHealthy() {
+        return true
+      }
+    }
+
+    Program.targets.defineTarget(getTargetKey(SingletonProvider), {
+      Target: SingletonProvider,
+      type: 'provider',
+      lifetime: 'SINGLETON',
+    })
+    Program.targets.defineTarget(getTargetKey(ScopedConnector), {
+      Target: ScopedConnector,
+      type: 'connector',
+      lifetime: 'SCOPED',
+    })
+
+    const base = new SingletonProvider('ctx-1')
+    const logSpy = spy(logger, 'error')
+
+    base['connectors'].get(ScopedConnector)
+    await flushMicrotasks()
+    assertEquals(logSpy.calls.length, 1)
+
+    // Same (SingletonProvider, ScopedConnector) class pair, via a different call site — already
+    // reported once, so this must not log again.
+    base['getProviderConnector'](ScopedConnector)
+    await flushMicrotasks()
+    assertEquals(logSpy.calls.length, 1)
+
+    logSpy.restore()
+  },
+)
 
 Deno.test('ZanixProvider: default use() throws METHOD_NOT_IMPLEMENTED', () => {
   class DefaultProvider extends ZanixProvider {}

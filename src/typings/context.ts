@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import type { BaseRTO } from '@zanix/validator'
+import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 
 /** The raw, untyped shape of a request payload's `params`/`search`/`body` sections. */
 export type GenericPayload = {
@@ -34,6 +35,12 @@ export type InstanceOptions = {
   useExistingInstance?: boolean
   /** Whether to log instance creation/retrieval. Defaults to `true`. */
   verbose?: boolean
+  /**
+   * The instance resolving this target (`this` at the call site), if any. Used only to warn once
+   * when a `SINGLETON` caller resolves a `SCOPED` target — see `getInstance` in
+   * `metadata/targets/instances.ts`. Never affects which instance is returned.
+   */
+  caller?: TargetBaseClass
 }
 
 /** Zanix base context for all target types */

@@ -7,6 +7,19 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-07-25
+
+### Added
+
+- Added a runtime warning when a `SINGLETON` target resolves a `SCOPED` dependency, helping identify
+  potential lifetime leaks.
+- Added caller tracking during dependency resolution to detect lifetime mismatches.
+
+### Changed
+
+- Updated connector, provider, and interactor resolution to propagate the calling target for
+  lifetime validation without affecting dependency resolution behavior.
+
 ## [2.0.1] - 2026-07-24
 
 ### Fixed

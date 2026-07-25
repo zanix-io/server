@@ -1,4 +1,5 @@
 import type { BaseContext } from 'typings/context.ts'
+import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 import type {
   ClassConstructor,
   ZanixConnectorGeneric,
@@ -160,26 +161,32 @@ export class TargetContainer extends BaseInstancesContainer {
    */
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
-    options?: { contextId?: string; verbose?: boolean },
+    options?: { contextId?: string; verbose?: boolean; caller?: TargetBaseClass },
   ): T
   /**
    * Getting a connector instance, without creating a new one if it doesn't already exist.
    */
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
-    options: { useExistingInstance?: true; verbose?: boolean },
+    options: { useExistingInstance?: true; verbose?: boolean; caller?: TargetBaseClass },
   ): T | undefined
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
-    options: { contextId?: string; useExistingInstance?: boolean; verbose?: boolean } = {},
+    options: {
+      contextId?: string
+      useExistingInstance?: boolean
+      verbose?: boolean
+      caller?: TargetBaseClass
+    } = {},
   ): T | undefined {
-    const { contextId, useExistingInstance, verbose } = options
+    const { contextId, useExistingInstance, verbose, caller } = options
 
     return this.getInstance<T>(key, 'connector', {
       params: contextId || asyncContext.getId(),
       keyId: contextId,
       useExistingInstance,
       verbose,
+      caller,
     })
   }
 
@@ -188,15 +195,21 @@ export class TargetContainer extends BaseInstancesContainer {
    */
   public getProvider<T extends ZanixProviderGeneric>(
     key: string,
-    options: { contextId?: string; useExistingInstance?: boolean; verbose?: boolean } = {},
+    options: {
+      contextId?: string
+      useExistingInstance?: boolean
+      verbose?: boolean
+      caller?: TargetBaseClass
+    } = {},
   ): T {
-    const { contextId, useExistingInstance, verbose } = options
+    const { contextId, useExistingInstance, verbose, caller } = options
 
     return this.getInstance<T>(key, 'provider', {
       params: contextId || asyncContext.getId(),
       keyId: contextId,
       useExistingInstance,
       verbose,
+      caller,
     })
   }
 
@@ -205,15 +218,21 @@ export class TargetContainer extends BaseInstancesContainer {
    */
   public getInteractor<T extends ZanixInteractorGeneric>(
     key: string,
-    options: { contextId?: string; useExistingInstance?: boolean; verbose?: boolean } = {},
+    options: {
+      contextId?: string
+      useExistingInstance?: boolean
+      verbose?: boolean
+      caller?: TargetBaseClass
+    } = {},
   ): T {
-    const { contextId, useExistingInstance, verbose } = options
+    const { contextId, useExistingInstance, verbose, caller } = options
 
     return this.getInstance<T>(key, 'interactor', {
       params: contextId || asyncContext.getId(),
       keyId: contextId,
       useExistingInstance,
       verbose,
+      caller,
     })
   }
 }

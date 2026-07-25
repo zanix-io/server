@@ -48,7 +48,7 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * @returns {ZanixConnectorsGetter} A utility for retrieving and interacting with other connectors.
    */
   protected get connectors(): ZanixConnectorsGetter {
-    return getConnectors(this.contextId)
+    return getConnectors(this.contextId, undefined, this)
   }
 
   /**
@@ -66,7 +66,7 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * @returns {ZanixProvidersGetter} A utility for retrieving and interacting with other providers.
    */
   protected get providers(): ZanixProvidersGetter {
-    return getProviders(this.contextId)
+    return getProviders(this.contextId, undefined, this)
   }
 
   /**

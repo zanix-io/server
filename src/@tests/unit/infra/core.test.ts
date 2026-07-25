@@ -62,6 +62,7 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
   const ctx = {
     contextId: 'context-id',
     verbose: undefined,
+    caller: testInstance,
   }
   // Validate args
   assertEquals(getCoreProvidersSpy.calls[0].args, [ProviderCoreModules.worker.key, ctx])
