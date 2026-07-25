@@ -91,8 +91,6 @@ export {
 
 // Utils
 export { TargetError } from 'utils/errors/target.ts'
-export { cleanRoute } from 'utils/routes.ts'
-export { processUrlParams } from 'utils/params.ts'
 export { gzipResponse, gzipResponseFromResponse } from 'utils/gzip.ts'
 export { ErrorLogThrottle, httpErrorResponse } from 'utils/errors/helper.ts'
 export { attachGlobalErrorHandlers } from 'utils/errors/process.ts'

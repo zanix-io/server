@@ -25,6 +25,12 @@ streamline server management in projects using the Zanix framework. This library
 functionalities for efficiently running and managing servers, making it easier to integrate and
 deploy applications within Deno.
 
+> 💡 If you're building a full application, the recommended entrypoint is
+> **[`@zanix/core`](https://jsr.io/@zanix/core)**, which wires this package together with
+> `@zanix/asyncmq`, `@zanix/datamaster`, `@zanix/auth`, and `@zanix/notifications` via
+> `Zanix.start()`/`Zanix.startWorker()`. `@zanix/server` provides the underlying DI/decorator
+> primitives those packages (and `@zanix/core`) build on.
+
 ## Features
 
 ### **Architecture Overview**
@@ -166,19 +172,19 @@ import * as server from 'jsr:@zanix/server@[version]'
 Rather than the wildcard import above, you'll typically import only what you need. The table below
 groups the main exports by category — each links to a guide with full usage examples:
 
-| Category           | Key exports                                                                                                                              | Guide                                                  |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| REST Handlers      | `Controller`, `Get`, `Post`, `Patch`, `Put`, `Delete`, `Request`, `ZanixController`                                                      | [Handlers](./docs/HANDLERS.md)                         |
-| GraphQL Handlers   | `Resolver`, `Query`, `Mutation`, `GQLRequest`, `ZanixResolver`                                                                           | [Handlers](./docs/HANDLERS.md)                         |
-| WebSocket Handlers | `Socket`, `ZanixWebSocket`                                                                                                               | [Handlers](./docs/HANDLERS.md)                         |
-| Interactors        | `Interactor`, `ZanixInteractor`                                                                                                          | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
-| Connectors         | `Connector`, `ZanixDatabaseConnector`, `ZanixAsyncmqConnector`, `ZanixCacheConnector`, `ZanixKVConnector`, `RestClient`, `GraphQLClient` | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
-| Providers          | `Provider`, `ZanixProvider`, `ZanixCacheProvider`, `ZanixWorkerProvider`, `ZanixAsyncMQProvider`                                         | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
-| Middlewares        | `Guard`, `Pipe`, `Interceptor`, `RequestValidation`, `registerGlobalGuard`, `registerGlobalPipe`, `registerGlobalInterceptor`            | [Middlewares](./docs/MIDDLEWARES.md)                   |
-| Error Handling     | `httpErrorResponse`, `attachGlobalErrorHandlers`, `ErrorLogThrottle`                                                                     | [Error Handling](./docs/ERRORS.md)                     |
-| Constants          | `GRAPHQL_PORT`, `SOCKET_PORT`, `JSON_CONTENT_HEADER`, and more                                                                           | [Configuration](./docs/CONFIGURATION.md)               |
-| Server management  | `webServerManager`, `bootstrapServers`                                                                                                   | [Getting Started](./docs/GETTING-STARTED.md)           |
-| Program access     | `ProgramModule`                                                                                                                          | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
+| Category           | Key exports                                                                                                                                                 | Guide                                                  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| REST Handlers      | `Controller`, `Get`, `Post`, `Patch`, `Put`, `Delete`, `Request`, `ZanixController`                                                                         | [Handlers](./docs/HANDLERS.md)                         |
+| GraphQL Handlers   | `Resolver`, `Query`, `Mutation`, `GQLRequest`, `ZanixResolver`                                                                                              | [Handlers](./docs/HANDLERS.md)                         |
+| WebSocket Handlers | `Socket`, `ZanixWebSocket`                                                                                                                                  | [Handlers](./docs/HANDLERS.md)                         |
+| Interactors        | `Interactor`, `ZanixInteractor`                                                                                                                             | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
+| Connectors         | `Connector`, `ZanixDatabaseConnector`, `ZanixAsyncmqConnector`, `ZanixCacheConnector`, `ZanixKVConnector`, `RestClient`, `GraphQLClient`                    | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
+| Providers          | `Provider`, `ZanixProvider`, `ZanixCacheProvider`, `ZanixWorkerProvider`, `ZanixAsyncMQProvider`, `ZanixCoreAuthProvider`, `ZanixCoreNotificationsProvider` | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
+| Middlewares        | `Guard`, `Pipe`, `Interceptor`, `RequestValidation`, `registerGlobalGuard`, `registerGlobalPipe`, `registerGlobalInterceptor`                               | [Middlewares](./docs/MIDDLEWARES.md)                   |
+| Error Handling     | `httpErrorResponse`, `attachGlobalErrorHandlers`, `ErrorLogThrottle`                                                                                        | [Error Handling](./docs/ERRORS.md)                     |
+| Constants          | `GRAPHQL_PORT`, `SOCKET_PORT`, `JSON_CONTENT_HEADER`, and more                                                                                              | [Configuration](./docs/CONFIGURATION.md)               |
+| Server management  | `webServerManager`, `bootstrapServers`                                                                                                                      | [Getting Started](./docs/GETTING-STARTED.md)           |
+| Program access     | `ProgramModule`                                                                                                                                             | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) |
 
 ```typescript
 import { Controller, Get, ZanixController } from 'jsr:@zanix/server@[version]'

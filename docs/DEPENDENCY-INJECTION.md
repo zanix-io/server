@@ -170,17 +170,19 @@ etc.) either comes from a companion Zanix package built on top of one of these b
 `ZanixMongoConnector` from `@zanix/datamaster`, extending `ZanixDatabaseConnector`), or you write it
 yourself, as shown in the `PostgresConnector` example below.
 
-| Class                    | Extends          | Purpose                                                                              |
-| ------------------------ | ---------------- | ------------------------------------------------------------------------------------ |
-| `ZanixDatabaseConnector` | `ZanixConnector` | Foundation for relational/non-relational database connectors.                        |
-| `ZanixAsyncmqConnector`  | `ZanixConnector` | Foundation for message broker connectors (RabbitMQ, Kafka, MQTT...).                 |
-| `ZanixCacheConnector`    | `ZanixConnector` | Foundation for caching backends (Redis, Memcached, in-memory).                       |
-| `ZanixKVConnector`       | `ZanixConnector` | Foundation for key-value store connectors, with optional TTL support.                |
-| `RestClient`             | `ZanixConnector` | REST HTTP client with base URL resolution, JSON parsing, and unified error handling. |
-| `GraphQLClient`          | `RestClient`     | Extends `RestClient` to simplify sending GraphQL queries over `POST`.                |
-| `ZanixCacheProvider`     | `ZanixProvider`  | Orchestrates one or more `ZanixCacheConnector`s.                                     |
-| `ZanixWorkerProvider`    | `ZanixProvider`  | Orchestrates background/worker task execution.                                       |
-| `ZanixAsyncMQProvider`   | `ZanixProvider`  | Orchestrates one or more `ZanixAsyncmqConnector`s.                                   |
+| Class                            | Extends          | Purpose                                                                                           |
+| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------- |
+| `ZanixDatabaseConnector`         | `ZanixConnector` | Foundation for relational/non-relational database connectors.                                     |
+| `ZanixAsyncmqConnector`          | `ZanixConnector` | Foundation for message broker connectors (RabbitMQ, Kafka, MQTT...).                              |
+| `ZanixCacheConnector`            | `ZanixConnector` | Foundation for caching backends (Redis, Memcached, in-memory).                                    |
+| `ZanixKVConnector`               | `ZanixConnector` | Foundation for key-value store connectors, with optional TTL support.                             |
+| `RestClient`                     | `ZanixConnector` | REST HTTP client with base URL resolution, JSON parsing, and unified error handling.              |
+| `GraphQLClient`                  | `RestClient`     | Extends `RestClient` to simplify sending GraphQL queries over `POST`.                             |
+| `ZanixCacheProvider`             | `ZanixProvider`  | Orchestrates one or more `ZanixCacheConnector`s.                                                  |
+| `ZanixWorkerProvider`            | `ZanixProvider`  | Orchestrates background/worker task execution.                                                    |
+| `ZanixAsyncMQProvider`           | `ZanixProvider`  | Orchestrates one or more `ZanixAsyncmqConnector`s.                                                |
+| `ZanixCoreAuthProvider`          | `ZanixProvider`  | Foundation for authentication/authorization providers (e.g. `@zanix/auth`'s `ZanixAuthProvider`). |
+| `ZanixCoreNotificationsProvider` | `ZanixProvider`  | Foundation for notification-sending providers (e.g. `@zanix/notifications`'s `NotifierProvider`). |
 
 ```ts
 import { Connector, ZanixDatabaseConnector } from 'jsr:@zanix/server@[version]'

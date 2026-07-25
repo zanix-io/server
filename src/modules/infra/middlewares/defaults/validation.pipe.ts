@@ -4,8 +4,8 @@ import type { MiddlewarePipe } from 'typings/middlewares.ts'
 
 import { processScopedPayload } from 'utils/context.ts'
 import { classValidation } from '@zanix/validator'
-import { processUrlParams } from 'utils/params.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { processUrlParams } from '@zanix/helpers'
 
 /**
  * Middleware pipe to validate the incoming request using a Request Transfer Object (RTO).

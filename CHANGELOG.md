@@ -7,6 +7,33 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-07-24
+
+### Added
+
+- **`ZanixCoreAuthProvider`**/**`ZanixCoreNotificationsProvider`**: new core provider base classes,
+  registered as the `'auth'` and `'notifications'` `CoreProviders` types. They're the foundation
+  `@zanix/auth`'s `ZanixAuthProvider` and `@zanix/notifications`'s `NotifierProvider` build on, so
+  the framework recognizes them via `this.providers.get('auth'|'notifications')` and
+  `@Provider({ type: 'auth'|'notifications' })`. Documented in
+  [Dependency Injection](./docs/DEPENDENCY-INJECTION.md).
+
+### Changed
+
+- Bumped `@zanix/validator` dependency to `2.3.*`.
+
+### Fixed
+
+- `assembly.ts`'s core-dependency validation no longer throws when a `ProviderCoreModules` entry's
+  `Target` is still an unresolved placeholder (not yet a function) — it now guards with a
+  `typeof Target === 'function'` check before the `instanceof` comparison.
+
+### Removed
+
+- **Breaking**: `cleanRoute` and `processUrlParams` are no longer exported from `@zanix/server`.
+  Both moved to `@zanix/helpers` — import them from there instead
+  (`import { cleanRoute, processUrlParams } from 'jsr:@zanix/utils/helpers'`).
+
 ## [1.6.0] - 2026-07-23
 
 ### Added

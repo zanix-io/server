@@ -28,7 +28,9 @@ function validateCoreDependency(
   const dependencyType = ProgramModule.targets['getTarget'](`${type}:${id}`)
     ?.prototype[ZANIX_PROPS].type // Asume that exists if is not core
 
-  const coreMatch = coreItems[type].find(({ Target }) => Dependency.prototype instanceof Target)
+  const coreMatch = coreItems[type].find(({ Target }) =>
+    typeof Target === 'function' && Dependency.prototype instanceof Target
+  )
   if (!dependencyType && coreMatch) {
     const [property] = coreMatch.key.split(':')
     throw new InternalError(

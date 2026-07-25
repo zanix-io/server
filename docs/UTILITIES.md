@@ -22,32 +22,6 @@ Both compress the body only when it's larger than `threshold` (bytes, default **
 content type is compressible (text, json, javascript, xml, svg, css, html); otherwise the body is
 returned unmodified.
 
-## Routing
-
-```ts
-import { cleanRoute } from 'jsr:@zanix/server@[version]'
-
-cleanRoute('///folder1/folder2//file') // -> '/folder1/folder2/file'
-cleanRoute('  \\API\\Users\\  ') // -> '/api/users'
-```
-
-`cleanRoute` normalizes a route path: trims whitespace, converts backslashes to forward slashes,
-collapses repeated slashes, ensures a single leading `/`, removes any trailing slash, and lowercases
-the result. It's the same normalization the framework applies internally to every registered route.
-
-## Request payload parsing
-
-```ts
-import { processUrlParams } from 'jsr:@zanix/server@[version]'
-
-processUrlParams({ user: 'John%20Doe', tags: ['NodeJS%20Dev'] })
-// -> { user: 'John Doe', tags: ['NodeJS Dev'] }
-```
-
-Recursively `decodeURIComponent`s every string value in an object or array, in place. If decoding
-fails partway through (a malformed `%` sequence), the error is swallowed — values decoded before the
-failure stay decoded, the rest are left untouched.
-
 ## Target/instance management
 
 These back the dependency-injection system described in

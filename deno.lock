@@ -31,9 +31,9 @@
     "jsr:@std/streams@~0.224.5": "0.224.5",
     "jsr:@std/testing@1.0.9": "1.0.9",
     "jsr:@std/uuid@0.224": "0.224.3",
-    "jsr:@zanix/utils@*": "2.2.17",
-    "jsr:@zanix/utils@2": "2.2.17",
-    "jsr:@zanix/utils@2.2": "2.2.17",
+    "jsr:@zanix/utils@*": "2.3.0",
+    "jsr:@zanix/utils@2": "2.3.0",
+    "jsr:@zanix/utils@2.3": "2.3.0",
     "npm:@types/node@*": "24.2.0",
     "npm:esbuild@0.20.2": "0.20.2",
     "npm:graphql-jit@0.1.0": "0.1.0_graphql@16.12.0",
@@ -166,8 +166,8 @@
         "jsr:@std/crypto"
       ]
     },
-    "@zanix/utils@2.2.17": {
-      "integrity": "8ca5e4b2b55403d9e73d6dc01a1df504db58bcbcf4d23fc829cd935ceabe3c2c",
+    "@zanix/utils@2.3.0": {
+      "integrity": "9804a37f7c4c6520fc2a9c67de97dda6ed3440c785430ee100d4e729c4bb1fe9",
       "dependencies": [
         "jsr:@luca/esbuild-deno-loader",
         "jsr:@std/fmt@0.224",
@@ -952,7 +952,7 @@
       "jsr:@std/testing@1.0.9",
       "jsr:@std/uuid@0.224",
       "jsr:@zanix/utils@2",
-      "jsr:@zanix/utils@2.2",
+      "jsr:@zanix/utils@2.3",
       "npm:graphql-jit@0.1.0",
       "npm:graphql@16"
     ]

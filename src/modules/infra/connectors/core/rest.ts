@@ -4,7 +4,7 @@ import type { HttpMethod } from 'typings/router.ts'
 import { HttpError } from '@zanix/errors'
 import { ZanixConnector } from '../base.ts'
 import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
-import { cleanRoute } from 'utils/routes.ts'
+import { cleanRoute } from '@zanix/helpers'
 
 /**
  * Abstract base class for RESTful HTTP clients.

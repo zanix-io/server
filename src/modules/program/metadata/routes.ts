@@ -6,9 +6,9 @@ import type { WebServerTypes } from 'typings/server.ts'
 import type { ClassConstructor } from 'typings/targets.ts'
 
 import { BaseContainer } from './base.ts'
-import { cleanRoute } from 'utils/routes.ts'
 import { InternalError } from '@zanix/errors'
 import { join } from '@std/path'
+import { cleanRoute } from '@zanix/helpers'
 
 export class RouteContainer extends BaseContainer {
   #endpointsKey = (key = '') => `endpoints:${key}`

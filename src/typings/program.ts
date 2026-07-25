@@ -88,7 +88,7 @@ export type CoreConnectors =
   | 'kvLocal'
 
 /** Defines the available core provider types in the system. */
-export type CoreProviders = 'asyncmq' | 'cache' | 'worker'
+export type CoreProviders = 'asyncmq' | 'cache' | 'worker' | 'auth' | 'notifications'
 /** Any valid connector type: a core connector, or a `GenericTargets` (`'custom'`) one. */
 export type ConnectorTypes = CoreConnectors | GenericTargets
 /** Any valid provider type: a core provider, or a `GenericTargets` (`'custom'`) one. */
