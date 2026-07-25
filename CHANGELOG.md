@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-07-24
+
+### Fixed
+
+- `ZanixCoreAuthProvider` and `ZanixCoreNotificationsProvider` were documented and implemented in
+  `2.0.0` but the `mod.ts` export lines were missing from that release, so neither was actually
+  importable from `@zanix/server`. Added the missing exports.
+
 ## [2.0.0] - 2026-07-24
 
 ### Added

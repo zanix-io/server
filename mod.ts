@@ -60,6 +60,8 @@ export { ZanixProvider } from 'providers/base.ts'
 export { ZanixCacheProvider } from 'providers/core/cache.ts'
 export { ZanixWorkerProvider } from 'providers/core/worker.ts'
 export { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
+export { ZanixCoreAuthProvider } from 'providers/core/auth.ts'
+export { ZanixCoreNotificationsProvider } from 'providers/core/notifications.ts'
 export { Provider } from 'providers/decorators/base.ts'
 
 // Middlewares
