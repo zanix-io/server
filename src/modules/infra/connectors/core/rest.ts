@@ -88,7 +88,7 @@ export class RestClient extends ZanixConnector {
     delete options.baseUrl
 
     const [protocol, restOfUrl] = (baseUrl ? `${baseUrl}/${endpoint}` : endpoint).split('://')
-    const url = `${protocol}:/${cleanRoute(restOfUrl)}`
+    const url = `${protocol}:/${cleanRoute(restOfUrl, true)}`
 
     try {
       const response = await fetch(url, { method, ...options })
