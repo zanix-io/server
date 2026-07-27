@@ -15,6 +15,7 @@ export function defineSocketDecorator(
   let route: string | undefined
   let interactor: string | undefined
   let enableALS = false
+  let isInternal = false
   let rto: RtoTypes
   if (typeof options === 'string') {
     route = options
@@ -27,6 +28,7 @@ export function defineSocketDecorator(
     interactor = getTargetKey(options.Interactor)
     route = options.route
     enableALS = options.enableALS || enableALS
+    isInternal = options.isInternal || isInternal
   }
 
   return function (Target) {
@@ -51,6 +53,6 @@ export function defineSocketDecorator(
       lifetime: 'TRANSIENT',
     })
 
-    ProgramModule.routes.defineRoute('socket', Target)
+    ProgramModule.routes.defineRoute('socket', Target, isInternal)
   }
 }

@@ -107,6 +107,12 @@ export type HandlerDecoratorOptions =
      */
     enableALS?: boolean
     Interactor?: ZanixInteractorClass
+    /**
+     * Whether every route this Controller defines should only be mounted on a server
+     * bootstrapped with a matching `isInternal` value (see `bootstrapServers`'s
+     * `BootstrapServerOptions[type].isInternal`). Defaults to `false` (public).
+     */
+    isInternal?: boolean
   }
 
 export type SocketDecoratorOptions =
@@ -126,6 +132,12 @@ export type SocketDecoratorOptions =
      */
     enableALS?: boolean
     Interactor?: ZanixInteractorClass
+    /**
+     * Whether this socket route should only be mounted on a server bootstrapped with a matching
+     * `isInternal` value (see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`).
+     * Defaults to `false` (public).
+     */
+    isInternal?: boolean
   }
 
 /** Requires a non-`'lazy'` `startMode` when `L` is `'TRANSIENT'`; otherwise it stays optional. */

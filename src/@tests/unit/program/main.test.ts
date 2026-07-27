@@ -3,6 +3,7 @@ import { assert, assertEquals } from '@std/assert'
 import { assertSpyCalls, stub } from '@std/testing/mock'
 import { InternalProgram as ProgramClass } from 'modules/program/mod.ts'
 import { HANDLER_METADATA_PROPERTY_KEY } from 'utils/constants.ts'
+import { TargetBaseClass } from 'modules/infra/base/target.ts'
 
 Deno.test('Program class initializes all containers', () => {
   const program = new ProgramClass()
@@ -43,6 +44,32 @@ Deno.test('cleanupInitializationsMetadata calls resetContainer on all containers
   resetDecoratorsStub.restore()
   resetTargetsStub.restore()
 })
+
+Deno.test(
+  'cleanupInitializationsMetadata("onBoot") does not break routes.defineRoute for later Target-based registrations',
+  () => {
+    const program = new ProgramClass()
+
+    program.cleanupInitializationsMetadata('onBoot')
+
+    // Regression: this used to throw ("Cannot read properties of undefined (reading
+    // 'getProperties')") because cleanupInitializationsMetadata('onBoot') deleted the
+    // constructor-injected `middlewares`/`targets` fields directly off the `routes` container
+    // instance, instead of only resetting their keyed metadata. Only the Target-based overload of
+    // `defineRoute` (used by `@Controller`/`@Socket`) exercises `this.targets`, so a plain
+    // path+handler call (which doesn't) wouldn't have caught this.
+    class AfterCleanupTarget extends TargetBaseClass {
+      public handle() {}
+    }
+    program.routes.setEndpoint({ Target: AfterCleanupTarget, propertyKey: 'handle' })
+    program.targets.addProperty({ Target: AfterCleanupTarget, propertyKey: 'handle' })
+
+    program.routes.defineRoute('rest', AfterCleanupTarget)
+
+    const routes = program.routes.getRoutes('rest')
+    assert(routes?.['/handle/GET'])
+  },
+)
 
 Deno.test('cleanupInitializationsMetadata calls resetContainer on post boot', () => {
   const program = new ProgramClass()

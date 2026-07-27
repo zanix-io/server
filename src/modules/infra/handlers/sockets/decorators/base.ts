@@ -67,6 +67,12 @@ export function Socket(options: {
   enableALS?: boolean
   /** Interactor name for injection */
   Interactor?: ZanixInteractorClass
+  /**
+   * Whether this socket route should only be mounted on a server bootstrapped with a matching
+   * `isInternal` value (see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`).
+   * Defaults to `false` (public).
+   */
+  isInternal?: boolean
 }): ZanixClassDecorator
 
 export function Socket(

@@ -30,12 +30,14 @@ export function defineResolverDecorator(
   let prefix: string = ''
   let interactor: string | undefined
   let enableALS = false
+  let isInternal = false
   if (typeof options === 'string') {
     prefix = options
   } else if (options) {
     interactor = getTargetKey(options.Interactor)
     enableALS = options.enableALS || enableALS
     prefix = options.prefix || prefix
+    isInternal = options.isInternal || isInternal
   }
 
   return function (Target) {
@@ -53,8 +55,9 @@ export function defineResolverDecorator(
     methodDecorators.forEach((decorator) => {
       const { name, handler, input, output, request, description } = decorator
       const resolverName = prefix ? prefix + capitalize(name) : name.toLowerCase()
+      const schemaBucket = gqlSchemaDefinitions[isInternal ? 'internal' : 'public']
 
-      gqlSchemaDefinitions[request] += `\n"""${description}"""\n${resolverName}${
+      schemaBucket[request] += `\n"""${description}"""\n${resolverName}${
         buildGqlInput(input)
       }: ${output}\n`
 
@@ -109,7 +112,7 @@ export function defineResolverDecorator(
       }
 
       // Resolver assignment
-      rootValue[resolverName] = function (
+      rootValue[isInternal ? 'internal' : 'public'][resolverName] = function (
         payload,
         request: RequestContext,
       ) {
@@ -129,7 +132,7 @@ export function defineResolverDecorator(
     ProgramModule.targets.defineTarget(getTargetKey(Target), {
       type: 'resolver',
       Target,
-      dataProps: { interactor, enableALS },
+      dataProps: { interactor, enableALS, isInternal },
       lifetime: 'TRANSIENT',
     })
   }

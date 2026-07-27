@@ -51,7 +51,7 @@ export class TargetContainer extends BaseInstancesContainer {
     const { key } = this.toBeInstantiated(baseKey, { ...opts, startMode })
 
     this.setTargetByStartMode(key, startMode, type)
-    this.setTargetByType(baseKey, type)
+    this.setTargetByType(baseKey, type, !!(opts.dataProps as { isInternal?: boolean })?.isInternal)
     this.setTarget(key, Target)
   }
 
@@ -88,14 +88,21 @@ export class TargetContainer extends BaseInstancesContainer {
   protected setTargetByType(
     key: string,
     type: ModuleTypes,
+    isInternal = false,
     container: object = this,
   ) {
     if (type !== 'connector' && type !== 'resolver') return // is not neccesary (yet) to save other types
 
-    const targets = this.getTargetsByType(type)
+    const targets = this.getTargetsByType(type, undefined, container)
 
     if (!targets.includes(key)) targets.push(key)
     this.setData(`type:${type}`, targets, container)
+
+    // `setData` can't store a literal `false` (its `data || key` fallback would substitute the
+    // key string instead) — only write when `true`; a missing entry already reads as falsy below.
+    if (type === 'resolver' && isInternal) {
+      this.setData(`type:${type}:isInternal:${key}`, isInternal, container)
+    }
   }
 
   /**
@@ -116,14 +123,24 @@ export class TargetContainer extends BaseInstancesContainer {
   /**
    * Gets all registered keys for a specific module type.
    * @param type The module type identifier.
+   * @param isInternal - For `type: 'resolver'` only: when given, only keys registered with a
+   * matching `isInternal` flag (see `@Resolver`'s `isInternal` option) are returned. Omit to get
+   * every key regardless of `isInternal`. Has no effect for `type: 'connector'`.
    * @param container Optional container object (defaults to `this`).
    * @returns An array of registered keys.
    */
   public getTargetsByType(
     type: Extract<ModuleTypes, 'connector' | 'resolver'>,
+    isInternal?: boolean,
     container: object = this,
   ): string[] {
-    return this.getData<string[]>(`type:${type}`, container) || []
+    const targets = this.getData<string[]>(`type:${type}`, container) || []
+
+    if (type !== 'resolver' || isInternal === undefined) return targets
+
+    return targets.filter((key) =>
+      !!this.getData<boolean>(`type:${type}:isInternal:${key}`, container) === isInternal
+    )
   }
 
   /**

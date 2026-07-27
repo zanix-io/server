@@ -23,12 +23,14 @@ export function defineControllerDecorator(
   let prefix: string | undefined
   let interactor: string | undefined
   let enableALS = false
+  let isInternal = false
   if (typeof options === 'string') {
     prefix = options
   } else if (options) {
     interactor = getTargetKey(options.Interactor)
     prefix = options.prefix
     enableALS = options.enableALS || enableALS
+    isInternal = options.isInternal || isInternal
   }
 
   return function (Target) {
@@ -59,7 +61,7 @@ export function defineControllerDecorator(
       lifetime: 'TRANSIENT',
     })
 
-    ProgramModule.routes.defineRoute('rest', Target)
+    ProgramModule.routes.defineRoute('rest', Target, isInternal)
   }
 }
 

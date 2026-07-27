@@ -46,22 +46,30 @@ const mainProcess = (options: {
 /**
  * Default routes handler
  * @param {WebServerTypes} type
+ * @param {boolean} isInternal - Whether this handler is being built for the internal server
+ * instance (see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`) — only
+ * routes/resolvers with a matching `isInternal` flag are included.
  * @returns {ServerHandler}
  */
 export const getMainHandler = (
   type: WebServerTypes,
+  isInternal: boolean = false,
   globalPrefix: string = '',
   options: { cors?: CorsOptions; gzip?: GzipOptions } = {},
 ): ServerHandler => {
   if (type === 'graphql') {
     ProgramModule.routes.defineRoute('graphql', {
       path: globalPrefix,
-      handler: getGraphqlHandler(),
+      handler: getGraphqlHandler(isInternal),
       httpMethod: 'POST',
-    })
+    }, isInternal)
   }
 
-  const { relativePaths, absolutePaths, routePaths } = routeProcessor(type, globalPrefix)
+  const { relativePaths, absolutePaths, routePaths } = routeProcessor(
+    type,
+    isInternal,
+    globalPrefix,
+  )
 
   const { cors, gzip } = options
 

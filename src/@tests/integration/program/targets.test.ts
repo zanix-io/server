@@ -41,6 +41,31 @@ Deno.test('TargetContainer: defineTarget stores target class and options', () =>
   assertEquals(container.getConnector('serviceA')[ZANIX_PROPS].data, { foo: 'bar' })
 })
 
+Deno.test('TargetContainer: getTargetsByType filters resolvers by isInternal', () => {
+  const container = new TargetContainer()
+
+  class PublicResolver {}
+  class InternalResolver {}
+
+  container.defineTarget('publicResolver', {
+    Target: PublicResolver,
+    type: 'resolver',
+    dataProps: { isInternal: false },
+  } as never)
+  container.defineTarget('internalResolver', {
+    Target: InternalResolver,
+    type: 'resolver',
+    dataProps: { isInternal: true },
+  } as never)
+
+  assertEquals(container.getTargetsByType('resolver').sort(), [
+    'internalResolver',
+    'publicResolver',
+  ])
+  assertEquals(container.getTargetsByType('resolver', false), ['publicResolver'])
+  assertEquals(container.getTargetsByType('resolver', true), ['internalResolver'])
+})
+
 Deno.test(
   'TargetContainer: defineTarget stores Zanix Props as non-enumerable on the prototype',
   () => {

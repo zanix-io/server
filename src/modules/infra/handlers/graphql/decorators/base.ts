@@ -67,6 +67,12 @@ export function Resolver(options: {
   enableALS?: boolean
   /** Interactor for injection */
   Interactor?: ZanixInteractorClass
+  /**
+   * Whether every operation this Resolver defines should only be reachable through a server
+   * bootstrapped with a matching `isInternal` value (see `bootstrapServers`'s
+   * `BootstrapServerOptions.graphql.isInternal`). Defaults to `false` (public).
+   */
+  isInternal?: boolean
 }): ZanixClassDecorator
 
 export function Resolver(

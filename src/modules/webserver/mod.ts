@@ -69,8 +69,12 @@ export const webServerManager: Readonly<WebServerManager> = Object.freeze(new We
  *
  * `isInternal` is set **per server type** (e.g. `server.rest.isInternal`), not globally: when
  * `true` for a given type, that server is considered internal and is assigned its own
- * dynamically generated UUID as the global prefix, isolating it from public servers.
- * `onCreate`, when provided, is invoked with the server `id` once that server is created.
+ * dynamically generated UUID as the global prefix, isolating it from public servers. It also
+ * decides which routes/resolvers get mounted: a `@Controller`/`@Socket`/`@Resolver` registers its
+ * own `isInternal` flag (default `false`), and only entries whose flag matches the value
+ * bootstrapped here are served — a REST/Socket/GraphQL server built with `isInternal: true` only
+ * serves `isInternal: true` routes, and vice versa. `onCreate`, when provided, is invoked with the
+ * server `id` once that server is created.
  *
  * Example:
  * ```ts
@@ -89,14 +93,21 @@ export const webServerManager: Readonly<WebServerManager> = Object.freeze(new We
  * @returns {Promise<ServerID[]>} - A promise that resolves with an array of IDs for the servers
  * that were successfully created and started.
  */
+const hasRoutesForScope = (type: 'rest' | 'socket', isInternal?: boolean): boolean => {
+  const routes = ProgramModule.routes.getRoutes(type)
+  if (!routes) return false
+  return Object.values(routes).some((route) => !!route.isInternal === !!isInternal)
+}
+
 export const bootstrapServers = async (
   server: BootstrapServerOptions = {},
 ): Promise<ServerID[]> => {
   const servers: ServerID[] = []
 
-  const serveRest = ProgramModule.routes.getRoutes('rest')
-  const serveSocket = ProgramModule.routes.getRoutes('socket')
-  const serveGraphql = ProgramModule.targets.getTargetsByType('resolver').length
+  const serveRest = hasRoutesForScope('rest', server.rest?.isInternal)
+  const serveSocket = hasRoutesForScope('socket', server.socket?.isInternal)
+  const serveGraphql =
+    ProgramModule.targets.getTargetsByType('resolver', !!server.graphql?.isInternal).length
 
   if (!(serveRest || serveSocket || serveGraphql)) {
     return servers

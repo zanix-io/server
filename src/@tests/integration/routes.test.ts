@@ -95,6 +95,49 @@ Deno.test('routeProcessor should return adapted routes for external definitions'
   assertEquals(relativePaths[fullPath].pipes[2]({ id: 2 } as never), undefined)
 })
 
+Deno.test('routeProcessor: isInternal filters which routes are included per scope', () => {
+  Program.routes.resetContainer()
+
+  Program.routes.defineRoute('rest', {
+    path: '/public-only',
+    handler: () => '' as never,
+  }, false)
+  Program.routes.defineRoute('rest', {
+    path: '/internal-only',
+    handler: () => '' as never,
+  }, true)
+
+  const { absolutePaths: publicPaths } = routeProcessor('rest', false)
+  assertExists(publicPaths['/public-only/GET'])
+  assertEquals(publicPaths['/internal-only/GET'], undefined)
+
+  const { absolutePaths: internalPaths } = routeProcessor('rest', true)
+  assertExists(internalPaths['/internal-only/GET'])
+  assertEquals(internalPaths['/public-only/GET'], undefined)
+
+  // Default (no isInternal argument) behaves like `false` (public)
+  const { absolutePaths: defaultPaths } = routeProcessor('rest')
+  assertExists(defaultPaths['/public-only/GET'])
+  assertEquals(defaultPaths['/internal-only/GET'], undefined)
+})
+
+Deno.test('routeProcessor: relative regex matches nothing with zero relative routes', () => {
+  Program.routes.resetContainer()
+
+  Program.routes.defineRoute('rest', {
+    path: '/only-absolute',
+    handler: () => '' as never,
+  })
+
+  const { routePaths } = routeProcessor('rest')
+
+  // Regression: `new RegExp('')` (an empty pattern, produced when `routePaths.relative` starts
+  // out empty) matches every string, which made any unmatched path look like a 405 (method not
+  // allowed) instead of a 404 (not found).
+  assertFalse(routePaths.relative.test('/some/unrelated/path'))
+  assertFalse(routePaths.relative.test(''))
+})
+
 Deno.test('routeProcessor should throw because of douplicate routes', () => {
   const path = 'route-2'
   class Target extends TargetBaseClass {}

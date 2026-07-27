@@ -24,6 +24,11 @@ import { GRAPHQL_PORT, JSON_CONTENT_HEADER, SOCKET_PORT } from 'jsr:@zanix/serve
 explicit `port` is given for that server type (REST defaults to `8000` unless overridden by the
 `PORT`/`PORT_REST` environment variables — see below).
 
+The `ADMIN_*_PORT` constants are reserved ports meant to back a second, `isInternal: true`
+`bootstrapServers` call — one whose servers mount only `isInternal: true` routes/resolvers/sockets
+(an admin API, a health check, etc.), isolated from the public API. See
+[Handlers → Internal-only handlers](./HANDLERS.md#internal-only-handlers) for the full mechanism.
+
 ## Environment variables
 
 | Name            | Description                            |

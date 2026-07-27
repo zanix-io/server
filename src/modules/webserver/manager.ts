@@ -91,8 +91,9 @@ export class WebServerManager {
 
     const prefix = getPrefix(globalPrefix)
 
-    const { handler = getMainHandler(type, isInternal ? serverID : prefix, { cors, gzip }) } =
-      options
+    const {
+      handler = getMainHandler(type, isInternal, isInternal ? serverID : prefix, { cors, gzip }),
+    } = options
 
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 

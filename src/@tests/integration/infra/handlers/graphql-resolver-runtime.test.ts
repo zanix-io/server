@@ -32,7 +32,7 @@ Deno.test({
     const context = { id: 'ctx-guard', payload: { body: {} } } as unknown as HandlerContext
     const request = { context } as never
 
-    const callHello = rootValue['hello'] as unknown as (
+    const callHello = rootValue.public['hello'] as unknown as (
       payload: unknown,
       request: unknown,
     ) => Promise<unknown>
@@ -58,7 +58,7 @@ Deno.test({
     const context = { id: 'ctx-als', payload: { body: {} } } as unknown as HandlerContext
     const request = { context } as never
 
-    const callHello = rootValue['hello'] as unknown as (
+    const callHello = rootValue.public['hello'] as unknown as (
       payload: unknown,
       request: unknown,
     ) => Promise<unknown>

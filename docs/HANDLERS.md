@@ -57,11 +57,12 @@ case — `@Post({ Body: LogoutRTO })` registers on `POST /logout` for a method n
 
 Besides a plain string prefix, `@Controller` accepts an options object:
 
-| Option       | Description                                                                  |
-| ------------ | ---------------------------------------------------------------------------- |
-| `prefix`     | Route prefix applied to all endpoints in the controller.                     |
-| `Interactor` | Interactor class injected and made available as `this.interactor`.           |
-| `enableALS`  | Enables `AsyncLocalStorage`-based context isolation per request (see below). |
+| Option       | Description                                                                                                                                  |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prefix`     | Route prefix applied to all endpoints in the controller.                                                                                     |
+| `Interactor` | Interactor class injected and made available as `this.interactor`.                                                                           |
+| `enableALS`  | Enables `AsyncLocalStorage`-based context isolation per request (see below).                                                                 |
+| `isInternal` | Marks every route in this controller as internal-only. Defaults to `false` (public) — see [Internal-only handlers](#internal-only-handlers). |
 
 ## GraphQL
 
@@ -86,7 +87,9 @@ class UsersResolver extends ZanixResolver {
 }
 ```
 
-`@Resolver` accepts the same `prefix`/`Interactor`/`enableALS` options as `@Controller`.
+`@Resolver` accepts the same `prefix`/`Interactor`/`enableALS`/`isInternal` options as `@Controller`
+— an internal-only resolver's fields are added to a separate schema/root-value bucket, never merged
+into the public schema (see [Internal-only handlers](#internal-only-handlers)).
 
 `@Query`/`@Mutation` are shorthands for the generic `@GQLRequest(type)` decorator, useful when the
 operation type needs to be resolved dynamically:
@@ -120,7 +123,8 @@ class ChatSocket extends ZanixWebSocket {
 ```
 
 `@Socket` also accepts an options object with `route`, `rto` (validating the incoming message body,
-params, or query), `Interactor`, and `enableALS`.
+params, or query), `Interactor`, `enableALS`, and `isInternal` (see
+[Internal-only handlers](#internal-only-handlers)).
 
 > ℹ️ `@Guard`/`@Pipe`/`@Interceptor` only take effect on a `@Socket` class when applied at the
 > **class** level, not on an individual lifecycle method — see
@@ -160,6 +164,47 @@ class OverviewSocket extends ZanixWebSocket {
 const socket = this.registry.get<OverviewSocket>(userId)
 socket?.push({ event: 'balance-updated' })
 ```
+
+## Internal-only handlers
+
+`isInternal` (available on `@Controller`, `@Resolver`, and `@Socket`) marks every route/resolver
+field/socket route the class defines as internal-only. It works together with `bootstrapServers`'s
+own per-type `isInternal` option (`BootstrapServerOptions[type].isInternal` — see
+[Getting Started](./GETTING-STARTED.md)): a server bootstrapped with `isInternal: true` for a given
+type mounts **only** the `isInternal: true` routes/resolvers/sockets of that type, and a server
+bootstrapped without it (the default) mounts only the `isInternal: false` (public) ones. A route
+never leaks between the two — this is the same mechanism that gives an `isInternal: true` server its
+own random UUID URL prefix, now also scoping _which_ routes it serves, not just isolating its
+address.
+
+```ts
+import { AuthTokenValidation } from '@zanix/auth'
+import { Controller, Get, ZanixController } from 'jsr:@zanix/server@[version]'
+
+@Controller({ prefix: 'admin/health', isInternal: true })
+class AdminHealthController extends ZanixController {
+  @Get()
+  @AuthTokenValidation({ permissions: ['admin'] })
+  public check() {
+    return { status: 'ok' }
+  }
+}
+```
+
+```ts
+import { ADMIN_REST_PORT, bootstrapServers } from 'jsr:@zanix/server@[version]'
+
+// Public server — never sees `admin/health`.
+await bootstrapServers({ rest: { globalPrefix: '/api' } })
+
+// A second, internal-only server — only sees `isInternal: true` routes.
+// ADMIN_REST_PORT is one of the reserved ports for this purpose (see Configuration).
+await bootstrapServers({ rest: { port: ADMIN_REST_PORT, isInternal: true } })
+```
+
+Defaults to `false` (public) everywhere it appears, so existing handlers are unaffected unless opted
+in explicitly. See [Configuration](./CONFIGURATION.md#constants) for the reserved `ADMIN_*_PORT`
+constants meant to back this pattern.
 
 ## `enableALS`
 

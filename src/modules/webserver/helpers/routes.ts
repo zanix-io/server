@@ -9,25 +9,36 @@ import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
 import { PARAM_PATTERN, ZANIX_PROPS } from 'utils/constants.ts'
 
-/** Function to process routes */
-export const routeProcessor = (server: WebServerTypes, globalPrefix: string = '') => {
-  const routes = ProgramModule.routes.getRoutes(server)
+/**
+ * Function to process routes
+ * @param isInternal - Only routes whose own `isInternal` flag (default `false`) matches this
+ * value are included — see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`.
+ */
+export const routeProcessor = (
+  server: WebServerTypes,
+  isInternal: boolean = false,
+  globalPrefix: string = '',
+) => {
+  const allRoutes = ProgramModule.routes.getRoutes(server) || {}
+  const routeKeys = Object.keys(allRoutes).filter((route) =>
+    !!allRoutes[route].isInternal === isInternal
+  )
   const serverName = capitalize(server)
 
-  if (!routes || !Object.keys(routes).length) {
+  if (!routeKeys.length) {
     throw new InternalError(`Not routes defined for ${serverName} sever`, {
       meta: { source: 'zanix', serverName },
     })
   }
 
-  const processedRoutes = Object.keys(routes).reduce<
+  const processedRoutes = routeKeys.reduce<
     {
       absolutePaths: ProcessedRoutes
       relativePaths: ProcessedRoutes
       routePaths: { absolute: Set<string>; relative: RegExp[] }
     }
   >((acc, route) => {
-    const { handler, path, interceptors, pipes, httpMethod, guards } = routes[route]
+    const { handler, path, interceptors, pipes, httpMethod, guards } = allRoutes[route]
     let fullPath
     if (globalPrefix && `/${globalPrefix}` !== path) {
       route = `/${globalPrefix}${route}`
@@ -91,7 +102,12 @@ export const routeProcessor = (server: WebServerTypes, globalPrefix: string = ''
     absolutePaths,
     routePaths: {
       absolute: routePaths.absolute,
-      relative: new RegExp(routePaths.relative.map((r) => r.source).join('|')),
+      // `(?!)` never matches anything — an empty `routePaths.relative` must not fall back to
+      // `new RegExp('')`, which (as an empty pattern) matches every string at position 0 and
+      // would make any unmatched path look like a 405 (method not allowed) instead of a 404.
+      relative: routePaths.relative.length
+        ? new RegExp(routePaths.relative.map((r) => r.source).join('|'))
+        : /(?!)/,
     },
   }
 }

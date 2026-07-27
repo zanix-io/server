@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-27
+
+## Added
+
+- Added the `isInternal` option to `HandlerDecoratorOptions`.
+- Added the `isInternal` option to `SocketDecoratorOptions`.
+
+## Changed
+
+- Controllers can now be marked as internal by setting `isInternal: true`, ensuring that all their
+  routes are only mounted on servers bootstrapped with the matching
+  `BootstrapServerOptions[type].isInternal` value.
+- Socket routes can now be marked as internal using `isInternal: true`, restricting them to servers
+  bootstrapped with the corresponding `BootstrapServerOptions[type].isInternal` value.
+- By default, both handlers and socket routes remain **public** (`isInternal: false`) unless
+  explicitly configured otherwise.
+
 ## [2.0.4] - 2026-07-26
 
 ### Added

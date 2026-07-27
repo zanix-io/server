@@ -42,6 +42,12 @@ export type RouteDefinition = {
     | Required<Omit<MetadataTargetSymbols, 'type'>> & { type?: MetadataTargetSymbols['type'] }
   enableALS?: boolean
   httpMethod?: HttpMethod
+  /**
+   * Whether this route should only be mounted on a server bootstrapped with a matching
+   * `isInternal` value (see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`).
+   * Defaults to `false` (public) when omitted.
+   */
+  isInternal?: boolean
 } & Partial<Middlewares>
 
 export type ProcessedRouteDefinition =
@@ -68,7 +74,12 @@ export type RoutesObject = Partial<
     WebServerTypes,
     Record<
       string,
-      & { handler: RouteDefinition['handler']; httpMethod: HttpMethod; path: string }
+      & {
+        handler: RouteDefinition['handler']
+        httpMethod: HttpMethod
+        path: string
+        isInternal?: boolean
+      }
       & Middlewares
     >
   >

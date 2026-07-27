@@ -72,6 +72,12 @@ export function Controller(options: {
   enableALS?: boolean
   /** Interactor for injection */
   Interactor?: ZanixInteractorClass
+  /**
+   * Whether every route this Controller defines should only be mounted on a server
+   * bootstrapped with a matching `isInternal` value (see `bootstrapServers`'s
+   * `BootstrapServerOptions[type].isInternal`). Defaults to `false` (public).
+   */
+  isInternal?: boolean
 }): ZanixClassDecorator
 
 export function Controller(

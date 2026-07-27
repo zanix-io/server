@@ -80,8 +80,6 @@ export class InternalProgram {
 
     // remove all routes in container
     this.routes.resetContainer()
-    delete this.routes['middlewares' as never]
-    delete this.routes['targets' as never]
     // remove all middlewares in container
     this.middlewares.resetContainer()
     // remove all metadata used in decorators execution

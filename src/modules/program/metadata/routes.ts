@@ -22,6 +22,7 @@ export class RouteContainer extends BaseContainer {
     route: Exclude<RoutesObject[keyof RoutesObject], undefined>,
     Target: ClassConstructor,
     type: WebServerTypes,
+    isInternal?: boolean,
   ) {
     const propertyKeys = this.targets.getProperties({ Target })
     const { endpoint: prefix } = this.getEndpoint({ Target })
@@ -54,16 +55,21 @@ export class RouteContainer extends BaseContainer {
         interceptors: Array.from(interceptors),
         pipes: Array.from(pipes),
         guards: Array.from(guards),
+        isInternal,
       }
     }
   }
 
   /**
    * Function to define a route
+   *
+   * @param isInternal - Whether every route defined by this call should only be mounted on a
+   * server bootstrapped with a matching `isInternal` value. Defaults to `false` (public).
    */
   public defineRoute(
     type: WebServerTypes,
     definition: RouteDefinitionProps | MetadataTargetSymbols['Target'],
+    isInternal?: boolean,
   ) {
     const { path, handler, httpMethod = 'GET', pipes = [], interceptors = [], Target } =
       typeof definition === 'function'
@@ -74,7 +80,7 @@ export class RouteContainer extends BaseContainer {
 
     routes[type] = { ...routes[type] }
 
-    if (Target) this.defineTargetRoutes(routes[type], Target, type)
+    if (Target) this.defineTargetRoutes(routes[type], Target, type, isInternal)
     if (path && handler) {
       const cleanPath = cleanRoute(path)
       const fullPath = `${cleanPath}/${httpMethod}`
@@ -85,6 +91,7 @@ export class RouteContainer extends BaseContainer {
         httpMethod,
         pipes,
         interceptors,
+        isInternal,
       }
     }
 

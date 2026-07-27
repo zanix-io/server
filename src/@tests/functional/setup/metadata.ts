@@ -467,3 +467,27 @@ class _ControllerGuard extends ZanixController {
     Promise.reject('Error')
   }
 }
+
+/** isInternal-tagged fixtures: only reachable when bootstrapped with a matching isInternal server */
+@Controller({ isInternal: true })
+class _InternalController extends ZanixController {
+  @Get('internal-hello')
+  public internalHello() {
+    return 'internal response'
+  }
+}
+
+@Socket({ route: 'internal-sock', isInternal: true })
+class _InternalSocket extends ZanixWebSocket {
+  protected override onmessage() {
+    return { message: 'internal socket response' }
+  }
+}
+
+@Resolver({ isInternal: true })
+class _InternalResolver extends ZanixResolver {
+  @Query()
+  public internalHello2() {
+    return 'internal gql response'
+  }
+}

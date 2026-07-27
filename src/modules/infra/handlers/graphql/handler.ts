@@ -4,7 +4,15 @@ import type { HandlerFunction } from 'typings/router.ts'
 import { defineSchema } from './schema.ts'
 import { execute, parse } from 'graphql'
 
-export const rootValue: Record<string, HandlerFunction> = {}
+/**
+ * Resolver functions, one bucket per `isInternal` value — mirrors `gqlSchemaDefinitions`'s split
+ * (see `schema.ts`), so a request against the internal server can only ever execute a resolver
+ * that was itself registered as `isInternal: true`.
+ */
+export const rootValue = {
+  public: {} as Record<string, HandlerFunction>,
+  internal: {} as Record<string, HandlerFunction>,
+}
 
 /**
  * RequestContext GQL class
@@ -32,10 +40,16 @@ export class RequestContext {
  * This handler serves as the entry point for processing GraphQL requests,
  * encapsulating the core logic required to handle GraphQL queries and mutations.
  *
+ * @param isInternal - Whether this handler is being built for the internal server instance (see
+ * `bootstrapServers`'s `BootstrapServerOptions.graphql.isInternal`) — only resolvers registered
+ * with a matching `isInternal` flag are reachable through it.
  * @returns {HandlerFunction} A handler function configured to process GraphQL operations.
  */
-export const getGraphqlHandler: () => HandlerFunction = (): HandlerFunction => {
-  const schema = defineSchema()
+export const getGraphqlHandler: (isInternal?: boolean) => HandlerFunction = (
+  isInternal: boolean = false,
+): HandlerFunction => {
+  const schema = defineSchema(isInternal)
+  const scopedRootValue = rootValue[isInternal ? 'internal' : 'public']
 
   return async function (ctx) {
     const { query, variables } = ctx.payload.body
@@ -45,7 +59,7 @@ export const getGraphqlHandler: () => HandlerFunction = (): HandlerFunction => {
 
     const response = await execute({
       schema,
-      rootValue,
+      rootValue: scopedRootValue,
       contextValue: requestContext,
       document: documentAST,
       variableValues: variables,
