@@ -80,12 +80,14 @@ export type CoreCacheTypes<K> = {
  * - `'asyncmq'`: Represents an asynchronous message queue system.
  * - `'database'`: Represents a generic database connector.
  * - `'kvLocal'`: Represents a generic key-value store connector.
+ * - `'search'`: Represents a generic search engine and document indexing connector.
  */
 export type CoreConnectors =
   | `cache:${CoreCacheConnectors}`
   | 'asyncmq'
   | 'database'
   | 'kvLocal'
+  | 'search'
 
 /** Defines the available core provider types in the system. */
 export type CoreProviders = 'asyncmq' | 'cache' | 'worker' | 'auth' | 'notifications'

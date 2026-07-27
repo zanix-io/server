@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.0.4] - 2026-07-26
+
+### Added
+
+- Added the new `search` core connector type for generic search engine and document indexing
+  connectors (e.g. Elasticsearch and OpenSearch).
+- Added `ZanixSearchConnector`, the abstract base class for the `search` connector type — see
+  [Built-in connector and provider base classes](docs/DEPENDENCY-INJECTION.md#built-in-connector-and-provider-base-classes).
+  It extends `RestClient` (not `ZanixConnector` directly) since backends in this category are
+  consumed over HTTP, the same reasoning `GraphQLClient` already follows, and declares the
+  `index`/`bulkIndex` contract every such connector must implement.
+- Added the `BulkIndexResult` type (`typings/general.ts`) — the return shape of
+  `ZanixSearchConnector.bulkIndex`.
+- Added a `this.search` getter to `CoreBaseClass` (and therefore to `ZanixProvider`/
+  `ZanixInteractor`), mirroring the existing `this.database`/`this.kvLocal` getters, for typed
+  access to the registered search connector.
+
 ## [2.0.3] - 2026-07-26
 
 ### Fixed

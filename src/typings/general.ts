@@ -57,6 +57,20 @@ export type GzipSettings = {
 export type GzipOptions = false | GzipSettings
 
 /**
+ * The outcome of a search-connector bulk indexing call (see `ZanixSearchConnector.bulkIndex`).
+ *
+ * A bulk request can respond successfully at the HTTP level while still failing some individual
+ * documents (e.g. a mapping conflict) — implementations should report that here rather than
+ * relying on the request not having thrown.
+ */
+export type BulkIndexResult = {
+  /** Whether at least one document in the batch failed to index. */
+  errors: boolean
+  /** How many documents in the batch failed to index. */
+  failedCount: number
+}
+
+/**
  * Options for setting a value in the cache.
  */
 export type CacheSetOptions = {

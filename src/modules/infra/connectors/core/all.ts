@@ -13,6 +13,7 @@ export const ConnectorCoreModules: Record<
   kvLocal: { key: 'kvLocal', Target: {} as Function },
   asyncmq: { key: 'asyncmq', Target: {} as Function },
   database: { key: 'database', Target: {} as Function },
+  search: { key: 'search', Target: {} as Function },
 }
 
 export default ConnectorCoreModules

@@ -1,3 +1,5 @@
+// deno-coverage-ignore-file
+
 // deno-lint-ignore-file no-explicit-any
 import type { MiddlewareGlobalInterceptor, MiddlewareGlobalPipe } from 'typings/middlewares.ts'
 import type { HandlerContext, ScopedContext } from 'typings/context.ts'

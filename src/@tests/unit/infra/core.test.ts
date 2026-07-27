@@ -16,12 +16,15 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
     asyncmq: { name: 'asyncmq-mock' },
     cache: { name: 'cache-mock' },
     database: { name: 'db-mock' },
+    search: { name: 'search-mock' },
   }
 
   const getCoreConnectorsSpy = spy((_key: string, _options: unknown) => {
     switch (_key) {
       case ConnectorCoreModules.database.key:
         return fakeTargets.database
+      case ConnectorCoreModules.search.key:
+        return fakeTargets.search
       default:
         return null
     }
@@ -54,9 +57,10 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
   assertEquals(testInstance['asyncmq'], fakeTargets.asyncmq as never)
   assertEquals(testInstance['cache'], fakeTargets.cache as never)
   assertEquals(testInstance['database'], fakeTargets.database as never)
+  assertEquals(testInstance['search'], fakeTargets.search as never)
 
   // Validate 2 times caller
-  assertSpyCalls(getCoreConnectorsSpy, 1)
+  assertSpyCalls(getCoreConnectorsSpy, 2)
   assertSpyCalls(getCoreProvidersSpy, 3)
 
   const ctx = {
@@ -70,4 +74,5 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
   assertEquals(getCoreProvidersSpy.calls[2].args, [ProviderCoreModules.cache.key, ctx])
 
   assertEquals(getCoreConnectorsSpy.calls[0].args, [ConnectorCoreModules.database.key, ctx])
+  assertEquals(getCoreConnectorsSpy.calls[1].args, [ConnectorCoreModules.search.key, ctx])
 })

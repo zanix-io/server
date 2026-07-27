@@ -68,9 +68,9 @@ Controls whether the connector initializes itself automatically on instantiation
 
 The idiomatic way for a provider to reach its connector is through a **named, typed slot**: declare
 which core connector(s) it depends on via the generic type parameter, and access them through the
-matching getter (`this.database`, `this.cache`, `this.worker`, `this.asyncmq`, or `this.kvLocal`).
-The connector itself is typically a concrete class from a companion Zanix package — e.g.
-`ZanixMongoConnector` from `@zanix/datamaster` — rather than something `@zanix/server` provides
+matching getter (`this.database`, `this.cache`, `this.worker`, `this.asyncmq`, `this.kvLocal`, or
+`this.search`). The connector itself is typically a concrete class from a companion Zanix package —
+e.g. `ZanixMongoConnector` from `@zanix/datamaster` — rather than something `@zanix/server` provides
 directly (see
 [Built-in connector and provider base classes](#built-in-connector-and-provider-base-classes) below
 for the abstract bases `@zanix/server` _does_ ship):
@@ -90,7 +90,7 @@ class UsersRepository extends ZanixProvider<{ database: ZanixMongoConnector }> {
 Defaults when no options are given: `type: 'custom'`, `startMode: 'lazy'`, `lifetime: 'SINGLETON'`.
 
 For a connector that doesn't fit one of the named slots (`database`/`cache`/`worker`/`asyncmq`/
-`kvLocal`), you have two other options: reach it dynamically with
+`kvLocal`/`search`), you have two other options: reach it dynamically with
 [`this.connectors.get(X)`](#reaching-other-dependencies-thisproviders-thisconnectors-thisinteractors)
 (same mechanism the named getters use internally), or expose your own single lookup method by
 overriding `use()` — a separate, independent extension point meant to be the provider's own public
@@ -178,6 +178,7 @@ yourself, as shown in the `PostgresConnector` example below.
 | `ZanixKVConnector`               | `ZanixConnector` | Foundation for key-value store connectors, with optional TTL support.                             |
 | `RestClient`                     | `ZanixConnector` | REST HTTP client with base URL resolution, JSON parsing, and unified error handling.              |
 | `GraphQLClient`                  | `RestClient`     | Extends `RestClient` to simplify sending GraphQL queries over `POST`.                             |
+| `ZanixSearchConnector`           | `RestClient`     | Foundation for search/indexing engine connectors (Elasticsearch, OpenSearch...).                  |
 | `ZanixCacheProvider`             | `ZanixProvider`  | Orchestrates one or more `ZanixCacheConnector`s.                                                  |
 | `ZanixWorkerProvider`            | `ZanixProvider`  | Orchestrates background/worker task execution.                                                    |
 | `ZanixAsyncMQProvider`           | `ZanixProvider`  | Orchestrates one or more `ZanixAsyncmqConnector`s.                                                |

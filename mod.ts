@@ -53,6 +53,7 @@ export { ZanixCacheConnector } from 'connectors/core/cache.ts'
 export { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 export { GraphQLClient } from 'connectors/core/graphql.ts'
 export { RestClient } from 'connectors/core/rest.ts'
+export { ZanixSearchConnector } from 'connectors/core/search.ts'
 export { Connector } from 'connectors/decorators/base.ts'
 
 // Providers
@@ -135,6 +136,7 @@ export type {
 } from 'typings/program.ts'
 export type {
   Async,
+  BulkIndexResult,
   CacheProviderSetOptions,
   CacheSetOptions,
   ConnectionStatusHandler,

@@ -3,10 +3,12 @@ import { ZanixCacheConnector } from './cache.ts'
 import { ZanixDatabaseConnector } from './database.ts'
 import ConnectorCoreModules from './all.ts'
 import { ZanixKVConnector } from './kv.ts'
+import { ZanixSearchConnector } from './search.ts'
 
 ConnectorCoreModules.kvLocal.Target = ZanixKVConnector
 ConnectorCoreModules.asyncmq.Target = ZanixAsyncmqConnector
 ConnectorCoreModules.database.Target = ZanixDatabaseConnector
+ConnectorCoreModules.search.Target = ZanixSearchConnector
 ConnectorCoreModules['cache:custom'].Target = ZanixCacheConnector
 ConnectorCoreModules['cache:memcached'].Target = ZanixCacheConnector
 ConnectorCoreModules['cache:local'].Target = ZanixCacheConnector

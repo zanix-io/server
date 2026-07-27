@@ -1,3 +1,5 @@
+// deno-coverage-ignore-file
+
 import './metadata.ts'
 
 import type { StartMode } from 'typings/program.ts'

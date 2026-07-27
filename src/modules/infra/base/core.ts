@@ -1,5 +1,6 @@
 import type { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 import type { ZanixKVConnector } from 'connectors/core/kv.ts'
+import type { ZanixSearchConnector } from 'connectors/core/search.ts'
 import type { ZanixWorkerProvider } from 'providers/core/worker.ts'
 import type { ZanixCacheProvider } from 'providers/core/cache.ts'
 import type { RegistryContainer } from '../../program/metadata/registry.ts'
@@ -17,7 +18,8 @@ import { ContextualBaseClass } from './contextual.ts'
 import ProgramModule from '../../program/mod.ts'
 
 /**
- * Abstract base class that provides access to core connectors such as worker, asyncmq, cache, and database.
+ * Abstract base class that provides access to core connectors such as worker, asyncmq, cache,
+ * database, and search.
  *
  * This class extends from `ContextualBaseClass` and adds functionality to retrieve and interact with
  * core system connectors. It is designed to be extended by more specific implementations that will
@@ -124,6 +126,23 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
     return this.connectors.get<
       T['database'] extends ZanixDatabaseConnector ? T['database'] : ZanixDatabaseConnector
     >(ConnectorCoreModules.database.key)
+  }
+
+  /**
+   * Retrieves the search/indexing engine connector associated with the instance.
+   * Connectors to search engines such as Elasticsearch or OpenSearch.
+   *
+   * If the `search` connector is specified in the generic type `T`, it will return that specific connector type.
+   * Otherwise, it defaults to returning a `ZanixSearchConnector`.
+   *
+   * @protected
+   * @returns {T['search'] extends ZanixSearchConnector ? T['search'] : ZanixSearchConnector} The search connector instance associated with the current context.
+   */
+  protected get search(): T['search'] extends ZanixSearchConnector ? T['search']
+    : ZanixSearchConnector {
+    return this.connectors.get<
+      T['search'] extends ZanixSearchConnector ? T['search'] : ZanixSearchConnector
+    >(ConnectorCoreModules.search.key)
   }
 
   /**

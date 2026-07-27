@@ -6,6 +6,7 @@ import type { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 import type { ZanixCacheProvider } from 'providers/core/cache.ts'
 import type { ZanixKVConnector } from 'connectors/core/kv.ts'
+import type { ZanixSearchConnector } from 'connectors/core/search.ts'
 import type { ZanixWorkerProvider } from 'providers/core/worker.ts'
 import type { ZanixInteractor } from 'interactors/base.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
@@ -165,6 +166,7 @@ export type ZanixConnectorClass<
  * @property {ZanixCacheProvider} cache - Optional provider for the cache.
  * @property {ZanixDatabaseConnector} database - Optional connector for the database.
  * @property {ZanixKVConnector} kvLocal - Optional connector for the local key-value store.
+ * @property {ZanixSearchConnector} search - Optional connector for a search/indexing engine.
  */
 export type CoreConnectorTemplates = {
   /** Optional provider for the worker part of the system. */
@@ -177,6 +179,8 @@ export type CoreConnectorTemplates = {
   database?: ZanixDatabaseConnector
   /** Optional connector for the local key-value store. */
   kvLocal?: ZanixKVConnector
+  /** Optional connector for a search/indexing engine. */
+  search?: ZanixSearchConnector
 }
 /**
  * Indicates whether the connector should automatically initialize.
