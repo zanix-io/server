@@ -7,14 +7,27 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-07-28
+
 ### Added
 
+- **`versionProtocol` — generic, on-by-default protocol-version negotiation for `@Controller`,
+  `@Resolver`, and `@Socket`.** Rejects an incoming request that declares an unsupported version
+  (via a `Guard`), and stamps the negotiated version on every response (via an `Interceptor`) —
+  `X-Znx-Protocol-Version: 1` by default (`PROTOCOL_VERSION_HEADER`/`DEFAULT_PROTOCOL_VERSION`, both
+  new exports). Pass an object to override the header name, current version, or which older versions
+  are still accepted; pass `false` to disable it. On a `@Socket` class, negotiation happens once, at
+  the connection handshake (a WebSocket upgrade is a real HTTP request/response under the hood) —
+  there's no per-message header concept once the socket is open. This generalizes what was
+  previously a hand-rolled, admin-specific guard/interceptor pair in `@zanix/admin` into reusable
+  framework infrastructure — see
+  [Handlers → Protocol version negotiation](docs/HANDLERS.md#protocol-version-negotiation).
 - Added `AUTH_HEADERS`, `SESSION_HEADERS`, `RATE_LIMIT_HEADERS`, `GENERAL_HEADERS`, and
   `ADMIN_PROTOCOL_HEADER` constants — centralizes header-name constants that were previously
   duplicated (in some cases with diverging hardcoded copies) across `@zanix/auth`, `@zanix/core`,
   and `@zanix/notifications`, all of which already depend on `@zanix/server`. Deliberately excludes
-  `ADMIN_PROTOCOL_VERSION` (the version _number_, as opposed to the header name) — that stays in
-  `@zanix/core`, since it's expected to change independently of `@zanix/server`. See
+  `ADMIN_PROTOCOL_VERSION` (the version _number_, as opposed to the header name) — that lives in
+  `@zanix/admin`, since it's expected to change independently of `@zanix/server`. See
   [Configuration → Auth & admin-protocol headers](docs/CONFIGURATION.md#auth--admin-protocol-headers).
 - `getServiceId()`/`sanitizeIdentifier()` (`utils/identity.ts`) — derives a stable service identity
   from the project's own package name, same convention `ZanixDatabaseConnector`'s `defaultDbName`
@@ -56,6 +69,16 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`@Socket`'s class decorator never drained the shared method-decorator queue** (unlike
+  `@Controller`/`@Resolver`, it never called `applyMiddlewaresToTarget`). A method-level
+  `@Guard`/`@Pipe`/`@Interceptor` on a socket lifecycle method still has no effect either way — a
+  `@Socket` class has exactly one real route (the connection/upgrade itself), not one per lifecycle
+  method, so there's no per-method route for it to bind to (see
+  [Middlewares → Middleware on sockets](docs/MIDDLEWARES.md#middleware-on-sockets-class-level-only))
+  — but leaving the queue undrained left any such (mistaken) entry sitting around to be incorrectly
+  drained onto whichever _next_ `@Controller`/`@Resolver`/`@Socket` class happened to call this
+  function. Found and fixed as a prerequisite for wiring `versionProtocol` (see `Added` above) into
+  `@Socket`.
 - `identityKey()` (`connectors/core/rest.ts`, backing `RestClient`'s ETag cache identity scoping)
   had a literal raw NUL byte embedded in its source instead of the intended `\0` escape sequence —
   functionally equivalent at runtime (both produce a one-character null-string separator), but it

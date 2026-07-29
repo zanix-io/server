@@ -11,6 +11,7 @@ import type { ConnectorTypes, HandlerTypes, Lifetime, ProviderTypes, StartMode }
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import type { ZanixProvider } from 'providers/base.ts'
 import type { HttpMethod } from './router.ts'
+import type { VersionProtocolOption } from 'middlewares/protocol-version.ts'
 
 /**
  * A decorator type for classes.
@@ -92,53 +93,54 @@ export type ZanixGenericDecorator = (
   context?: ClassDecoratorContext | ClassMethodDecoratorContext,
 ) => void
 
+/**
+ * Options shared by every handler class decorator (`@Controller`, `@Resolver`, `@Socket`) —
+ * `prefix` (Controller/Resolver) and `route`/`rto` (Socket) are the only fields that differ per
+ * decorator, so they're kept out of this type and added on top of it instead.
+ */
+export type GenericHandlerOptions = {
+  /**
+   * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
+   * This ensures each request gets its own context, preventing shared state in singleton scenarios.
+   * Defaults to `false`
+   *
+   * ⚠️ Enabling this feature may increase overload by managing multiple contexts simultaneously,
+   * especially if many data points are associated with each request, potentially adding more
+   * processing overhead.
+   */
+  enableALS?: boolean
+  /** Interactor class injected and made available as `this.interactor`. */
+  Interactor?: ZanixInteractorClass
+  /**
+   * Whether every route/operation this handler defines should only be mounted on a server
+   * bootstrapped with a matching `isInternal` value (see `bootstrapServers`'s
+   * `BootstrapServerOptions[type].isInternal`). Defaults to `false` (public).
+   */
+  isInternal?: boolean
+  /**
+   * Negotiates a protocol version on every request/response this handler serves: rejects an
+   * incoming request that declares an unsupported version (via a `Guard`), and stamps the
+   * negotiated version on every response (via an `Interceptor`). `true` (or omitting the
+   * option) enables it with sensible defaults (`PROTOCOL_VERSION_HEADER`,
+   * `DEFAULT_PROTOCOL_VERSION`); pass an object to override the header name, current version,
+   * or which older versions are still accepted; pass `false` to disable it entirely.
+   * Defaults to `true` — **on by default** for every `@Controller`/`@Resolver`/`@Socket`. On a
+   * `@Socket`, this negotiates once per connection handshake, not per message.
+   */
+  versionProtocol?: VersionProtocolOption
+}
+
 export type HandlerDecoratorOptions =
   | string
-  | {
-    prefix?: string
-    /**
-     * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
-     * This ensures each request gets its own context, preventing shared state in singleton scenarios.
-     * Defaults to `false`
-     *
-     * ⚠️ Enabling this feature may increase overload by managing multiple contexts simultaneously,
-     * especially if many data points are associated with each request, potentially adding more
-     * processing overhead.
-     */
-    enableALS?: boolean
-    Interactor?: ZanixInteractorClass
-    /**
-     * Whether every route this Controller defines should only be mounted on a server
-     * bootstrapped with a matching `isInternal` value (see `bootstrapServers`'s
-     * `BootstrapServerOptions[type].isInternal`). Defaults to `false` (public).
-     */
-    isInternal?: boolean
-  }
+  | (GenericHandlerOptions & { prefix?: string })
 
 export type SocketDecoratorOptions =
   | string
-  | {
+  | (GenericHandlerOptions & {
     route: string
     /** Rto to validate socket event data on message (Body) and request search or params */
     rto?: RtoTypes | RtoTypes['Body']
-    /**
-     * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
-     * This ensures each request gets its own context, preventing shared state in singleton scenarios.
-     * Defaults to `false`
-     *
-     * ⚠️ Enabling this feature may increase overload by managing multiple contexts simultaneously,
-     * especially if many data points are associated with each request, potentially adding more
-     * processing overhead.
-     */
-    enableALS?: boolean
-    Interactor?: ZanixInteractorClass
-    /**
-     * Whether this socket route should only be mounted on a server bootstrapped with a matching
-     * `isInternal` value (see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`).
-     * Defaults to `false` (public).
-     */
-    isInternal?: boolean
-  }
+  })
 
 /** Requires a non-`'lazy'` `startMode` when `L` is `'TRANSIENT'`; otherwise it stays optional. */
 export type StartModeOnTransient<L extends Lifetime> = L extends 'TRANSIENT'

@@ -78,6 +78,17 @@ export { RequestValidation } from 'middlewares/decorators/validation.ts'
 export { cleanUpPipe, contextSettingPipe } from 'modules/infra/middlewares/defaults/context.pipe.ts'
 export { requestValidationPipe } from 'modules/infra/middlewares/defaults/validation.pipe.ts'
 export { defineMiddlewareDecorator } from 'modules/infra/middlewares/decorators/assembly.ts'
+export {
+  createProtocolVersionGuard,
+  createProtocolVersionInterceptor,
+  PROTOCOL_VERSION_LOCALS_KEY,
+  resolveVersionProtocolOptions,
+} from 'modules/infra/middlewares/protocol-version.ts'
+export type {
+  ResolvedVersionProtocolOptions,
+  VersionProtocolOption,
+  VersionProtocolOptions,
+} from 'modules/infra/middlewares/protocol-version.ts'
 
 // Constants
 export {
@@ -87,9 +98,11 @@ export {
   ADMIN_SOCKET_PORT,
   ADMIN_STATIC_PORT,
   AUTH_HEADERS,
+  DEFAULT_PROTOCOL_VERSION,
   GENERAL_HEADERS,
   GRAPHQL_PORT,
   JSON_CONTENT_HEADER,
+  PROTOCOL_VERSION_HEADER,
   RATE_LIMIT_HEADERS,
   SESSION_HEADERS,
   SOCKET_PORT,

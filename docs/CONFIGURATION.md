@@ -39,18 +39,21 @@ remain the recommended way to keep the internal server isolated at the network l
 import { ADMIN_PROTOCOL_HEADER, AUTH_HEADERS, SESSION_HEADERS } from 'jsr:@zanix/server@[version]'
 ```
 
-| Constant                | Value                                                                            | Description                                                             |
-| ----------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `AUTH_HEADERS`          | `{ api: 'X-Znx-Authorization', user: 'Authorization' }`                          | Bearer-credential header per `@zanix/auth` auth type.                   |
-| `SESSION_HEADERS`       | `{ api: { sub, session, token: undefined }, user: { sub, session, token } }`     | Subject/session-status/app-token headers per `@zanix/auth` auth type.   |
-| `RATE_LIMIT_HEADERS`    | `{ limitHeader, remainingHeader, resetHeader, retryAfterHeader: 'Retry-After' }` | Rate-limit response headers set by `@zanix/auth`'s rate-limit guard.    |
-| `GENERAL_HEADERS`       | `{ cookiesAcceptedHeader: 'X-Znx-Cookies-Accepted' }`                            | Miscellaneous shared headers not tied to a single auth type.            |
-| `ADMIN_PROTOCOL_HEADER` | `'X-Znx-Admin-Protocol'`                                                         | Carries the admin-protocol version on a service's `/admin/*` responses. |
+| Constant                   | Value                                                                            | Description                                                                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AUTH_HEADERS`             | `{ api: 'X-Znx-Authorization', user: 'Authorization' }`                          | Bearer-credential header per `@zanix/auth` auth type.                                                                                                |
+| `SESSION_HEADERS`          | `{ api: { sub, session, token: undefined }, user: { sub, session, token } }`     | Subject/session-status/app-token headers per `@zanix/auth` auth type.                                                                                |
+| `RATE_LIMIT_HEADERS`       | `{ limitHeader, remainingHeader, resetHeader, retryAfterHeader: 'Retry-After' }` | Rate-limit response headers set by `@zanix/auth`'s rate-limit guard.                                                                                 |
+| `GENERAL_HEADERS`          | `{ cookiesAcceptedHeader: 'X-Znx-Cookies-Accepted' }`                            | Miscellaneous shared headers not tied to a single auth type.                                                                                         |
+| `ADMIN_PROTOCOL_HEADER`    | `'X-Znx-Admin-Protocol'`                                                         | Carries the admin-protocol version on a service's `/admin/*` responses.                                                                              |
+| `PROTOCOL_VERSION_HEADER`  | `'X-Znx-Protocol-Version'`                                                       | Default header for the `versionProtocol` handler option — see [Handlers → Protocol version negotiation](./HANDLERS.md#protocol-version-negotiation). |
+| `DEFAULT_PROTOCOL_VERSION` | `1`                                                                              | Default version a handler declares when `versionProtocol` doesn't override it.                                                                       |
 
-These live in `@zanix/server` rather than in `@zanix/auth`/`@zanix/core` (where the concepts they
-name actually belong) because `@zanix/server` is the one dependency every package that reads or sets
-them already shares — `@zanix/auth` and `@zanix/notifications` both depend on it, and `@zanix/core`
-depends on both `@zanix/server` and `@zanix/notifications`, so `@zanix/notifications` importing
+`AUTH_HEADERS`/`SESSION_HEADERS`/`RATE_LIMIT_HEADERS`/`GENERAL_HEADERS`/`ADMIN_PROTOCOL_HEADER` live
+in `@zanix/server` rather than in `@zanix/auth`/`@zanix/core` (where the concepts they name actually
+belong) because `@zanix/server` is the one dependency every package that reads or sets them already
+shares — `@zanix/auth` and `@zanix/notifications` both depend on it, and `@zanix/core` depends on
+both `@zanix/server` and `@zanix/notifications`, so `@zanix/notifications` importing
 `ADMIN_PROTOCOL_HEADER` from `@zanix/core` directly would be circular. `@zanix/core` still
 re-exports `ADMIN_PROTOCOL_HEADER` from its own entrypoint for its own consumers, and `@zanix/auth`
 derives its own `userSessionHeaders`/`apiSessionHeaders` exports from `SESSION_HEADERS` — but this
@@ -58,10 +61,17 @@ table is the single source of truth for the actual values.
 
 `ADMIN_PROTOCOL_VERSION` (the actual admin-protocol version number, as opposed to the header name
 above) lives in `@zanix/admin` instead — the package that actually owns and administers the admin
-protocol (its version registry, and the request-side guard that negotiates it), not `@zanix/server`
-or `@zanix/core`. It's expected to change as the admin protocol's own `/admin/*` shapes evolve, and
+protocol (its version registry, and its own `versionProtocol` config), not `@zanix/server` or
+`@zanix/core`. It's expected to change as the admin protocol's own `/admin/*` shapes evolve, and
 that shouldn't require a `@zanix/server` release. `@zanix/core` re-exports it unchanged for its own
-consumers. See `@zanix/admin`'s own docs for the version registry and negotiation guard.
+consumers. See `@zanix/admin`'s own docs for its version registry.
+
+`PROTOCOL_VERSION_HEADER`/`DEFAULT_PROTOCOL_VERSION`, by contrast, genuinely belong to
+`@zanix/server` — they're the generic defaults behind the `versionProtocol` handler option (see
+[Handlers → Protocol version negotiation](./HANDLERS.md#protocol-version-negotiation)), not a stand-
+in for a concept some other package owns. `@zanix/admin` deliberately keeps configuring
+`versionProtocol` with its own `ADMIN_PROTOCOL_HEADER`/`ADMIN_PROTOCOL_VERSION` instead of these
+defaults, for backward compatibility with its own already-shipped wire contract.
 
 ## Environment variables
 

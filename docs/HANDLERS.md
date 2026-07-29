@@ -57,12 +57,13 @@ case — `@Post({ Body: LogoutRTO })` registers on `POST /logout` for a method n
 
 Besides a plain string prefix, `@Controller` accepts an options object:
 
-| Option       | Description                                                                                                                                  |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `prefix`     | Route prefix applied to all endpoints in the controller.                                                                                     |
-| `Interactor` | Interactor class injected and made available as `this.interactor`.                                                                           |
-| `enableALS`  | Enables `AsyncLocalStorage`-based context isolation per request (see below).                                                                 |
-| `isInternal` | Marks every route in this controller as internal-only. Defaults to `false` (public) — see [Internal-only handlers](#internal-only-handlers). |
+| Option            | Description                                                                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `prefix`          | Route prefix applied to all endpoints in the controller.                                                                                     |
+| `Interactor`      | Interactor class injected and made available as `this.interactor`.                                                                           |
+| `enableALS`       | Enables `AsyncLocalStorage`-based context isolation per request (see below).                                                                 |
+| `isInternal`      | Marks every route in this controller as internal-only. Defaults to `false` (public) — see [Internal-only handlers](#internal-only-handlers). |
+| `versionProtocol` | Negotiates a protocol version on every request/response. On by default — see [Protocol version negotiation](#protocol-version-negotiation).  |
 
 ## GraphQL
 
@@ -87,9 +88,10 @@ class UsersResolver extends ZanixResolver {
 }
 ```
 
-`@Resolver` accepts the same `prefix`/`Interactor`/`enableALS`/`isInternal` options as `@Controller`
-— an internal-only resolver's fields are added to a separate schema/root-value bucket, never merged
-into the public schema (see [Internal-only handlers](#internal-only-handlers)).
+`@Resolver` accepts the same `prefix`/`Interactor`/`enableALS`/`isInternal`/`versionProtocol`
+options as `@Controller` — an internal-only resolver's fields are added to a separate
+schema/root-value bucket, never merged into the public schema (see
+[Internal-only handlers](#internal-only-handlers)).
 
 `@Query`/`@Mutation` are shorthands for the generic `@GQLRequest(type)` decorator, useful when the
 operation type needs to be resolved dynamically:
@@ -123,8 +125,10 @@ class ChatSocket extends ZanixWebSocket {
 ```
 
 `@Socket` also accepts an options object with `route`, `rto` (validating the incoming message body,
-params, or query), `Interactor`, `enableALS`, and `isInternal` (see
-[Internal-only handlers](#internal-only-handlers)).
+params, or query), `Interactor`, `enableALS`, `isInternal` (see
+[Internal-only handlers](#internal-only-handlers)), and `versionProtocol` (see
+[Protocol version negotiation](#protocol-version-negotiation) — negotiated once, at the connection
+handshake, not per-message).
 
 > ℹ️ `@Guard`/`@Pipe`/`@Interceptor` only take effect on a `@Socket` class when applied at the
 > **class** level, not on an individual lifecycle method — see
@@ -249,6 +253,70 @@ server is then a no-op — stop the server that originally bound the port to act
 `WebServerManager.create()`'s own JSDoc for the full trade-off list, including a narrow startup
 window where a request for a not-yet-registered route on a shared port gets a `404` instead of
 reaching its handler.
+
+## Protocol version negotiation
+
+`versionProtocol` (available on `@Controller`, `@Resolver`, and `@Socket`) turns on request/response
+protocol-version negotiation for every route the class defines: it rejects an incoming request that
+declares a version the class doesn't recognize, and stamps whichever version was actually negotiated
+onto every response. **On by default** — omitting the option (or passing `true`) enables it with
+sensible defaults; pass `false` to disable it entirely.
+
+```ts
+import { Controller, Get, ZanixController } from 'jsr:@zanix/server@[version]'
+
+@Controller('users') // versionProtocol defaults to on
+class UsersController extends ZanixController {
+  @Get()
+  public list() {
+    return []
+  }
+}
+```
+
+Every response from `UsersController` now carries `X-Znx-Protocol-Version: 1` (the defaults —
+`PROTOCOL_VERSION_HEADER` and `DEFAULT_PROTOCOL_VERSION`). A caller that declares a version this
+class doesn't recognize on that same header gets a `400 Bad Request` instead of a response shaped
+for a version it may not understand; a caller that declares nothing (every caller before this class
+adopts a new version) is treated as the current version and never breaks.
+
+Override the header name, current version, or which older versions are still accepted:
+
+```ts
+@Controller({
+  prefix: 'users',
+  versionProtocol: {
+    header: 'X-Users-Protocol', // defaults to PROTOCOL_VERSION_HEADER
+    version: 2, // defaults to DEFAULT_PROTOCOL_VERSION
+    supportedVersions: [1, 2], // defaults to [version] — grow this before bumping `version`
+  },
+})
+class UsersController extends ZanixController {
+  // ...
+}
+```
+
+Rolling out a new version safely is an expand-before-contract discipline: add the new version to
+`supportedVersions` _before_ any client starts declaring it, bump `version` once clients have had
+time to adopt it, and only drop an old entry from `supportedVersions` once nothing depends on it
+anymore. `@zanix/admin` uses this exact option internally (with its own already-shipped
+`X-Znx-Admin-Protocol` header) instead of a hand-rolled guard/interceptor pair — see its own docs
+for that rollout discipline applied in practice.
+
+Disable it on a class that doesn't want this at all:
+
+```ts
+@Controller({ prefix: 'webhooks', versionProtocol: false })
+class WebhooksController extends ZanixController {
+  // ...
+}
+```
+
+On a `@Socket` class, negotiation happens exactly once, at the connection handshake — a WebSocket
+upgrade is a real HTTP request/response under the hood, so the guard can reject the upgrade before
+it's accepted, and the interceptor can stamp the version onto that one handshake response. There is
+no per-message header concept once the socket is open, so this is a one-time, connection-level
+negotiation, never a per-message one.
 
 ## `enableALS`
 

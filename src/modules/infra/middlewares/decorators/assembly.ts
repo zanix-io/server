@@ -6,7 +6,13 @@ import type {
   MiddlewareTypes,
 } from 'typings/middlewares.ts'
 import type { ClassConstructor } from 'typings/targets.ts'
+import type { VersionProtocolOption } from 'middlewares/protocol-version.ts'
 
+import {
+  createProtocolVersionGuard,
+  createProtocolVersionInterceptor,
+  resolveVersionProtocolOptions,
+} from 'middlewares/protocol-version.ts'
 import ProgramModule from 'modules/program/mod.ts'
 
 /**
@@ -82,4 +88,22 @@ export function applyMiddlewaresToTarget(Target: ClassConstructor) {
   ProgramModule.decorators.deleteDecorators('guard')
   ProgramModule.decorators.deleteDecorators('pipe')
   ProgramModule.decorators.deleteDecorators('interceptor')
+}
+
+/**
+ * Resolves the `versionProtocol` option (see `@Controller`/`@Resolver`/`@Socket`) and, if enabled,
+ * registers its guard/interceptor onto `Target` — shared by all three handler decorators instead of
+ * each one re-resolving and re-registering it independently. On a socket route, this is negotiated
+ * once, at the connection handshake (a WebSocket upgrade's own request/response), since an open
+ * socket has no per-message header concept.
+ */
+export function applyVersionProtocolToTarget(
+  Target: ClassConstructor,
+  versionProtocol: VersionProtocolOption | undefined,
+): void {
+  const resolved = resolveVersionProtocolOptions(versionProtocol)
+  if (!resolved) return
+
+  ProgramModule.middlewares.addGuard(createProtocolVersionGuard(resolved), { Target })
+  ProgramModule.middlewares.addInterceptor(createProtocolVersionInterceptor(resolved), { Target })
 }

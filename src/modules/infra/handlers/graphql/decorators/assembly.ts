@@ -9,7 +9,12 @@ import type {
   ZanixMethodDecorator,
 } from 'typings/decorators.ts'
 
-import { applyMiddlewaresToTarget } from 'middlewares/decorators/assembly.ts'
+import type { VersionProtocolOption } from 'middlewares/protocol-version.ts'
+
+import {
+  applyMiddlewaresToTarget,
+  applyVersionProtocolToTarget,
+} from 'middlewares/decorators/assembly.ts'
 import { buildGqlInput, scalarTypes } from 'handlers/graphql/types.ts'
 import { asyncContext } from 'modules/infra/base/storage.ts'
 import { gqlSchemaDefinitions } from '../schema.ts'
@@ -31,6 +36,7 @@ export function defineResolverDecorator(
   let interactor: string | undefined
   let enableALS = false
   let isInternal = false
+  let versionProtocol: VersionProtocolOption | undefined
   if (typeof options === 'string') {
     prefix = options
   } else if (options) {
@@ -38,6 +44,7 @@ export function defineResolverDecorator(
     enableALS = options.enableALS || enableALS
     prefix = options.prefix || prefix
     isInternal = options.isInternal || isInternal
+    versionProtocol = options.versionProtocol
   }
 
   return function (Target) {
@@ -49,6 +56,7 @@ export function defineResolverDecorator(
     }
 
     applyMiddlewaresToTarget(Target)
+    applyVersionProtocolToTarget(Target, versionProtocol)
 
     const methodDecorators = ProgramModule.decorators.getDecoratorsData('resolver')
 

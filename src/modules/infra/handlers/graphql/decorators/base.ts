@@ -1,5 +1,8 @@
-import type { HandlerDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
-import type { ZanixInteractorClass } from 'typings/targets.ts'
+import type {
+  GenericHandlerOptions,
+  HandlerDecoratorOptions,
+  ZanixClassDecorator,
+} from 'typings/decorators.ts'
 
 import { defineResolverDecorator } from './assembly.ts'
 
@@ -52,28 +55,12 @@ export function Resolver(prefix?: string): ZanixClassDecorator
  * }
  * ```
  */
-export function Resolver(options: {
-  /** Resolver prefix for requests */
-  prefix?: string
-  /**
-   * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
-   * This ensures each request gets its own context, preventing shared state in singleton scenarios.
-   * Defaults to `false`
-   *
-   * ⚠️ Enabling this feature may increase overload by managing multiple contexts simultaneously,
-   * especially if many data points are associated with each request, potentially adding more
-   * processing overhead.
-   */
-  enableALS?: boolean
-  /** Interactor for injection */
-  Interactor?: ZanixInteractorClass
-  /**
-   * Whether every operation this Resolver defines should only be reachable through a server
-   * bootstrapped with a matching `isInternal` value (see `bootstrapServers`'s
-   * `BootstrapServerOptions.graphql.isInternal`). Defaults to `false` (public).
-   */
-  isInternal?: boolean
-}): ZanixClassDecorator
+export function Resolver(
+  options: GenericHandlerOptions & {
+    /** Resolver prefix for requests */
+    prefix?: string
+  },
+): ZanixClassDecorator
 
 export function Resolver(
   options?: HandlerDecoratorOptions,

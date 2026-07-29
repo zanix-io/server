@@ -2,10 +2,12 @@
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
 import { assertSpyCalls, spy } from '@std/testing/mock'
+import type { GuardContext } from 'typings/middlewares.ts'
 import Program from 'modules/program/mod.ts'
 import { defineControllerDecorator } from 'modules/infra/handlers/rest/decorators/assembly.ts'
 import { ZanixController } from 'modules/infra/handlers/rest/base.ts'
 import { InternalError } from '@zanix/errors'
+import { DEFAULT_PROTOCOL_VERSION, PROTOCOL_VERSION_HEADER } from 'utils/constants.ts'
 
 console.error = () => {}
 
@@ -34,5 +36,37 @@ Deno.test("defineControllerDecorator: throws if class doesn't extend ZanixContro
     () => decorator(InvalidController as never),
     InternalError,
     "The class 'InvalidController' is not a valid Controller. Please extend ZanixController",
+  )
+})
+
+Deno.test('defineControllerDecorator: versionProtocol is on by default', async () => {
+  class DefaultProtocolController extends ZanixController {}
+
+  defineControllerDecorator()(DefaultProtocolController as never)
+
+  const [guard] = Program.middlewares.getGuards({ Target: DefaultProtocolController as never })
+  const [interceptor] = Program.middlewares.getInterceptors({
+    Target: DefaultProtocolController as never,
+  })
+
+  const locals: Record<string, unknown> = {}
+  const guardResult = await guard(
+    { req: new Request('http://localhost/'), locals } as GuardContext,
+  )
+  assertEquals(guardResult, {})
+
+  const response = await interceptor({ locals } as never, new Response('{}'))
+  assertEquals(response.headers.get(PROTOCOL_VERSION_HEADER), String(DEFAULT_PROTOCOL_VERSION))
+})
+
+Deno.test('defineControllerDecorator: versionProtocol: false disables it', () => {
+  class NoProtocolController extends ZanixController {}
+
+  defineControllerDecorator({ versionProtocol: false })(NoProtocolController as never)
+
+  assertEquals(Program.middlewares.getGuards({ Target: NoProtocolController as never }), [])
+  assertEquals(
+    Program.middlewares.getInterceptors({ Target: NoProtocolController as never }),
+    [],
   )
 })

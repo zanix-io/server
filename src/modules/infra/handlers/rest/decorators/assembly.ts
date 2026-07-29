@@ -5,9 +5,11 @@ import type {
   ZanixMethodDecorator,
 } from 'typings/decorators.ts'
 import type { HttpMethod } from 'typings/router.ts'
+import type { VersionProtocolOption } from 'middlewares/protocol-version.ts'
 
 import {
   applyMiddlewaresToTarget,
+  applyVersionProtocolToTarget,
   defineMiddlewareDecorator,
 } from 'middlewares/decorators/assembly.ts'
 import { requestValidationPipe } from 'middlewares/defaults/validation.pipe.ts'
@@ -24,6 +26,7 @@ export function defineControllerDecorator(
   let interactor: string | undefined
   let enableALS = false
   let isInternal = false
+  let versionProtocol: VersionProtocolOption | undefined
   if (typeof options === 'string') {
     prefix = options
   } else if (options) {
@@ -31,6 +34,7 @@ export function defineControllerDecorator(
     prefix = options.prefix
     enableALS = options.enableALS || enableALS
     isInternal = options.isInternal || isInternal
+    versionProtocol = options.versionProtocol
   }
 
   return function (Target) {
@@ -43,6 +47,7 @@ export function defineControllerDecorator(
     }
 
     applyMiddlewaresToTarget(Target)
+    applyVersionProtocolToTarget(Target, versionProtocol)
 
     ProgramModule.routes.setEndpoint({ Target, endpoint: prefix })
     const methodDecorators = ProgramModule.decorators.getDecoratorsData('controller')

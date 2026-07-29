@@ -1,6 +1,9 @@
 import type { RtoTypes } from '@zanix/types'
-import type { SocketDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
-import type { ZanixInteractorClass } from 'typings/targets.ts'
+import type {
+  GenericHandlerOptions,
+  SocketDecoratorOptions,
+  ZanixClassDecorator,
+} from 'typings/decorators.ts'
 
 import { defineSocketDecorator } from './assembly.ts'
 
@@ -50,30 +53,14 @@ export function Socket(
  * }
  * ```
  */
-export function Socket(options: {
-  /** Route path */
-  route: string
-  /** Rto to validate socket event data on message (Body) and request search or params */
-  rto?: RtoTypes | RtoTypes['Body']
-  /**
-   * Enables `AsyncLocalStorage` to extend context per request, even in singleton instances.
-   * This ensures each request gets its own context, preventing shared state in singleton scenarios.
-   * Defaults to `false`
-   *
-   * ⚠️ Enabling this feature may increase overload by managing multiple contexts simultaneously,
-   * especially if many data points are associated with each request, potentially adding more
-   * processing overhead.
-   */
-  enableALS?: boolean
-  /** Interactor name for injection */
-  Interactor?: ZanixInteractorClass
-  /**
-   * Whether this socket route should only be mounted on a server bootstrapped with a matching
-   * `isInternal` value (see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`).
-   * Defaults to `false` (public).
-   */
-  isInternal?: boolean
-}): ZanixClassDecorator
+export function Socket(
+  options: GenericHandlerOptions & {
+    /** Route path */
+    route: string
+    /** Rto to validate socket event data on message (Body) and request search or params */
+    rto?: RtoTypes | RtoTypes['Body']
+  },
+): ZanixClassDecorator
 
 export function Socket(
   options?: SocketDecoratorOptions,

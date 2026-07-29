@@ -29,7 +29,12 @@ Deno.test({
     defineResolverRequestDecorator('Query', { name: 'hello' })(GuardedResolver.prototype.hello)
     defineResolverDecorator()(GuardedResolver as never)
 
-    const context = { id: 'ctx-guard', payload: { body: {} } } as unknown as HandlerContext
+    const context = {
+      id: 'ctx-guard',
+      payload: { body: {} },
+      req: new Request('http://localhost/'),
+      locals: {},
+    } as unknown as HandlerContext
     const request = { context } as never
 
     const callHello = rootValue.public['hello'] as unknown as (
@@ -55,7 +60,12 @@ Deno.test({
     defineResolverRequestDecorator('Query', { name: 'hello' })(AlsResolver.prototype.hello)
     defineResolverDecorator({ enableALS: true })(AlsResolver as never)
 
-    const context = { id: 'ctx-als', payload: { body: {} } } as unknown as HandlerContext
+    const context = {
+      id: 'ctx-als',
+      payload: { body: {} },
+      req: new Request('http://localhost/'),
+      locals: {},
+    } as unknown as HandlerContext
     const request = { context } as never
 
     const callHello = rootValue.public['hello'] as unknown as (
