@@ -2,7 +2,7 @@
 import { assertSpyCalls, spy } from '@std/testing/mock'
 import { assert, assertEquals, assertRejects } from '@std/assert'
 import { HttpError } from '@zanix/errors'
-import { RestClient } from 'modules/infra/connectors/core/rest.ts'
+import { resetRestClientEtagCache, RestClient } from 'modules/infra/connectors/core/rest.ts'
 
 globalThis.fetch = () => {
   throw new Error('fetch not mocked')
@@ -149,3 +149,167 @@ Deno.test('POST url encoded params', async () => {
 
   assertEquals(result, 'Post')
 })
+
+// --- ETag / conditional GET ---
+
+Deno.test(
+  'GET sends If-None-Match on a second request once the first response carried an ETag',
+  async () => {
+    resetRestClientEtagCache()
+    let requestCount = 0
+    const mockFetch = spy((_url: string, opts: any) => {
+      requestCount++
+      if (requestCount === 1) {
+        assertEquals(opts.headers['If-None-Match'], undefined)
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: 1 }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', 'ETag': 'W/"abc"' },
+          }),
+        )
+      }
+      assertEquals(opts.headers['If-None-Match'], 'W/"abc"')
+      return Promise.resolve(new Response(null, { status: 304 }))
+    })
+    globalThis.fetch = mockFetch as unknown as typeof fetch
+
+    const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+    const first = await client.http.get('/etag-users/1')
+    const second = await client.http.get('/etag-users/1')
+
+    assertEquals(first, { id: 1 })
+    // A 304's body is empty — the cached value from the first (200) response is reused as-is.
+    assertEquals(second, { id: 1 })
+    assertSpyCalls(mockFetch, 2)
+  },
+)
+
+Deno.test('GET with a fresh ETag on a 304-eligible request updates the cached value', async () => {
+  resetRestClientEtagCache()
+  let requestCount = 0
+  const mockFetch = spy((_url: string) => {
+    requestCount++
+    return Promise.resolve(
+      new Response(JSON.stringify({ id: requestCount }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'ETag': `"v${requestCount}"` },
+      }),
+    )
+  })
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const first = await client.http.get('/etag-users/2')
+  const second = await client.http.get('/etag-users/2')
+
+  assertEquals(first, { id: 1 })
+  // Server didn't 304 this time (returned a real 200 with a new ETag) — the fresh body wins.
+  assertEquals(second, { id: 2 })
+})
+
+Deno.test(
+  'GET with etag: false never sends If-None-Match, even after a prior cached ETag',
+  async () => {
+    resetRestClientEtagCache()
+    const mockFetch = spy((_url: string, opts: any) => {
+      assertEquals(opts.headers['If-None-Match'], undefined)
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 1 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'ETag': '"abc"' },
+        }),
+      )
+    })
+    globalThis.fetch = mockFetch as unknown as typeof fetch
+
+    const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+    await client.http.get('/etag-users/3')
+    await client.http.get('/etag-users/3', { etag: false })
+
+    assertSpyCalls(mockFetch, 2)
+  },
+)
+
+Deno.test('GET never sends If-None-Match when the response has no ETag header', async () => {
+  resetRestClientEtagCache()
+  const mockFetch = spy((_url: string, opts: any) => {
+    assertEquals(opts.headers['If-None-Match'], undefined)
+    return Promise.resolve(
+      new Response(JSON.stringify({ id: 1 }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  })
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  await client.http.get('/etag-users/4')
+  await client.http.get('/etag-users/4')
+
+  assertSpyCalls(mockFetch, 2)
+})
+
+Deno.test('POST never participates in the ETag cache, even against a cached GET URL', async () => {
+  resetRestClientEtagCache()
+  const mockFetch = spy((_url: string, opts: any) => {
+    assertEquals(opts.headers['If-None-Match'], undefined)
+    if (opts.method === 'GET') {
+      return Promise.resolve(
+        new Response(JSON.stringify({ id: 1 }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'ETag': '"abc"' },
+        }),
+      )
+    }
+    return Promise.resolve(
+      new Response(JSON.stringify({ id: 2 }), {
+        status: 201,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  })
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  await client.http.get('/etag-users/5')
+  await client.http.post('/etag-users/5', { body: JSON.stringify({}) })
+
+  assertSpyCalls(mockFetch, 2)
+})
+
+Deno.test(
+  'GET from two different identities against the same URL never shares a cached ETag/value',
+  async () => {
+    resetRestClientEtagCache()
+    const mockFetch = spy((_url: string, opts: any) => {
+      const auth = opts.headers['Authorization']
+      // Neither caller's request should ever carry the OTHER's If-None-Match — each identity
+      // must miss the cache independently, never read the other's cached ETag.
+      assertEquals(opts.headers['If-None-Match'], undefined)
+      return Promise.resolve(
+        new Response(JSON.stringify({ tenant: auth }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', 'ETag': `"${auth}"` },
+        }),
+      )
+    })
+    globalThis.fetch = mockFetch as unknown as typeof fetch
+
+    const tenantA = new MyApiClient({
+      baseUrl: 'https://api.example.com',
+      headers: { Authorization: 'Bearer tenant-a' },
+    })
+    const tenantB = new MyApiClient({
+      baseUrl: 'https://api.example.com',
+      headers: { Authorization: 'Bearer tenant-b' },
+    })
+
+    const resultA = await tenantA.http.get('/shared-path')
+    const resultB = await tenantB.http.get('/shared-path')
+
+    assertEquals(resultA, { tenant: 'Bearer tenant-a' })
+    assertEquals(resultB, { tenant: 'Bearer tenant-b' })
+    assertSpyCalls(mockFetch, 2)
+  },
+)

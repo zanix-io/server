@@ -15,6 +15,9 @@ import { getPrefix } from 'utils/routes.ts'
 import { encoder } from '@zanix/helpers'
 import logger from '@zanix/logger'
 
+/** Allowed charset for an internal server's `serverID` once it doubles as a URL path prefix. */
+const SAFE_SERVER_ID = /^[a-z0-9_-]+$/
+
 /**
  * WebServerManager is a utility class for managing web servers with optional SSL support.
  * It provides methods for creating, starting, stopping, and deleting web servers, as well as retrieving information about running servers.
@@ -75,21 +78,63 @@ export class WebServerManager {
    * @param {ServerManagerOptions} [options={}] - Options that include the function to handle incoming requests and configuration for the server, such as SSL options and the `onListen` callback.
    * @param {ServerID} [serverID] - An explicit id to (re)use for this server. Useful to make
    * `create` idempotent across calls (e.g. reconnecting to a previously created server).
-   * Defaults to a freshly generated id.
+   * Defaults to a freshly generated id. **Not validated against an existing entry's own
+   * `type`/options** — if you pass an id already registered under a different config, `create`
+   * silently keeps the original registration and discards yours (same idempotent-reuse rule as
+   * the "same id already exists" case above). For an `isInternal` server, a caller-supplied id is
+   * normalized (case/slashes) and **must** match `[a-z0-9_-]+` — it doubles as the URL path prefix
+   * routes are dispatched under, so anything else throws an `InternalError`.
    * @returns {ServerID} The id of the created server, or the given/existing `serverID` if a
    * server with that id was already registered (the existing server is left untouched).
+   *
+   * @remarks Sharing a port. Two (or more) servers — of the same or different `type`, public or
+   * `isInternal` — that resolve to the same port share one real `Deno.serve()` listener; whichever
+   * one calls `start()` first is the one that actually binds the socket, and every later one on
+   * that port just reuses its address. Consequences worth knowing:
+   * - **The first bind's own `server` options (SSL, hostname, etc.) are what apply to the real
+   *   socket.** A later server's own `server` options only ever affect its own route table, never
+   *   the socket itself.
+   * - **Stopping a server that only reused an address is a no-op** — it never gets its own real
+   *   `stop()`. To actually release the port, stop the server that bound it first.
+   * - There's a narrow window, right after the first server binds the port and before every other
+   *   server sharing it has finished its own `create()` call, where a request matching one of the
+   *   not-yet-registered servers' routes gets a `NOT_FOUND` instead of reaching its handler.
    */
   public create<T extends WebServerTypes>(
     type: T,
     options: ServerManagerOptions<T> = {},
-    serverID: ServerID = `${encoder.encode(type).toHex()}${generateUUID()}` as ServerID,
+    serverID: ServerID = `${encoder.encode(type).toHex()}${generateUUID()}`,
   ): ServerID {
-    if (this.#servers[serverID]) return serverID
-
     const { isInternal, server: { onceStop, globalPrefix = '', ssl, gzip, cors, ...opts } = {} } =
       options
 
+    // For `isInternal` servers, `serverID` doubles as the URL path prefix routes are dispatched
+    // under (see `dispatchKey` below) — unlike a public `globalPrefix`, it never went through
+    // `getPrefix`'s case/slash normalization, and `pathToRegex` (utils/routes.ts) interpolates it
+    // unescaped for parameterized routes (e.g. `/admin/triggers/:model`, already shipped). The
+    // random default (hex + `crypto.randomUUID()`) always happens to be safe; a caller-supplied
+    // `serverID` isn't guaranteed to be, so it's normalized and validated the same way here.
+    if (isInternal) {
+      serverID = getPrefix(serverID)
+      if (!SAFE_SERVER_ID.test(serverID)) {
+        throw new InternalError(
+          `Invalid internal server id "${serverID}" — must match ${SAFE_SERVER_ID} (lowercase ` +
+            'letters, digits, "_"/"-" only) since it doubles as a URL path prefix.',
+          { meta: { source: 'zanix', serverID } },
+        )
+      }
+    }
+
+    if (this.#servers[serverID]) return serverID
+
     const prefix = getPrefix(globalPrefix)
+    // Multiplexer dispatch key (see `this.#handlers[port]` below) — must match the *route* prefix
+    // `getMainHandler` bakes into this handler's own path table, or the multiplexer's per-request
+    // `getPrefix(url.pathname)` lookup (helpers/handler.ts's `multiplexer()`) will never find it.
+    // For `isInternal` servers that's `serverID` (see the `getMainHandler` call below); for public
+    // servers it's the same `prefix` already used for everything else. This is what lets a public
+    // and an internal server of the *same* `type` correctly share one port/listener.
+    const dispatchKey = isInternal ? serverID : prefix
 
     const {
       handler = getMainHandler(type, isInternal, isInternal ? serverID : prefix, { cors, gzip }),
@@ -114,7 +159,14 @@ export class WebServerManager {
     opts.onListen = onListen(currentListenHandler, protocol, serverName)
     opts.onError = onErrorListener(currentErrorHandler, serverName)
 
-    this.#handlers[opts.port] = { ...this.#handlers[opts.port], [prefix]: handler }
+    // Mutated in place (not reassigned via spread) so that a listener already bound on this port
+    // — via an earlier `create()`+`_start()` — sees handlers registered by a *later* `create()`
+    // call on the same port. `multiplexer()` closes over this exact object reference and does a
+    // live lookup per request, so this is what makes shared-port serving actually work when the
+    // two servers' `create()`/`start()` calls don't happen back-to-back (e.g. `core/start.ts`
+    // fully creates+starts the internal/admin server before the public one is even created).
+    this.#handlers[opts.port] ??= {}
+    this.#handlers[opts.port][dispatchKey] = handler
     const handlers = this.#handlers
     const currentServers = this.#servers
 
@@ -123,8 +175,19 @@ export class WebServerManager {
         const port = opts.port as number
 
         try {
+          // Any other already-started server bound to this exact port is reused, regardless of
+          // `type` — this is what lets a public and an internal server of the *same* `type` share
+          // one physical listener (see `dispatchKey` above), not just different types (the
+          // pre-existing REST+GraphQL+Socket-on-one-port case). The server that reuses an address
+          // never calls `Deno.serve()` itself, so whichever server bound the port first is the one
+          // whose own options (SSL, hostname, etc.) actually apply to the real socket — a later
+          // reuser's own `server.*` options only ever affect its own route table, never the socket.
+          // Also: stopping a *reusing* server is a no-op (it never gets its own `this.stop`
+          // override below) — only stopping the server that actually bound the port shuts the real
+          // listener down. This is pre-existing behavior for the cross-type case, now also true
+          // for same-type sharing.
           const existingServer = Object.values(currentServers).find((server) =>
-            server?.addr?.port === opts.port && server?.type !== type
+            server?.addr?.port === opts.port
           )
 
           if (existingServer) {

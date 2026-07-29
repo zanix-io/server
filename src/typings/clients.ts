@@ -17,6 +17,13 @@ export type RequestOptions = Omit<RequestInit, 'method' | 'body'> & ConnectorOpt
    * Optional base URL to prepend to request paths.
    */
   baseUrl?: string
+  /**
+   * Whether `GET` requests participate in `RestClient`'s conditional-request (`ETag`/
+   * `If-None-Match`) cache. Defaults to `true`. Set to `false` to opt this client out entirely —
+   * e.g. for an endpoint that never sends `ETag`, or one where a `304` shouldn't ever short-circuit
+   * a fresh read. Has no effect on non-`GET` methods, which never participate regardless.
+   */
+  etag?: boolean
 }
 
 /**
@@ -33,6 +40,8 @@ export type RequestOptions = Omit<RequestInit, 'method' | 'body'> & ConnectorOpt
  */
 export type RestFullOptions = Omit<RequestInit, 'method'> & {
   baseUrl?: string
+  /** Per-call override of the constructor's own `etag` option — see {@link RequestOptions.etag}. */
+  etag?: boolean
 }
 
 /**

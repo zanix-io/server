@@ -15,7 +15,7 @@ Deno.test('Program class initializes all containers', () => {
   assert(program.context)
 })
 
-Deno.test('cleanupInitializationsMetadata calls resetContainer on all containers', () => {
+Deno.test('cleanupInitializationsMetadata(onBoot) resets everything except routes', () => {
   const program = new ProgramClass()
 
   // Stub the resetContainer methods
@@ -27,8 +27,11 @@ Deno.test('cleanupInitializationsMetadata calls resetContainer on all containers
   // Call cleanupInitializationsMetadata
   program.cleanupInitializationsMetadata('onBoot')
 
-  // Assert all resetContainer methods were called once
-  assertSpyCalls(resetRoutesStub, 1)
+  // Routes are deliberately never reset here — a consumer calling `bootstrapServers` more than
+  // once in the same boot (internal server first, then public) needs every not-yet-claimed route
+  // to still be there for the later call, regardless of `isInternal` scope. See the regression
+  // test below for the concrete scenario this protects.
+  assertSpyCalls(resetRoutesStub, 0)
   assertSpyCalls(resetMiddlewaresStub, 1)
   assertSpyCalls(resetDecoratorsStub, 1)
   assertSpyCalls(resetTargetsStub, 1)
@@ -68,6 +71,31 @@ Deno.test(
 
     const routes = program.routes.getRoutes('rest')
     assert(routes?.['/handle/GET'])
+  },
+)
+
+Deno.test(
+  'cleanupInitializationsMetadata("onBoot") preserves routes registered before it ran',
+  () => {
+    const program = new ProgramClass()
+
+    // Regression: a route registered BEFORE an earlier `bootstrapServers` call (e.g. `@zanix/core`
+    // registering both isInternal:true and isInternal:false admin routes up front, then calling
+    // `bootstrapServers` for the internal server first) used to vanish once that first call
+    // triggered this cleanup — even though it belonged to a DIFFERENT scope and was never served by
+    // that call. `onBoot` cleanup must never wipe routes another, later `bootstrapServers` call
+    // still needs to find.
+    class BeforeCleanupTarget extends TargetBaseClass {
+      public handle() {}
+    }
+    program.routes.setEndpoint({ Target: BeforeCleanupTarget, propertyKey: 'handle' })
+    program.targets.addProperty({ Target: BeforeCleanupTarget, propertyKey: 'handle' })
+    program.routes.defineRoute('rest', BeforeCleanupTarget)
+
+    program.cleanupInitializationsMetadata('onBoot')
+
+    const routes = program.routes.getRoutes('rest')
+    assert(routes?.['/handle/GET'], 'route registered before cleanup must still be gettable after')
   },
 )
 

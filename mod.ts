@@ -82,15 +82,21 @@ export { defineMiddlewareDecorator } from 'modules/infra/middlewares/decorators/
 // Constants
 export {
   ADMIN_GRAPHQL_PORT,
+  ADMIN_PROTOCOL_HEADER,
   ADMIN_REST_PORT,
   ADMIN_SOCKET_PORT,
   ADMIN_STATIC_PORT,
+  AUTH_HEADERS,
+  GENERAL_HEADERS,
   GRAPHQL_PORT,
   JSON_CONTENT_HEADER,
+  RATE_LIMIT_HEADERS,
+  SESSION_HEADERS,
   SOCKET_PORT,
   STATIC_PORT,
   ZANIX_SERVER_MODULES,
 } from 'utils/constants.ts'
+export { getServiceId, sanitizeIdentifier } from 'utils/identity.ts'
 
 // Utils
 export { TargetError } from 'utils/errors/target.ts'

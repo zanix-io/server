@@ -13,9 +13,18 @@ import type { HttpMethod } from './router.ts'
 export type WebServerTypes = 'graphql' | 'rest' | 'socket' | 'ssr'
 
 /**
- * Represents the server identificator
+ * An opaque handle identifying a managed server instance — returned by `WebServerManager.create`
+ * (and `bootstrapServers`' `onCreate` callback), used to `start`/`stop`/`delete`/`info` it later.
+ *
+ * Not required to look like a UUID, and nothing validates that shape — the default value
+ * `WebServerManager.create` generates happens to (hex-encoded type + `crypto.randomUUID()`), but a
+ * caller-supplied `serverID`/`BootstrapServerOptions[type].id` can be any string. The one real
+ * constraint applies only to an `isInternal` server, since its id doubles as a URL path prefix
+ * routes are dispatched under: it must match `[a-z0-9_-]+` once normalized (case/slashes) — `create`
+ * throws an `InternalError` otherwise. That check lives at runtime in `manager.ts`, not in this
+ * type, since TypeScript can't express a charset constraint via a template literal.
  */
-export type ServerID = `${string}-${string}-${string}-${string}-${string}`
+export type ServerID = string
 
 /**
  * Represents the runtime data and control functions for each managed server.
@@ -155,6 +164,14 @@ export type BootstrapServerOptions = Partial<
        * internal server instances from public ones.
        */
       isInternal?: boolean
+      /**
+       * An explicit id to use for this server instead of a randomly generated one — see
+       * `WebServerManager.create`'s `serverID` parameter. Useful for an `isInternal` server whose
+       * URL path prefix (which the id doubles as) needs to stay stable across restarts, e.g. so an
+       * external caller has a fixed address to reach it at instead of one that changes on every
+       * boot. Must match `[a-z0-9_-]+` once normalized, or `create` throws.
+       */
+      id?: ServerID
     }
   }
 >

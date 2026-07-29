@@ -78,8 +78,13 @@ export class InternalProgram {
 
     /** Clean metadata onBoot */
 
-    // remove all routes in container
-    this.routes.resetContainer()
+    // Routes are deliberately NOT cleared here (unlike middlewares/decorators below): a consumer
+    // that calls `bootstrapServers` more than once in the same boot (e.g. an internal-only server
+    // first, then a public one — see `@zanix/core`'s `start.ts`) needs the shared route registry to
+    // still hold every route not yet claimed by an earlier call, regardless of which `isInternal`
+    // scope it belongs to. Each server's own dispatch table is built once at `webServerManager.create()`
+    // time from this registry and never reads it again at request time, so leaving it populated for
+    // the life of the process has no request-time cost.
     // remove all middlewares in container
     this.middlewares.resetContainer()
     // remove all metadata used in decorators execution

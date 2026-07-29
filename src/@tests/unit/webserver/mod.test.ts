@@ -24,3 +24,19 @@ Deno.test('bootstrapServers: a rest route is only served by a matching isInterna
 
   await webServerManager.stop(internalServers)
 })
+
+Deno.test('bootstrapServers: forwards an explicit `id` to an isInternal server', async () => {
+  Program.routes.resetContainer()
+  Program.routes.defineRoute('rest', {
+    path: '/internal-admin-only',
+    handler: () => 'ok' as never,
+  }, true)
+
+  const internalServers = await bootstrapServers({
+    rest: { isInternal: true, port: 1298, id: 'custom-admin' },
+  })
+
+  assertEquals(internalServers, ['custom-admin'])
+
+  await webServerManager.stop(internalServers)
+})

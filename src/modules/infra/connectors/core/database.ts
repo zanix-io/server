@@ -1,7 +1,7 @@
 import type { ConnectorOptions } from 'typings/targets.ts'
 import type { Seeders } from 'typings/general.ts'
 
-import { readConfig } from '@zanix/helpers'
+import { getServiceId } from 'utils/identity.ts'
 import { ZanixConnector } from '../base.ts'
 
 /**
@@ -28,23 +28,7 @@ export abstract class ZanixDatabaseConnector extends ZanixConnector {
   /** Creates the database connector and derives {@link defaultDbName} from the project config. */
   constructor(options: ConnectorOptions = {}) {
     super(options)
-    this.defaultDbName = this.getDefaultDatabaseName()
-  }
-
-  /** Derives a database-safe name from the project name, falling back to `zanix_system`. */
-  private getDefaultDatabaseName(): string {
-    const projectName = readConfig().name
-
-    if (!projectName) return 'zanix_system'
-
-    const dbName = projectName.toLowerCase()
-      .replace(/[^a-z0-9_]+/g, '_')
-      .replace(/^_+/g, '')
-      .replace(/_+$/g, '')
-
-    if (dbName.length > 64) return dbName.substring(0, 64)
-
-    return dbName
+    this.defaultDbName = getServiceId()
   }
 
   /**

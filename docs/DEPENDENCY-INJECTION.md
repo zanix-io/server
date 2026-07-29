@@ -199,6 +199,29 @@ class PostgresConnector extends ZanixDatabaseConnector {
 }
 ```
 
+### `RestClient`'s `ETag` caching
+
+`GET` requests are cached and revalidated through conditional `ETag`/`If-None-Match` by default — no
+code change needed to benefit from it. The first `GET` to a URL that returns an `ETag` header caches
+`{ etag, value }`; every later `GET` to that same URL sends `If-None-Match`, and a `304` reuses the
+cached value instead of re-parsing a body:
+
+```ts
+class BillingClient extends RestClient {}
+
+const client = new BillingClient({ baseUrl: 'https://billing.internal' })
+
+await client.http.get('invoices/123') // caches the ETag, if the response sent one
+await client.http.get('invoices/123') // sends If-None-Match; a 304 reuses the cached value
+await client.http.get('invoices/123', { etag: false }) // opts this one call out
+```
+
+Disable it per client (`new BillingClient({ etag: false })`) or per call (`{ etag: false }` in a
+request's options) when a `GET`'s response genuinely changes on every call. The cache key is scoped
+by `protected etagIdentityHeaders` (default: the resolved `AUTH_HEADERS.user`/`AUTH_HEADERS.api`
+header values) — so two different callers hitting the same URL with different credentials never
+share a cached value; override it in a subclass to scope by additional/different headers.
+
 ## Accessing instances outside any class (`ProgramModule`)
 
 The getters above (`this.connector`, `this.providers.get(...)`, etc.) only work from within a

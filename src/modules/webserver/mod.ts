@@ -117,37 +117,43 @@ export const bootstrapServers = async (
 
   // REST initialization
   if (serveRest) {
-    const { onCreate, isInternal, ...opts } = { ...server.rest } as Required<typeof server>['rest']
+    const { onCreate, isInternal, id: explicitId, ...opts } = { ...server.rest } as Required<
+      typeof server
+    >['rest']
     const id = webServerManager.create('rest', {
       server: { ...opts, globalPrefix: opts.globalPrefix || 'api' },
       isInternal,
-    })
+    }, explicitId)
     onCreate?.(id)
     servers.push(id)
   }
 
   // SOCKETS initialization
   if (serveSocket) {
-    const { onCreate, isInternal, port, ...opts } = { ...server.socket } as Required<
+    const { onCreate, isInternal, id: explicitId, port, ...opts } = {
+      ...server.socket,
+    } as Required<
       typeof server
     >['socket']
     const id = webServerManager.create('socket', {
       server: { ...opts, globalPrefix: opts.globalPrefix || 'socket', port: port || SOCKET_PORT },
       isInternal,
-    })
+    }, explicitId)
     onCreate?.(id)
     servers.push(id)
   }
 
   // GQL initialization
   if (serveGraphql) {
-    const { onCreate, isInternal, port, ...opts } = { ...server.graphql } as Required<
+    const { onCreate, isInternal, id: explicitId, port, ...opts } = {
+      ...server.graphql,
+    } as Required<
       typeof server
     >['graphql']
     const id = webServerManager.create('graphql', {
       server: { ...opts, globalPrefix: opts.globalPrefix || 'graphql', port: port || GRAPHQL_PORT },
       isInternal,
-    })
+    }, explicitId)
     onCreate?.(id)
     servers.push(id)
   }

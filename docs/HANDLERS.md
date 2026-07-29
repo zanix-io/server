@@ -206,6 +206,50 @@ Defaults to `false` (public) everywhere it appears, so existing handlers are una
 in explicitly. See [Configuration](./CONFIGURATION.md#constants) for the reserved `ADMIN_*_PORT`
 constants meant to back this pattern.
 
+By default an `isInternal: true` server's URL prefix is a random UUID, regenerated on every restart
+— safe by default (nothing to leak, rotates on its own), but unusable if an external caller needs a
+stable address to reach it at. Pass an explicit `id` to pin it instead:
+
+```ts
+import { bootstrapServers, getServiceId } from 'jsr:@zanix/server@[version]'
+
+await bootstrapServers({ rest: { isInternal: true, id: `${getServiceId()}-rest` } })
+```
+
+`id` is forwarded to `WebServerManager.create`'s `serverID` parameter and, for an `isInternal`
+server, validated at runtime against `[a-z0-9_-]+` (it doubles as the URL path prefix routes are
+dispatched under) — see [Utilities → Identity helpers](./UTILITIES.md#identity-helpers) for
+`getServiceId()`/`sanitizeIdentifier()`.
+
+### Sharing a port with the public server
+
+An `isInternal: true` server no longer needs a port of its own: if it resolves to the same port as
+another server of the **same** `type` (public or `isInternal`), both now share one real
+`Deno.serve()` listener instead of failing with `AddrInUse`. `isInternal` stays purely a
+routing/authorization boundary — routes are still dispatched separately (the internal server by its
+own random UUID prefix, the public one by its `globalPrefix`), so a route never leaks between them
+even while the port is shared:
+
+```ts
+import { bootstrapServers } from 'jsr:@zanix/server@[version]'
+
+// Public server on port 8000.
+await bootstrapServers({ rest: { port: 8000 } })
+
+// Internal server sharing the SAME port — no longer throws AddrInUse.
+await bootstrapServers({ rest: { port: 8000, isInternal: true } })
+```
+
+This is an implementation-level relaxation, not a recommendation to actually do this in practice —
+the `ADMIN_*_PORT` constants remain the default and recommended way to isolate an internal server at
+the network level too. Whichever server's `bootstrapServers`/`create` call binds the port first owns
+the real socket: its own `server` options (SSL, hostname, etc.) are what actually apply, and a later
+server sharing that port only reuses the bound address for its own route table. Stopping that later
+server is then a no-op — stop the server that originally bound the port to actually release it. See
+`WebServerManager.create()`'s own JSDoc for the full trade-off list, including a narrow startup
+window where a request for a not-yet-registered route on a shared port gets a `404` instead of
+reaching its handler.
+
 ## `enableALS`
 
 By default, singleton handler instances share state across concurrent requests. Setting

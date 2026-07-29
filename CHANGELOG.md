@@ -7,6 +7,72 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added `AUTH_HEADERS`, `SESSION_HEADERS`, `RATE_LIMIT_HEADERS`, `GENERAL_HEADERS`, and
+  `ADMIN_PROTOCOL_HEADER` constants — centralizes header-name constants that were previously
+  duplicated (in some cases with diverging hardcoded copies) across `@zanix/auth`, `@zanix/core`,
+  and `@zanix/notifications`, all of which already depend on `@zanix/server`. Deliberately excludes
+  `ADMIN_PROTOCOL_VERSION` (the version _number_, as opposed to the header name) — that stays in
+  `@zanix/core`, since it's expected to change independently of `@zanix/server`. See
+  [Configuration → Auth & admin-protocol headers](docs/CONFIGURATION.md#auth--admin-protocol-headers).
+- `getServiceId()`/`sanitizeIdentifier()` (`utils/identity.ts`) — derives a stable service identity
+  from the project's own package name, same convention `ZanixDatabaseConnector`'s `defaultDbName`
+  already used internally for the default database name (now refactored to reuse this instead of
+  duplicating the sanitization logic).
+- `BootstrapServerOptions[type].id` — an explicit id for that server, forwarded to
+  `WebServerManager.create`'s pre-existing `serverID` parameter. Omit it to keep the default
+  (randomly generated, unique per boot). Useful for an `isInternal` server whose URL path prefix
+  needs to stay stable across restarts.
+
+### Changed
+
+- **`ServerID` is now a plain `string`, not a UUID-shaped template literal.** The old type
+  (`` `${string}-${string}-${string}-${string}-${string}` ``) was never actually validated at
+  runtime and only ever matched the auto-generated default by coincidence — it actively rejected
+  valid custom ids (e.g. anything from `getServiceId()`, which uses `_` not `-`), forcing awkward
+  `as never` casts to work around it. `WebServerManager.create`'s `serverID` parameter (and
+  `BootstrapServerOptions[type].id`, see above) now sanitizes and validates an `isInternal` server's
+  id against `[a-z0-9_-]+` **at runtime** instead (it doubles as a URL path prefix routes are
+  dispatched under) — throwing an `InternalError` on an unsafe custom id instead of silently
+  breaking route dispatch. Non-`isInternal` ids are unconstrained, same as before.
+- Two web servers of the **same** `type` (e.g. two `'rest'` servers, one public and one
+  `isInternal`) that resolve to the same port now share one real `Deno.serve()` listener instead of
+  failing with `AddrInUse` — `isInternal` is now purely a routing/authorization boundary, not a
+  requirement for a separate network listener. Whichever server binds the port first owns the real
+  socket (its own SSL/hostname/etc. options are what actually apply); a later server sharing that
+  port only reuses the bound address for its own route table, and stopping it directly is a no-op —
+  stop the server that originally bound the port to actually release it. See `create()`'s own JSDoc
+  for the full trade-off list.
+- The internal request multiplexer (`webserver/helpers/handler.ts`'s `multiplexer()`) now always
+  does a live per-request lookup instead of shortcutting to a single handler captured by value —
+  fixes a related bug where a handler registered on a shared port _after_ that port's listener was
+  already bound could never be reached. A request whose path doesn't match any handler on a shared
+  port now gets a proper `404`, instead of a `500`-class dispatch error.
+- `RestClient` now enables conditional `ETag` caching for `GET` requests by default. Responses that
+  include an `ETag` header are cached and reused through `If-None-Match` / `304 Not Modified`
+  validation on subsequent requests. The behavior can be disabled per client or per request with
+  `etag: false`, and subclasses can customize ETag participation and cache identity rules.
+
+### Fixed
+
+- `identityKey()` (`connectors/core/rest.ts`, backing `RestClient`'s ETag cache identity scoping)
+  had a literal raw NUL byte embedded in its source instead of the intended `\0` escape sequence —
+  functionally equivalent at runtime (both produce a one-character null-string separator), but it
+  made the file register as binary to `git diff`/`file` and could trip up tooling that doesn't
+  expect a control character inside a source file. Restored to the proper `'\0'` escape text.
+- **`cleanupInitializationsMetadata('onBoot')` unconditionally wiped the _entire_ shared route
+  registry** (`this.routes.resetContainer()`, with no filtering by `type`/`isInternal`) once the
+  first server of a boot finished starting. This went unnoticed because every existing caller
+  registered all its routes with the same `isInternal` value the first `bootstrapServers` call
+  actually served — but a consumer that registers routes of _different_ `isInternal` scopes up front
+  and then calls `bootstrapServers` more than once in the same boot (e.g. an internal admin server
+  first, then a public one — `@zanix/core`'s own `start.ts`) would silently lose any route not
+  claimed by that first call: it never got the chance to be served by the later call, with no error
+  anywhere. Routes are no longer touched by this cleanup at all — each server's own dispatch table
+  is built once from this registry at `webServerManager.create()` time and never reads it again at
+  request time, so leaving it populated for the life of the process has no runtime cost.
+
 ## [2.1.0] - 2026-07-27
 
 ## Added

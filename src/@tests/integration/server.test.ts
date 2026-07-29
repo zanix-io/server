@@ -1,9 +1,7 @@
-// deno-lint-ignore-file no-explicit-any
 import { WebServerManager } from 'modules/webserver/manager.ts'
-import { assert, assertEquals, assertMatch, assertThrows } from '@std/assert'
+import { assert, assertEquals } from '@std/assert'
 import { stub } from '@std/testing/mock'
 import { getTemporaryFolder } from '@zanix/helpers'
-import { InternalError } from '@zanix/errors'
 
 stub(console, 'info')
 stub(console, 'error')
@@ -57,7 +55,7 @@ Deno.test('Web server manager should return env ports', () => {
 })
 
 Deno.test(
-  'Web server manager should start multiple servers with same type and different port',
+  'Web server manager should reuse the port for same-type servers, and bind separately for different ports',
   async () => {
     Deno.env.set('PORT', '9183')
     const webServerManager = new WebServerManager()
@@ -74,15 +72,13 @@ Deno.test(
     webServerManager.start(id)
     webServerManager.start(id) // ignore start
 
-    const err = assertThrows(
-      () => webServerManager.start(id2),
-      InternalError,
-      `An error ocurred on starting Rest server`,
-    ) // cannot start with the same port
-    assertMatch(
-      (err.cause as any)?.message,
-      new RegExp(`Address already in use \\(os error \\d+\\)`),
-    )
+    // Same type ('rest'), same port (9183) — id2 reuses id's already-bound listener instead of
+    // throwing (see manager.ts's `_start()`: the collision check no longer excludes same-type
+    // servers, which is what makes public/internal servers of the same type able to share a
+    // port). No second `Deno.serve()` call happens for id2.
+    webServerManager.start(id2)
+    assertEquals(webServerManager.info(id2).addr?.port, 9183)
+    assertEquals(webServerManager.info(id2).protocol, 'http')
 
     assertEquals(webServerManager.info(id).addr?.port, 9183)
     assertEquals(webServerManager.info(id).protocol, 'http')
