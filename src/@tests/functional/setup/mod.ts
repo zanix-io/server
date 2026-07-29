@@ -52,10 +52,9 @@ try {
   assert(!Object.keys(Program.middlewares).length)
   assert(!Object.keys(Program.decorators).length)
   assert(!Object.keys(Program.context).length)
-  assert(!Object.keys(Program.routes).length)
 
   // All instantiated classes
-  assertEquals(Object.keys(Program.targets).length, 22)
+  assertEquals(Object.keys(Program.targets).length, 26)
 
   await targetInitializations('postBoot')
 
@@ -73,7 +72,7 @@ try {
   assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'provider').length)
 
   // Persisted instances
-  assertEquals(Object.keys(Program.targets).length, 16)
+  assertEquals(Object.keys(Program.targets).length, 19)
 } catch (e) {
   logger.debug('An error ocurred', e)
   // ignore

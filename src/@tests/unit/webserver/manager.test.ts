@@ -1,6 +1,8 @@
 import { assert, assertEquals, assertThrows } from '@std/assert'
 import { WebServerManager } from 'modules/webserver/manager.ts'
 
+console.error = () => {}
+
 Deno.test('WebServerManager.delete: removes multiple servers when given an array of ids', () => {
   const manager = new WebServerManager()
 

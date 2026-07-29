@@ -7,8 +7,6 @@ import { JSON_CONTENT_HEADER } from 'utils/constants.ts'
 
 const restUrl = 'http://0.0.0.0:8000//api/'
 
-console.debug = () => {}
-
 Deno.test('Verifying controller api rest basic', async () => {
   const query = await fetch(`${restUrl}/hello`)
   const response = await query.text()
