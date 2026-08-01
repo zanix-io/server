@@ -25,7 +25,6 @@ export function defineControllerDecorator(
   let prefix: string | undefined
   let interactor: string | undefined
   let enableALS = false
-  let isInternal = false
   let versionProtocol: VersionProtocolOption | undefined
   if (typeof options === 'string') {
     prefix = options
@@ -33,7 +32,6 @@ export function defineControllerDecorator(
     interactor = getTargetKey(options.Interactor)
     prefix = options.prefix
     enableALS = options.enableALS || enableALS
-    isInternal = options.isInternal || isInternal
     versionProtocol = options.versionProtocol
   }
 
@@ -66,7 +64,7 @@ export function defineControllerDecorator(
       lifetime: 'TRANSIENT',
     })
 
-    ProgramModule.routes.defineRoute('rest', Target, isInternal)
+    ProgramModule.routes.defineRoute('rest', Target)
   }
 }
 

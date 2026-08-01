@@ -7,6 +7,8 @@ import { TargetContainer } from './metadata/targets/main.ts'
 import { ContextContainer } from 'modules/program/metadata/context.ts'
 import { HANDLER_METADATA_PROPERTY_KEY } from 'utils/constants.ts'
 import { RegistryContainer } from './metadata/registry.ts'
+import { ApplicationContainer } from './metadata/application.ts'
+import { DiscoveryContainer } from './metadata/discovery.ts'
 
 /**
  * Class that manages containers for middlewares, targets, routes, decorators, and context.
@@ -26,10 +28,21 @@ export class InternalProgram {
   public targets: TargetContainer = new TargetContainer()
 
   /**
+   * Application container resolving which Application (composition boundary — see
+   * `docs/HANDLERS.md`) a capability being registered right now belongs to.
+   * @type {ApplicationContainer}
+   */
+  public applications: ApplicationContainer = new ApplicationContainer()
+
+  /**
    * Route container that interacts with middlewares and targets.
    * @type {RouteContainer}
    */
-  public routes: RouteContainer = new RouteContainer(this.middlewares, this.targets)
+  public routes: RouteContainer = new RouteContainer(
+    this.middlewares,
+    this.targets,
+    this.applications,
+  )
 
   /**
    * Decorator container that handles custom decorators.
@@ -50,17 +63,34 @@ export class InternalProgram {
   public registry: RegistryContainer = new RegistryContainer()
 
   /**
+   * Registry of `DiscoveryProvider`s (see `docs/HANDLERS.md`'s "Discovery" section) — read-only
+   * `/.well-known/zanix/{resourceType}` snapshots, one bucket per Application.
+   * @type {DiscoveryContainer}
+   */
+  public discovery: DiscoveryContainer = new DiscoveryContainer()
+
+  /**
    * Method to clean up metadata stored in containers for initializations.
    * Resets the containers for routes, middlewares, decorators, and targets.
+   *
+   * @param mode The initialization phase whose metadata should be cleaned up.
+   * @param finalize Defaults to `true`. For `mode: 'postBoot'`, gates `type:resolver` (the
+   * pending-GraphQL-resolvers registry), the route registry, and the discovery-provider registry.
+   * For `mode: 'onBoot'`, gates the global middlewares/decorators registries. All of these are each
+   * read by *every* `bootstrapServers()` call in a multi-call boot sequence (e.g. an internal admin
+   * server followed by a public one) — they must only be purged once the whole sequence is done,
+   * which only the caller knows. Pass `false` for every call except the last one in such a
+   * sequence. `type:connector` is intentionally never purged here at all — see
+   * `closeAllConnections`, which clears it once actually done with it, at process shutdown rather
+   * than at boot completion.
    */
   public cleanupInitializationsMetadata(
     mode: Extract<StartMode, 'postBoot' | 'onBoot'>,
+    finalize: boolean = true,
   ): void {
     if (mode === 'postBoot') {
       /** Clean metadata postBoot */
-      const removeTargets: (`type:${ModuleTypes}` | `${ModuleTypes}:startMode:${StartMode}`)[] = [
-        'type:connector',
-        'type:resolver',
+      const removeTargets: (`${ModuleTypes}:startMode:${StartMode}`)[] = [
         'provider:startMode:postBoot',
         'connector:startMode:postBoot',
         'interactor:startMode:postBoot',
@@ -73,22 +103,30 @@ export class InternalProgram {
       ]
 
       this.targets.resetContainer(removeTargets)
+
+      if (finalize) {
+        this.targets.resetContainer(['type:resolver'])
+        this.routes.resetContainer()
+        this.discovery.resetContainer()
+      }
       return
     }
 
     /** Clean metadata onBoot */
 
     // Routes are deliberately NOT cleared here (unlike middlewares/decorators below): a consumer
-    // that calls `bootstrapServers` more than once in the same boot (e.g. an internal-only server
-    // first, then a public one — see `@zanix/core`'s `start.ts`) needs the shared route registry to
-    // still hold every route not yet claimed by an earlier call, regardless of which `isInternal`
-    // scope it belongs to. Each server's own dispatch table is built once at `webServerManager.create()`
+    // that calls `bootstrapServers` more than once in the same boot (e.g. the `admin` Application's
+    // server first, then `main`'s — see `@zanix/core`'s `start.ts`) needs the shared route registry
+    // to still hold every route not yet claimed by an earlier call, regardless of which Application
+    // it belongs to. Each server's own dispatch table is built once at `webServerManager.create()`
     // time from this registry and never reads it again at request time, so leaving it populated for
     // the life of the process has no request-time cost.
-    // remove all middlewares in container
-    this.middlewares.resetContainer()
-    // remove all metadata used in decorators execution
-    this.decorators.resetContainer()
+    if (finalize) {
+      // remove all middlewares in container
+      this.middlewares.resetContainer()
+      // remove all metadata used in decorators execution
+      this.decorators.resetContainer()
+    }
     // remove unnecesary handlers class `properties` or `symbols` and already instanced targets
     const alreadyStartedTargets: `startMode:${StartMode}`[] = [
       'startMode:onSetup',

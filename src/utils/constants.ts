@@ -12,22 +12,6 @@ export const STATIC_PORT = 20202
  * Default port for GQL server
  */
 export const GRAPHQL_PORT = 20203
-/**
- * Default port for admin REST server
- */
-export const ADMIN_REST_PORT = 30248
-/**
- * Default port for admin GQL server
- */
-export const ADMIN_GRAPHQL_PORT = 30249
-/**
- * Default port for admin SOCKET server
- */
-export const ADMIN_SOCKET_PORT = 30250
-/**
- * Default port for admin STATIC server
- */
-export const ADMIN_STATIC_PORT = 30251
 
 /**
  * Content header for http JSON application
@@ -109,6 +93,16 @@ export const PROTOCOL_VERSION_HEADER = 'X-Znx-Protocol-Version'
  * `version`.
  */
 export const DEFAULT_PROTOCOL_VERSION = 1
+
+/**
+ * Response header carrying the Discovery envelope's own protocol version (see
+ * `modules/discovery/provider.ts`'s `DISCOVERY_PROTOCOL_VERSION`) — kept as its own distinct
+ * constant, not {@link PROTOCOL_VERSION_HEADER}'s generic default, for the same reason
+ * {@link ADMIN_PROTOCOL_HEADER} is its own constant: the two values can diverge independently over
+ * time (a bump to the framework's generic default protocol shouldn't silently look like a Discovery
+ * envelope-shape change, or vice versa), even though both happen to start at `1` today.
+ */
+export const DISCOVERY_PROTOCOL_HEADER = 'X-Znx-Discovery-Protocol'
 
 export const LIFETIME_MODE: Record<Lifetime, Lifetime> = {
   SINGLETON: 'SINGLETON',

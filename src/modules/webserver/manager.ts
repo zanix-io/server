@@ -1,22 +1,19 @@
 import type {
-  ServerHandler,
+  HandlerBox,
+  Runtime,
   ServerID,
   ServerManagerData,
   ServerManagerOptions,
   WebServerTypes,
 } from 'typings/server.ts'
 
-import { capitalize, fileExists, generateUUID } from '@zanix/helpers'
+import { capitalize, fileExists } from '@zanix/helpers'
 import { getMainHandler, multiplexer } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { compileRuntime } from './runtime.ts'
 import { InternalError } from '@zanix/errors'
-import { getPrefix } from 'utils/routes.ts'
-import { encoder } from '@zanix/helpers'
 import logger from '@zanix/logger'
-
-/** Allowed charset for an internal server's `serverID` once it doubles as a URL path prefix. */
-const SAFE_SERVER_ID = /^[a-z0-9_-]+$/
 
 /**
  * WebServerManager is a utility class for managing web servers with optional SSL support.
@@ -24,7 +21,20 @@ const SAFE_SERVER_ID = /^[a-z0-9_-]+$/
  * The class allows both HTTP and HTTPS protocols, with the SSL certificate and key provided via environment variables or directly through the options parameter.
  */
 export class WebServerManager {
-  #handlers: Record<number, Record<string, ServerHandler>> = {}
+  // Each PORT's own `HandlerBox` is a stable, long-lived container — never replaced once created,
+  // only ever swapped via its own `current` field (see `create()`). This is a deliberate, narrowly
+  // scoped exception to "Application composition → capability registration → Runtime activation →
+  // immutable server," not a contradiction of it: each individual server's own Runtime (its
+  // dispatchKey → handler pairing, resolved once at `create()` time) never changes again once set.
+  // What the box accounts for is a genuinely real, already-shipped requirement one level up — a
+  // PORT shared by two independently-activated servers, where the second one's `create()` call can
+  // happen *after* the first has already bound the real `Deno.serve()` socket (e.g. `@zanix/core`'s
+  // `start.ts` fully creates+starts its `'admin'`-Application server before the default-Application
+  // one is even created — see `shared-port.test.ts`). Reordering every caller so all `create()`
+  // calls for a port always precede that port's own first `start()` would remove the need for this
+  // entirely, but `bootstrapServers`'s own multi-call boot-sequence contract (`finalize: false`)
+  // doesn't guarantee that ordering today, so the box is what makes sharing safe regardless.
+  #handlers: Record<number, HandlerBox> = {}
   #servers: Partial<ServerManagerData> = {}
   #sslOptions: { key?: string; cert?: string } = {}
 
@@ -76,21 +86,32 @@ export class WebServerManager {
    *
    * @param {WebServerTypes} type - The name of the server (e.g., "rest", "static").
    * @param {ServerManagerOptions} [options={}] - Options that include the function to handle incoming requests and configuration for the server, such as SSL options and the `onListen` callback.
-   * @param {ServerID} [serverID] - An explicit id to (re)use for this server. Useful to make
-   * `create` idempotent across calls (e.g. reconnecting to a previously created server).
-   * Defaults to a freshly generated id. **Not validated against an existing entry's own
-   * `type`/options** — if you pass an id already registered under a different config, `create`
-   * silently keeps the original registration and discards yours (same idempotent-reuse rule as
-   * the "same id already exists" case above). For an `isInternal` server, a caller-supplied id is
-   * normalized (case/slashes) and **must** match `[a-z0-9_-]+` — it doubles as the URL path prefix
-   * routes are dispatched under, so anything else throws an `InternalError`.
-   * @returns {ServerID} The id of the created server, or the given/existing `serverID` if a
+   * @param {Runtime} [runtime] - An already-compiled `Runtime` (see `compileRuntime`, `runtime.ts`)
+   * — the sole boundary `create` accepts for Application/anchoring/dispatch info. `create` never
+   * derives any of that itself: resolving it happens entirely in `compileRuntime`, before `create`
+   * ever runs. Defaults to `compileRuntime(type, { globalPrefix: options.server?.globalPrefix })`
+   * (the default Application, unanchored, a freshly generated id, dispatching by whatever
+   * `globalPrefix` `options.server` already declares) when omitted — `bootstrapServers` always
+   * passes its own explicitly-compiled `Runtime` instead, reflecting its
+   * `BootstrapServerOptions[type].application`/`.id` options. **Not validated against an
+   * existing entry's own `type`/options** — if you pass a `Runtime` whose `serverID` is already
+   * registered under a different config, `create` silently keeps the original registration and
+   * discards yours (same idempotent-reuse rule as the "same id already exists" case above).
+   * @returns {ServerID} The id of the created server, or the given/existing id if a
    * server with that id was already registered (the existing server is left untouched).
    *
-   * @remarks Sharing a port. Two (or more) servers — of the same or different `type`, public or
-   * `isInternal` — that resolve to the same port share one real `Deno.serve()` listener; whichever
-   * one calls `start()` first is the one that actually binds the socket, and every later one on
-   * that port just reuses its address. Consequences worth knowing:
+   * @remarks Sharing a port. Two (or more) servers — of the same or different `type`, anchored or
+   * not — that resolve to the same port share one real `Deno.serve()` listener; whichever one calls
+   * `start()` first is the one that actually binds the socket, and every later one on that port just
+   * reuses its address. Consequences worth knowing:
+   *
+   * `runtime.previousDispatchKey`/`.previousRouteHandlerPrefix` (present when `compileRuntime` was
+   * given a `previousId`) register a SECOND handler on this same port, alongside the primary one,
+   * built the same way (`getMainHandler` with the previous prefix) — this is what lets a caller
+   * still using the old anchored address keep working during a manual rotation window. Only
+   * applied when `options.handler` wasn't explicitly given: a caller supplying a fully custom
+   * handler bypasses prefix-based table-building entirely, so rotation for that case is the
+   * caller's own responsibility, not something this method infers.
    * - **The first bind's own `server` options (SSL, hostname, etc.) are what apply to the real
    *   socket.** A later server's own `server` options only ever affect its own route table, never
    *   the socket itself.
@@ -103,41 +124,23 @@ export class WebServerManager {
   public create<T extends WebServerTypes>(
     type: T,
     options: ServerManagerOptions<T> = {},
-    serverID: ServerID = `${encoder.encode(type).toHex()}${generateUUID()}`,
+    runtime: Runtime = compileRuntime(type, { globalPrefix: options.server?.globalPrefix }),
   ): ServerID {
-    const { isInternal, server: { onceStop, globalPrefix = '', ssl, gzip, cors, ...opts } = {} } =
-      options
-
-    // For `isInternal` servers, `serverID` doubles as the URL path prefix routes are dispatched
-    // under (see `dispatchKey` below) — unlike a public `globalPrefix`, it never went through
-    // `getPrefix`'s case/slash normalization, and `pathToRegex` (utils/routes.ts) interpolates it
-    // unescaped for parameterized routes (e.g. `/admin/triggers/:model`, already shipped). The
-    // random default (hex + `crypto.randomUUID()`) always happens to be safe; a caller-supplied
-    // `serverID` isn't guaranteed to be, so it's normalized and validated the same way here.
-    if (isInternal) {
-      serverID = getPrefix(serverID)
-      if (!SAFE_SERVER_ID.test(serverID)) {
-        throw new InternalError(
-          `Invalid internal server id "${serverID}" — must match ${SAFE_SERVER_ID} (lowercase ` +
-            'letters, digits, "_"/"-" only) since it doubles as a URL path prefix.',
-          { meta: { source: 'zanix', serverID } },
-        )
-      }
-    }
+    const { server: { onceStop, ssl, gzip, cors, ...opts } = {} } = options
+    const {
+      serverID,
+      dispatchKey,
+      routeHandlerPrefix,
+      application,
+      previousDispatchKey,
+      previousRouteHandlerPrefix,
+    } = runtime
 
     if (this.#servers[serverID]) return serverID
 
-    const prefix = getPrefix(globalPrefix)
-    // Multiplexer dispatch key (see `this.#handlers[port]` below) — must match the *route* prefix
-    // `getMainHandler` bakes into this handler's own path table, or the multiplexer's per-request
-    // `getPrefix(url.pathname)` lookup (helpers/handler.ts's `multiplexer()`) will never find it.
-    // For `isInternal` servers that's `serverID` (see the `getMainHandler` call below); for public
-    // servers it's the same `prefix` already used for everything else. This is what lets a public
-    // and an internal server of the *same* `type` correctly share one port/listener.
-    const dispatchKey = isInternal ? serverID : prefix
-
+    const usingDefaultHandler = !options.handler
     const {
-      handler = getMainHandler(type, isInternal, isInternal ? serverID : prefix, { cors, gzip }),
+      handler = getMainHandler(type, application, routeHandlerPrefix, { cors, gzip }),
     } = options
 
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
@@ -155,18 +158,32 @@ export class WebServerManager {
     Object.assign(opts, { ...this.#sslOptions })
 
     // Listener assignment
-    const serverName = capitalize(type)
-    opts.onListen = onListen(currentListenHandler, protocol, serverName)
-    opts.onError = onErrorListener(currentErrorHandler, serverName)
+    const serverInfo = `${capitalize(application)} ${type}`
+    opts.onListen = onListen(currentListenHandler, protocol, serverInfo)
+    opts.onError = onErrorListener(currentErrorHandler, serverInfo)
 
-    // Mutated in place (not reassigned via spread) so that a listener already bound on this port
-    // — via an earlier `create()`+`_start()` — sees handlers registered by a *later* `create()`
-    // call on the same port. `multiplexer()` closes over this exact object reference and does a
-    // live lookup per request, so this is what makes shared-port serving actually work when the
-    // two servers' `create()`/`start()` calls don't happen back-to-back (e.g. `core/start.ts`
-    // fully creates+starts the internal/admin server before the public one is even created).
-    this.#handlers[opts.port] ??= {}
-    this.#handlers[opts.port][dispatchKey] = handler
+    // Never mutate the port's existing dispatch table in place — each registration builds an
+    // entirely new, frozen table and swaps the box's own `current` pointer to it in one atomic
+    // assignment (see the class field's own doc for why the box exists at all). A listener already
+    // bound on this port (via an earlier `create()`+`_start()`) still sees handlers registered by a
+    // *later* `create()` call on the same port, since `multiplexer()` closes over the box itself and
+    // dereferences `current` fresh per request; it just never sees a table that's partway through
+    // being built.
+    const box = this.#handlers[opts.port] ??= { current: Object.freeze({}) }
+    // `compileRuntime` never produces `previousDispatchKey`/`previousRouteHandlerPrefix` for a
+    // `graphql` Runtime (see its own doc) — GraphQL rotation isn't supported, so this branch only
+    // ever builds a second handler for `rest`/`socket`, whose own route table is read
+    // non-destructively from `ProgramModule.routes` on every build.
+    const previousHandlerEntry = usingDefaultHandler && previousDispatchKey &&
+        previousRouteHandlerPrefix
+      ? {
+        [previousDispatchKey]: getMainHandler(type, application, previousRouteHandlerPrefix, {
+          cors,
+          gzip,
+        }),
+      }
+      : {}
+    box.current = Object.freeze({ ...box.current, [dispatchKey]: handler, ...previousHandlerEntry })
     const handlers = this.#handlers
     const currentServers = this.#servers
 
@@ -176,8 +193,8 @@ export class WebServerManager {
 
         try {
           // Any other already-started server bound to this exact port is reused, regardless of
-          // `type` — this is what lets a public and an internal server of the *same* `type` share
-          // one physical listener (see `dispatchKey` above), not just different types (the
+          // `type` — this is what lets an unanchored and an anchored server of the *same* `type`
+          // share one physical listener (see `dispatchKey` above), not just different types (the
           // pre-existing REST+GraphQL+Socket-on-one-port case). The server that reuses an address
           // never calls `Deno.serve()` itself, so whichever server bound the port first is the one
           // whose own options (SSL, hostname, etc.) actually apply to the real socket — a later
@@ -194,7 +211,7 @@ export class WebServerManager {
             delete handlers[port] // clean up memory
             const addr = existingServer.addr
             logger.success(
-              `${serverName} server is running at ${protocol}://${addr?.hostname}:${addr?.port}`,
+              `${serverInfo} server is running at ${protocol}://${addr?.hostname}:${addr?.port}`,
             )
             return this.addr = addr
           }
@@ -208,12 +225,12 @@ export class WebServerManager {
           // overriding stop function
           this.stop = () =>
             server.shutdown().finally(() => {
-              logger.info(`${serverName} server is finished`, 'noSave')
+              logger.info(`${serverInfo} server is finished`, 'noSave')
             })
         } catch (error) {
-          throw new InternalError(`An error ocurred on starting ${serverName} server`, {
+          throw new InternalError(`An error ocurred on starting ${serverInfo} server`, {
             cause: error,
-            meta: { source: 'zanix', serverName, serverType: this.type, port },
+            meta: { source: 'zanix', serverInfo, serverType: this.type, port },
           })
         }
       },
@@ -245,12 +262,15 @@ export class WebServerManager {
    * Starts the specified web server if it is not already running.
    *
    * @param {ServerID} id - The identifier of the server to start.
+   * @param {boolean} [finalize] - Defaults to `true`. Pass `false` when this is not the last
+   * `bootstrapServers()` call in a multi-call boot sequence — see
+   * `cleanupInitializationsMetadata`'s own doc for what this gates.
    */
-  public start(id: ServerID | ServerID[]): void {
+  public start(id: ServerID | ServerID[], finalize: boolean = true): void {
     const processor = (callback: () => void) => {
       callback() // main function to execute
       // Delete unused references once the server has started
-      ProgramModule.cleanupInitializationsMetadata('onBoot')
+      ProgramModule.cleanupInitializationsMetadata('onBoot', finalize)
     }
 
     if (typeof id === 'string') return processor(() => this.#start(id))

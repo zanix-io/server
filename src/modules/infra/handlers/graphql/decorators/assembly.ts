@@ -22,7 +22,7 @@ import { getTargetKey } from 'utils/targets.ts'
 import { ZanixResolver } from '../base.ts'
 import { capitalize } from '@zanix/helpers'
 import { ZANIX_PROPS } from 'utils/constants.ts'
-import { type RequestContext, rootValue } from '../handler.ts'
+import { getRootValueBucket, type RequestContext } from '../handler.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
 import { plainResponseInterceptor } from 'middlewares/defaults/response.interceptor.ts'
@@ -35,7 +35,6 @@ export function defineResolverDecorator(
   let prefix: string = ''
   let interactor: string | undefined
   let enableALS = false
-  let isInternal = false
   let versionProtocol: VersionProtocolOption | undefined
   if (typeof options === 'string') {
     prefix = options
@@ -43,9 +42,13 @@ export function defineResolverDecorator(
     interactor = getTargetKey(options.Interactor)
     enableALS = options.enableALS || enableALS
     prefix = options.prefix || prefix
-    isInternal = options.isInternal || isInternal
     versionProtocol = options.versionProtocol
   }
+
+  // Resolved once, at class-decoration time — the same instant `RouteContainer.defineRoute` would
+  // resolve it for a `@Controller`/`@Socket`, so a `@Resolver` is attributed to whichever
+  // Application composition scope (`ApplicationContainer.define`) is active the same way.
+  const application = ProgramModule.applications.getCurrent()
 
   return function (Target) {
     if (!(Target.prototype instanceof ZanixResolver)) {
@@ -63,7 +66,7 @@ export function defineResolverDecorator(
     methodDecorators.forEach((decorator) => {
       const { name, handler, input, output, request, description } = decorator
       const resolverName = prefix ? prefix + capitalize(name) : name.toLowerCase()
-      const schemaBucket = gqlSchemaDefinitions[isInternal ? 'internal' : 'public']
+      const schemaBucket = gqlSchemaDefinitions[application] ??= { Query: '', Mutation: '' }
 
       schemaBucket[request] += `\n"""${description}"""\n${resolverName}${
         buildGqlInput(input)
@@ -120,7 +123,7 @@ export function defineResolverDecorator(
       }
 
       // Resolver assignment
-      rootValue[isInternal ? 'internal' : 'public'][resolverName] = function (
+      getRootValueBucket(application)[resolverName] = function (
         payload,
         request: RequestContext,
       ) {
@@ -140,7 +143,7 @@ export function defineResolverDecorator(
     ProgramModule.targets.defineTarget(getTargetKey(Target), {
       type: 'resolver',
       Target,
-      dataProps: { interactor, enableALS, isInternal },
+      dataProps: { interactor, enableALS, application },
       lifetime: 'TRANSIENT',
     })
   }

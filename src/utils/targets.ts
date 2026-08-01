@@ -146,6 +146,10 @@ export const targetInitializations = async (
  * Closes all 'connector' type connections defined in `ProgramModule`.
  * It uses the `close` method of each connector to close them concurrently.
  *
+ * Also clears the `type:connector` registry once done with it — this is the only reader of that
+ * registry after boot, so process shutdown (not boot completion) is its true end of life; see
+ * `InternalProgram.cleanupInitializationsMetadata`'s doc for why it's never purged there instead.
+ *
  * @async
  * @function closeAllConnections
  * @returns {Promise<void>} A promise that resolves when all connections have been closed.
@@ -153,12 +157,16 @@ export const targetInitializations = async (
  * @throws {Error} If an error occurs while closing any connection, the promise will be rejected.
  */
 export const closeAllConnections = async (): Promise<void> => {
+  const keys = ProgramModule.targets.getTargetsByType('connector')
+
   await Promise.all(
-    ProgramModule.targets.getTargetsByType('connector').map((key) => {
+    keys.map((key) => {
       return ProgramModule.targets.getConnector<ZanixConnector>(key, { useExistingInstance: true })
         ?.['close']()
     }),
   )
+
+  ProgramModule.targets.resetContainer(['type:connector'])
 }
 
 /**

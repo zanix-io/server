@@ -19,9 +19,10 @@ export type WebServerTypes = 'graphql' | 'rest' | 'socket' | 'ssr'
  * Not required to look like a UUID, and nothing validates that shape — the default value
  * `WebServerManager.create` generates happens to (hex-encoded type + `crypto.randomUUID()`), but a
  * caller-supplied `serverID`/`BootstrapServerOptions[type].id` can be any string. The one real
- * constraint applies only to an `isInternal` server, since its id doubles as a URL path prefix
- * routes are dispatched under: it must match `[a-z0-9_-]+` once normalized (case/slashes) — `create`
- * throws an `InternalError` otherwise. That check lives at runtime in `manager.ts`, not in this
+ * constraint applies only to an *anchored* server (one given an explicit
+ * `BootstrapServerOptions[type].id`), since its id doubles as a URL path prefix routes are
+ * dispatched under: it must match `[a-z0-9_-]+` once normalized (case/slashes) — `compileRuntime`
+ * throws an `InternalError` otherwise. That check lives at runtime in `runtime.ts`, not in this
  * type, since TypeScript can't express a charset constraint via a template literal.
  */
 export type ServerID = string
@@ -50,6 +51,42 @@ export type ServerManagerData = Record<
 
 /** The handler function signature accepted by `Deno.serve` for a TCP-bound server. */
 export type ServerHandler = Deno.ServeHandler<Deno.NetAddr>
+
+/**
+ * The result of resolving a `RuntimeActivation` (Application + prefix/id — see `runtime.ts`'s
+ * `compileRuntime`) into a concrete, physical server activation. This is what
+ * `WebServerManager.create` actually consumes: id-anchoring/dispatch resolution happens entirely
+ * before `create` is ever called, at composition time, never inside `WebServerManager` itself —
+ * and never derived from the Application name alone (see `RuntimeActivation.explicitId`'s own doc).
+ */
+export type Runtime = {
+  /** The Application this activation serves — see `bootstrapServers`'s own `application` option. */
+  application: string
+  /** The resolved, already-validated server id (see `ServerID`'s own doc for the validation rule). */
+  serverID: ServerID
+  /** The multiplexer's per-port dispatch key — see `WebServerManager.create`'s own remarks. */
+  dispatchKey: string
+  /** The route-table path prefix this activation's handler is compiled against. */
+  routeHandlerPrefix: string
+  /**
+   * The previous id's own dispatch key, present only when `RuntimeActivation.previousId` was
+   * given — see `WebServerManager.create`'s own remarks on rotation.
+   */
+  previousDispatchKey?: string
+  /** The previous id's own route-table path prefix — paired with {@link previousDispatchKey}. */
+  previousRouteHandlerPrefix?: string
+}
+
+/**
+ * A stable, long-lived container for one port's dispatch table — the box a running `Deno.serve()`
+ * listener's multiplexer closes over. `current` is never mutated in place: each new registration on
+ * the same port produces an entirely new, frozen table and reassigns `current` to it in a single
+ * atomic pointer swap, so any in-flight request always sees either the fully-old or fully-new table,
+ * never a partially-written one — see `WebServerManager.create`'s own remarks on sharing a port.
+ */
+export type HandlerBox = {
+  current: Readonly<Record<string, ServerHandler>>
+}
 
 /** Narrows `CorsOptions.allowedMethods` to a specific subset of `HttpMethod`s. */
 export type CorsAllowedMethods<Methods extends HttpMethod> =
@@ -107,21 +144,19 @@ export type ServerOptions<K extends WebServerTypes = never> =
  * Properties:
  * - `handler` (optional): A function or object responsible for handling incoming server requests.
  * - `server` (optional): Server options configuration.
- * - `isInternal` (optional):  When `true`, this server is considered internal and will be assigned its own
- *        dynamically generated UUID as the global prefix. This helps distinguish and isolate
- *        internal server instances from public ones.
+ *
+ * Which Application this server activates, and whether it gets the id-anchored/obscured-URL
+ * treatment, are never one of these options — `WebServerManager.create`'s own `runtime` parameter
+ * (a `Runtime`, see its own doc) already carries that resolution, pre-compiled, by the time
+ * `create` runs. Direct callers that need that behavior build one via `compileRuntime`
+ * (`runtime.ts`) and pass it explicitly; `bootstrapServers` already does this for its own
+ * `BootstrapServerOptions[type].application`/`.id` options.
  */
 export type ServerManagerOptions<K extends WebServerTypes> = {
   /** A function or object responsible for handling incoming server requests. */
   handler?: ServerHandler
   /** Server options configuration. */
   server?: ServerOptions<K>
-  /**
-   * When `true`, this server is considered internal and will be assigned its own
-   * dynamically generated UUID as the global prefix. This helps distinguish and isolate
-   * internal server instances from public ones.
-   */
-  isInternal?: boolean
 }
 
 /**
@@ -158,20 +193,46 @@ export type BootstrapServerOptions = Partial<
        */
       onCreate?: (id: ServerID) => void
       /**
-       * When `true`, all servers created by this
-       * function are considered internal. Each internal server will be assigned its own
-       * dynamically generated UUID as the global prefix. This helps distinguish and isolate
-       * internal server instances from public ones.
+       * The Application (see `docs/HANDLERS.md`'s "Applications" section) whose routes/resolvers/
+       * sockets this server mounts — only capabilities registered under this exact Application are
+       * served; a capability never leaks onto a server built for a different one. Defaults to the
+       * default Application (`'main'`) when omitted. `bootstrapServers` resolves this into a
+       * `Runtime` (via `compileRuntime`) before ever calling `WebServerManager.create` — see that
+       * type's own doc for what "resolving" actually means.
+       *
+       * **Purely an ownership/composition boundary — carries no URL-anchoring or exposure meaning
+       * of its own.** A non-default Application (`'admin'`, `'billing'`, `'metrics'`, ...) is not,
+       * by itself, "internal" or hidden — it's just a different named composition boundary. Set
+       * `id` (below) if this server's own id should double as an obscuring URL prefix; nothing
+       * about `application`'s value implies that on its own.
        */
-      isInternal?: boolean
+      application?: string
       /**
        * An explicit id to use for this server instead of a randomly generated one — see
-       * `WebServerManager.create`'s `serverID` parameter. Useful for an `isInternal` server whose
-       * URL path prefix (which the id doubles as) needs to stay stable across restarts, e.g. so an
-       * external caller has a fixed address to reach it at instead of one that changes on every
-       * boot. Must match `[a-z0-9_-]+` once normalized, or `create` throws.
+       * `compileRuntime`'s own `explicitId` parameter. When given, this server's own id doubles as
+       * an anchoring, obscuring URL prefix instead of a plain `globalPrefix`-based one — **a server
+       * is anchored if and only if this is set; there is no auto-generated/random anchored id**.
+       * Must match `[a-z0-9_-]+` once normalized, or `compileRuntime` throws.
+       *
+       * A `globalPrefix` given alongside an explicit `id` doesn't replace the id-based prefix —
+       * it's appended as an extra segment after it (`{id}/{globalPrefix}/...`) instead; omitting
+       * `globalPrefix` keeps the route path exactly `{id}/...`.
+       *
+       * **This is a routing/obscurity boundary only** — no automatic authentication, authorization, or
+       * network-level restriction is applied. Add an explicit guard (e.g. `@zanix/auth`'s
+       * `AuthTokenValidation`) if a route needs real protection, and give the server its own distinct
+       * port/network segment if it needs real network isolation.
        */
       id?: ServerID
+      /**
+       * A previous `id` to keep dispatching alongside the current one, for a bounded manual
+       * rotation window — both prefixes reach the same routes simultaneously while this is set, so
+       * callers still using the old address keep working until they're updated to the new one. Only
+       * meaningful alongside `id`; `compileRuntime` throws if given without it. See
+       * `resolvePreviousAdminServerId`/`ADMIN_SERVER_ID_PREVIOUS` for the built-in admin rotation
+       * runbook.
+       */
+      previousId?: ServerID
     }
   }
 >

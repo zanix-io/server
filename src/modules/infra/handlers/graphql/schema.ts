@@ -1,5 +1,6 @@
 import type { ResolverTypes } from 'typings/decorators.ts'
 
+import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import { defineScalars, getGqlTypes, scalarTypes } from './types.ts'
 import { readConfig } from '@zanix/helpers'
 import { buildSchema } from 'graphql'
@@ -7,19 +8,20 @@ import { buildSchema } from 'graphql'
 const fileConfig = readConfig()
 
 /**
- * Accumulated `Query`/`Mutation` SDL fragments, one bucket per `isInternal` value — a resolver
- * registers into whichever bucket matches its own `isInternal` option (default `public`), so
- * `defineSchema` can compile a schema containing only the operations that belong to the server
- * instance being built (see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`).
+ * Accumulated `Query`/`Mutation` SDL fragments, one bucket per Application — a resolver
+ * registers into whichever bucket matches the Application it was defined under (see
+ * `ApplicationContainer`), so `defineSchema` can compile a schema containing only the operations
+ * that belong to the server instance being built (see `bootstrapServers`'s
+ * `BootstrapServerOptions[type].application`). Buckets are created lazily, on first access.
  */
-export const gqlSchemaDefinitions = {
-  public: { Query: '', Mutation: '' },
-  internal: { Query: '', Mutation: '' },
-}
+export const gqlSchemaDefinitions: Record<string, { Query: string; Mutation: string }> = {}
+
+const getBucket = (application: string) =>
+  gqlSchemaDefinitions[application] ??= { Query: '', Mutation: '' }
 
 /**
  * Custom `.gql`/`.graphql` type definitions plus scalar stubs — computed once at module load.
- * Shared across every schema (public and internal alike): a type/scalar vocabulary isn't
+ * Shared across every schema, regardless of Application: a type/scalar vocabulary isn't
  * resolver-specific, unlike `Query`/`Mutation`.
  */
 const gqlTypes = getGqlTypes()
@@ -28,8 +30,8 @@ const defaultResolver = (type: ResolverTypes) => {
   return `\n"""\nThis ${type} example serves as a demostration and does not perform any specific actions or operations. Its purpose is to showcase the structure or syntax of a GraphQL ${type} without executing any functional logic or producing a meaningful output.\n"""\n_zanix${type}: ${scalarTypes.unknown.name}`
 }
 
-export const defineSchema = (isInternal: boolean = false) => {
-  const bucket = gqlSchemaDefinitions[isInternal ? 'internal' : 'public']
+export const defineSchema = (application: string = DEFAULT_APPLICATION) => {
+  const bucket = getBucket(application)
 
   if (bucket.Query === '') bucket.Query = defaultResolver('Query')
   if (bucket.Mutation === '') bucket.Mutation = defaultResolver('Mutation')
@@ -43,8 +45,8 @@ export const defineSchema = (isInternal: boolean = false) => {
 
   defineScalars(schema)
 
-  // Reset only this bucket — the other `isInternal` value's accumulator (if any) is still pending
-  // its own `defineSchema` call and must not be cleared here.
+  // Reset only this bucket — every other Application's accumulator (if any) is still pending its
+  // own `defineSchema` call and must not be cleared here.
   bucket.Query = ''
   bucket.Mutation = ''
 

@@ -8,7 +8,7 @@ import logger from '@zanix/logger'
 stub(console, 'info')
 const consoleInfo = stub(logger, 'info')
 
-Deno.test('Start module should init internal servers', async () => {
+Deno.test("Start module should init the 'admin'-Application, anchored servers", async () => {
   await new Promise((resolve) => setTimeout(resolve, 500))
   await import('../setup/metadata.ts')
   const servers: ServerID[] = []
@@ -16,13 +16,13 @@ Deno.test('Start module should init internal servers', async () => {
   const onCreate = (id: ServerID) => {
     servers.push(id)
   }
-  const isInternal = true
+  const application = 'admin'
 
   await bootstrapServers(
     {
-      rest: { onCreate, isInternal, port: 1234 },
-      graphql: { onCreate, isInternal, port: 1235 },
-      socket: { onCreate, isInternal, port: 1236 },
+      rest: { onCreate, application, id: 'internal-rest-anchor', port: 1234 },
+      graphql: { onCreate, application, id: 'internal-graphql-anchor', port: 1235 },
+      socket: { onCreate, application, id: 'internal-socket-anchor', port: 1236 },
     },
   )
 
@@ -31,9 +31,9 @@ Deno.test('Start module should init internal servers', async () => {
     assert(webServerManager.info(server as never).addr)
   }
 
-  assertSpyCalls(consoleInfo, 3) // routes quantity (isInternal-tagged fixtures only)
+  assertSpyCalls(consoleInfo, 3) // routes quantity ('admin'-Application fixtures only)
 
-  // Assert some internal server
+  // Assert some anchored server
   for (let call = 0; call < consoleInfo.calls.length; call++) {
     assert(servers.some((id) => consoleInfo.calls[call].args[1].startsWith(`/${id}`)))
   }

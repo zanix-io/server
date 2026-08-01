@@ -1,4 +1,4 @@
-import type { ServerHandler, WebServerTypes } from 'typings/server.ts'
+import type { HandlerBox, ServerHandler, WebServerTypes } from 'typings/server.ts'
 import type { ProcessedRouteDefinition } from 'typings/router.ts'
 import type { HandlerContext } from 'typings/context.ts'
 import type { CorsOptions } from 'typings/middlewares.ts'
@@ -9,6 +9,7 @@ import { contextId, payloadAccessorDefinition } from 'utils/context.ts'
 import { getGraphqlHandler } from 'handlers/graphql/handler.ts'
 import { cleanRoute, searchParamsPropertyDescriptor } from '@zanix/helpers'
 import { asyncContext } from 'modules/infra/base/storage.ts'
+import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { routeProcessor } from './routes.ts'
 import { httpErrorResponse } from 'utils/errors/helper.ts'
@@ -47,28 +48,37 @@ const mainProcess = (options: {
 /**
  * Default routes handler
  * @param {WebServerTypes} type
- * @param {boolean} isInternal - Whether this handler is being built for the internal server
- * instance (see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`) — only
- * routes/resolvers with a matching `isInternal` flag are included.
+ * @param {string} application - The Application this server instance is being built for (see
+ * `bootstrapServers`'s `BootstrapServerOptions[type].application`) — only routes/resolvers
+ * registered under this same Application are included. Defaults to the default Application.
+ * @param {string} globalPrefix - The full route-path prefix baked into this handler's own path
+ * table (via `routeProcessor`) — this is the `Runtime`'s own `routeHandlerPrefix` (`runtime.ts`'s
+ * `compileRuntime`): for an anchored server, the server's own id plus an optional `{globalPrefix}`
+ * segment, NOT necessarily a single path segment; this is a separate concern from
+ * `WebServerManager.create`'s `dispatchKey`, which the multiplexer uses to pick which handler to
+ * invoke in the first place.
  * @returns {ServerHandler}
  */
 export const getMainHandler = (
   type: WebServerTypes,
-  isInternal: boolean = false,
+  application: string = DEFAULT_APPLICATION,
   globalPrefix: string = '',
   options: { cors?: CorsOptions; gzip?: GzipOptions } = {},
 ): ServerHandler => {
   if (type === 'graphql') {
+    // Registered lazily here, at Runtime-activation time rather than composition time (no
+    // `ApplicationContainer.define(...)` scope is active this late) — `applicationOverride`
+    // (`defineRoute`'s 3rd argument) attributes it correctly regardless.
     ProgramModule.routes.defineRoute('graphql', {
       path: globalPrefix,
-      handler: getGraphqlHandler(isInternal),
+      handler: getGraphqlHandler(application),
       httpMethod: 'POST',
-    }, isInternal)
+    }, application)
   }
 
   const { relativePaths, absolutePaths, routePaths } = routeProcessor(
     type,
-    isInternal,
+    application,
     globalPrefix,
   )
 
@@ -125,23 +135,23 @@ export const getMainHandler = (
  * WebSocket, SSR, etc.) under a single `Deno.serve` instance — especially useful
  * on platforms where only one port listener is allowed.
  *
- * Always returns the live-lookup dispatcher — even when `handlers` has exactly one entry at call
+ * Always returns the live-lookup dispatcher — even when `box.current` has exactly one entry at call
  * time — rather than shortcutting to that single handler function directly. `manager.ts`'s
- * `create()` mutates the same `handlers` object in place as more servers register on this port
- * (e.g. a public server created *after* an internal one on the same port), so a shortcut captured
- * by value here would go stale the moment a second handler is added — the dispatcher must always
- * re-read `handlers[prefix]` per request against the live object. The extra `getPrefix()` call in
- * the single-handler case is negligible.
+ * `create()` never mutates a port's dispatch table in place — each new registration swaps `box`'s
+ * own `current` field to an entirely new, frozen table (see `HandlerBox`'s own doc) — so the
+ * dispatcher must always dereference `box.current` fresh per request, never close over one specific
+ * table snapshot, or it would go stale the moment a later registration swaps `current` to a new
+ * table. The extra `getPrefix()` call in the single-handler case is negligible.
  *
  * A request whose path prefix doesn't match any registered handler gets a plain `NOT_FOUND`
  * response here, rather than reaching a per-type handler's own 404 logic — this can legitimately
  * happen once *any* two logical servers share a port.
  */
-export function multiplexer(handlers: Record<string, ServerHandler>) {
+export function multiplexer(box: HandlerBox) {
   return (request: Request, info: Deno.ServeHandlerInfo<Deno.NetAddr>) => {
     const url = new URL(request.url)
     const prefix = getPrefix(url.pathname)
-    const handler = handlers[prefix]
+    const handler = box.current[prefix]
 
     if (!handler) {
       return httpErrorResponse(new HttpError('NOT_FOUND', { meta: { path: url.pathname } }))

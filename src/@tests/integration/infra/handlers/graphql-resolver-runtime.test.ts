@@ -6,7 +6,8 @@ import {
   defineResolverRequestDecorator,
 } from 'modules/infra/handlers/graphql/decorators/assembly.ts'
 import { ZanixResolver } from 'modules/infra/handlers/graphql/base.ts'
-import { rootValue } from 'modules/infra/handlers/graphql/handler.ts'
+import { getRootValueBucket } from 'modules/infra/handlers/graphql/handler.ts'
+import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import { asyncContext } from 'modules/infra/base/storage.ts'
 import type { HandlerContext } from 'typings/context.ts'
 
@@ -37,7 +38,7 @@ Deno.test({
     } as unknown as HandlerContext
     const request = { context } as never
 
-    const callHello = rootValue.public['hello'] as unknown as (
+    const callHello = getRootValueBucket(DEFAULT_APPLICATION)['hello'] as unknown as (
       payload: unknown,
       request: unknown,
     ) => Promise<unknown>
@@ -68,7 +69,7 @@ Deno.test({
     } as unknown as HandlerContext
     const request = { context } as never
 
-    const callHello = rootValue.public['hello'] as unknown as (
+    const callHello = getRootValueBucket(DEFAULT_APPLICATION)['hello'] as unknown as (
       payload: unknown,
       request: unknown,
     ) => Promise<unknown>

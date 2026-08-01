@@ -1,5 +1,6 @@
 import type { MiddlewaresContainer } from './middlewares.ts'
 import type { TargetContainer } from './targets/main.ts'
+import type { ApplicationContainer } from './application.ts'
 import type { MetadataTargetSymbols } from 'typings/program.ts'
 import type { HttpMethod, RouteDefinitionProps, RoutesObject } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
@@ -14,7 +15,11 @@ export class RouteContainer extends BaseContainer {
   #endpointsKey = (key = '') => `endpoints:${key}`
   #routesKey = 'routes'
 
-  constructor(private middlewares: MiddlewaresContainer, private targets: TargetContainer) {
+  constructor(
+    private middlewares: MiddlewaresContainer,
+    private targets: TargetContainer,
+    private applications: ApplicationContainer,
+  ) {
     super()
   }
 
@@ -22,7 +27,7 @@ export class RouteContainer extends BaseContainer {
     route: Exclude<RoutesObject[keyof RoutesObject], undefined>,
     Target: ClassConstructor,
     type: WebServerTypes,
-    isInternal?: boolean,
+    application: string,
   ) {
     const propertyKeys = this.targets.getProperties({ Target })
     const { endpoint: prefix } = this.getEndpoint({ Target })
@@ -43,8 +48,20 @@ export class RouteContainer extends BaseContainer {
         const methodMessage = type === 'rest' ? ` for HTTP "${httpMethod}"` : ''
         const targetMessage = target ? ` in "${target.name}"${methodMessage}` : `${methodMessage}`
         throw new InternalError(
-          `Route path "${type}=>${path}" is already defined${targetMessage}. Please ensure that each route is assigned a unique path.`,
-          { meta: { source: 'zanix', serverType: type, path, target: target?.name, httpMethod } },
+          `Route path "${type}=>${path}" is already defined${targetMessage} (Application ` +
+            `"${
+              route[fullPath].application
+            }"). Please ensure that each route is assigned a unique path.`,
+          {
+            meta: {
+              source: 'zanix',
+              serverType: type,
+              path,
+              target: target?.name,
+              httpMethod,
+              application: route[fullPath].application,
+            },
+          },
         )
       }
 
@@ -55,32 +72,47 @@ export class RouteContainer extends BaseContainer {
         interceptors: Array.from(interceptors),
         pipes: Array.from(pipes),
         guards: Array.from(guards),
-        isInternal,
+        application,
       }
     }
   }
 
   /**
-   * Function to define a route
+   * Registers a route. The Application it belongs to is never a caller-supplied option for
+   * ordinary (decorator-driven) registration — it's resolved automatically from whichever
+   * `ApplicationContainer.define(...)` composition scope is active right now (or
+   * `DEFAULT_APPLICATION` if none is), and persisted onto the route's own record as ordinary
+   * metadata the instant this call runs. See `ApplicationContainer`'s own doc.
    *
-   * @param isInternal - Whether every route defined by this call should only be mounted on a
-   * server bootstrapped with a matching `isInternal` value. Defaults to `false` (public).
+   * @param applicationOverride Internal-only escape hatch for the one legitimate case where a
+   * route is registered *after* composition has finished, outside any `define(...)` scope (the
+   * GraphQL POST endpoint itself, registered lazily at `bootstrapServers()`/Runtime-activation
+   * time by `getMainHandler` — see its own comment). Never set this from decorator code.
    */
   public defineRoute(
     type: WebServerTypes,
     definition: RouteDefinitionProps | MetadataTargetSymbols['Target'],
-    isInternal?: boolean,
+    applicationOverride?: string,
   ) {
-    const { path, handler, httpMethod = 'GET', pipes = [], interceptors = [], Target } =
-      typeof definition === 'function'
-        ? { Target: definition }
-        : definition as RouteDefinitionProps & { Target: MetadataTargetSymbols['Target'] }
+    const {
+      path,
+      handler,
+      httpMethod = 'GET',
+      pipes = [],
+      interceptors = [],
+      guards = [],
+      Target,
+    } = typeof definition === 'function'
+      ? { Target: definition }
+      : definition as RouteDefinitionProps & { Target: MetadataTargetSymbols['Target'] }
+
+    const application = applicationOverride ?? this.applications.getCurrent()
 
     const routes = this.getData<RoutesObject>(this.#routesKey) || []
 
     routes[type] = { ...routes[type] }
 
-    if (Target) this.defineTargetRoutes(routes[type], Target, type, isInternal)
+    if (Target) this.defineTargetRoutes(routes[type], Target, type, application)
     if (path && handler) {
       const cleanPath = cleanRoute(path)
       const fullPath = `${cleanPath}/${httpMethod}`
@@ -91,7 +123,8 @@ export class RouteContainer extends BaseContainer {
         httpMethod,
         pipes,
         interceptors,
-        isInternal,
+        guards,
+        application,
       }
     }
 

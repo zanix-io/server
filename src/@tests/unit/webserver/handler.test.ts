@@ -2,12 +2,14 @@ import { assertEquals } from '@std/assert/assert-equals'
 import { multiplexer } from 'modules/webserver/helpers/handler.ts'
 
 Deno.test('multiplexer: dispatches to the handler matching the request prefix', async () => {
-  const handlers = {
-    api: (() => new Response('api-response')) as never,
-    admin: (() => new Response('admin-response')) as never,
+  const box = {
+    current: {
+      api: (() => new Response('api-response')) as never,
+      admin: (() => new Response('admin-response')) as never,
+    },
   }
 
-  const dispatch = multiplexer(handlers) as (
+  const dispatch = multiplexer(box) as (
     req: Request,
     info: unknown,
   ) => Promise<Response> | Response

@@ -41,7 +41,7 @@ Deno.test('TargetContainer: defineTarget stores target class and options', () =>
   assertEquals(container.getConnector('serviceA')[ZANIX_PROPS].data, { foo: 'bar' })
 })
 
-Deno.test('TargetContainer: getTargetsByType filters resolvers by isInternal', () => {
+Deno.test('TargetContainer: getTargetsByType filters resolvers by application', () => {
   const container = new TargetContainer()
 
   class PublicResolver {}
@@ -50,20 +50,20 @@ Deno.test('TargetContainer: getTargetsByType filters resolvers by isInternal', (
   container.defineTarget('publicResolver', {
     Target: PublicResolver,
     type: 'resolver',
-    dataProps: { isInternal: false },
+    dataProps: { application: 'main' },
   } as never)
   container.defineTarget('internalResolver', {
     Target: InternalResolver,
     type: 'resolver',
-    dataProps: { isInternal: true },
+    dataProps: { application: 'admin' },
   } as never)
 
   assertEquals(container.getTargetsByType('resolver').sort(), [
     'internalResolver',
     'publicResolver',
   ])
-  assertEquals(container.getTargetsByType('resolver', false), ['publicResolver'])
-  assertEquals(container.getTargetsByType('resolver', true), ['internalResolver'])
+  assertEquals(container.getTargetsByType('resolver', 'main'), ['publicResolver'])
+  assertEquals(container.getTargetsByType('resolver', 'admin'), ['internalResolver'])
 })
 
 Deno.test(

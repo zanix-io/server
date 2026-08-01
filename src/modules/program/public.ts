@@ -2,6 +2,8 @@ import type { CoreConnectors, CoreProviders } from 'typings/program.ts'
 import type { RegistryContainer } from './metadata/registry.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
+import type { DiscoveryProvider } from 'typings/discovery.ts'
+import type { MiddlewareGuard } from 'typings/middlewares.ts'
 import type {
   ZanixConnectorClass,
   ZanixConnectorsGetter,
@@ -209,6 +211,66 @@ export class Program {
    */
   public get registry(): RegistryContainer {
     return ProgramModule.registry
+  }
+
+  /**
+   * Runs `setup` with `name` as the Application (see `docs/HANDLERS.md`'s "Applications" section)
+   * that every route/resolver/socket registered inside it (via `@Controller`/`@Resolver`/`@Socket`)
+   * belongs to — composition-time only, resolved once per capability at the instant it registers
+   * and persisted onto its own metadata as an ordinary field; never consulted again once a server
+   * actually activates. Nestable: a `defineApplication` call inside another's `setup` temporarily
+   * overrides the ambient Application for its own duration, then reverts.
+   *
+   * Intended for first-party framework composition code (`@zanix/core`'s `main`/`admin` wiring,
+   * `@zanix/admin`'s own standalone bootstrap) — not yet a documented, stable API for arbitrary
+   * third-party plugin packages to author their own installable Applications.
+   *
+   * @example
+   * await ProgramModule.defineApplication('admin', () => {
+   *   createTriggersAdminController()
+   * })
+   */
+  public defineApplication(name: string, setup: () => void | Promise<void>): Promise<void> {
+    return ProgramModule.applications.define(name, setup)
+  }
+
+  /**
+   * Registers `provider` as the read-only source of truth for `resourceType`, exposed under
+   * `/.well-known/zanix/{resourceType}` once a REST server for the current Application activates
+   * (see `docs/HANDLERS.md`'s "Discovery" section). Attributed to whichever `defineApplication(...)`
+   * scope is active the instant this call runs, the same way `RouteContainer.defineRoute` resolves
+   * a route's Application — call it inside the same scope as the routes/controllers it accompanies.
+   *
+   * `resourceType` is supplied here, not on the provider itself — the same reason a `@Controller`'s
+   * `prefix` is supplied at the decoration site rather than baked into the underlying business
+   * class: the provider only knows how to fetch its data, never how it's addressed externally.
+   *
+   * A plain, re-callable function rather than a decorator or cached side-effect import,
+   * deliberately: the discovery registry is wiped at the end of every finalized boot sequence (the
+   * same reason `@zanix/admin`'s own `defineAdminMetadata()` has to be one) — a process that boots
+   * more than once needs this to genuinely re-run each time, not resolve an already-evaluated ES
+   * module namespace.
+   *
+   * `@zanix/server` has no built-in notion of permissions/roles/tokens — that's `@zanix/auth`, a
+   * separate package this one doesn't depend on — so `options.guards`, if given, are forwarded
+   * as-is to the underlying route (the same generic `MiddlewareGuard` mechanism any other route
+   * already uses); **omitting them leaves the endpoint unauthenticated**, not implicitly protected.
+   *
+   * @example
+   * await ProgramModule.defineApplication('admin', () => {
+   *   ProgramModule.defineDiscovery('templates', createTemplatesDiscoveryProvider())
+   * })
+   */
+  public defineDiscovery(
+    resourceType: string,
+    provider: DiscoveryProvider<unknown>,
+    options: { guards?: MiddlewareGuard[] } = {},
+  ): void {
+    const application = ProgramModule.applications.getCurrent()
+    ProgramModule.discovery.define(application, resourceType, {
+      provider,
+      guards: options.guards ?? [],
+    })
   }
 }
 

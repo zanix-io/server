@@ -20,7 +20,6 @@ export function defineSocketDecorator(
   let route: string | undefined
   let interactor: string | undefined
   let enableALS = false
-  let isInternal = false
   let rto: RtoTypes
   let versionProtocol: VersionProtocolOption | undefined
   if (typeof options === 'string') {
@@ -34,7 +33,6 @@ export function defineSocketDecorator(
     interactor = getTargetKey(options.Interactor)
     route = options.route
     enableALS = options.enableALS || enableALS
-    isInternal = options.isInternal || isInternal
     versionProtocol = options.versionProtocol
   }
 
@@ -73,6 +71,6 @@ export function defineSocketDecorator(
       lifetime: 'TRANSIENT',
     })
 
-    ProgramModule.routes.defineRoute('socket', Target, isInternal)
+    ProgramModule.routes.defineRoute('socket', Target)
   }
 }

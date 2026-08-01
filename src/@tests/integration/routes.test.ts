@@ -2,6 +2,7 @@ import { assert, assertEquals, assertExists, assertFalse, assertThrows } from '@
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import { routeProcessor } from 'modules/webserver/helpers/routes.ts'
 import Program from 'modules/program/mod.ts'
+import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import { InternalError } from '@zanix/errors'
 
 //Mocks
@@ -23,6 +24,10 @@ Deno.test('routeProcessor should return default adapted routes', () => {
   Program.routes.defineRoute('rest', {
     path,
     interceptors: [() => 'resp' as never],
+    // Regression coverage: `defineRoute`'s plain path+handler form (no `Target`) used to silently
+    // drop `guards` — `interceptors`/`pipes` were destructured and stored, `guards` wasn't, so a
+    // caller passing one here (e.g. Discovery's own mount) got an empty array back regardless.
+    guards: [() => ({ headers: { 'x-guard-ran': 'yes' } })],
     handler: () => '' as never,
   })
 
@@ -35,6 +40,11 @@ Deno.test('routeProcessor should return default adapted routes', () => {
   assertEquals(relativePaths[fullPath].httpMethod, 'GET') // Default method
   assertEquals(relativePaths[fullPath].interceptors[0]({} as never, {} as never), 'resp' as never)
   assert(relativePaths[fullPath].pipes.length === 0)
+  assertEquals(relativePaths[fullPath].guards.length, 1)
+  assertEquals(
+    relativePaths[fullPath].guards[0]({} as never),
+    { headers: { 'x-guard-ran': 'yes' } } as never,
+  )
   assert(typeof relativePaths[fullPath].handler === 'function')
 
   // References should be deleted
@@ -95,27 +105,27 @@ Deno.test('routeProcessor should return adapted routes for external definitions'
   assertEquals(relativePaths[fullPath].pipes[2]({ id: 2 } as never), undefined)
 })
 
-Deno.test('routeProcessor: isInternal filters which routes are included per scope', () => {
+Deno.test('routeProcessor: application filters which routes are included per Application', () => {
   Program.routes.resetContainer()
 
   Program.routes.defineRoute('rest', {
     path: '/public-only',
     handler: () => '' as never,
-  }, false)
+  }, DEFAULT_APPLICATION)
   Program.routes.defineRoute('rest', {
     path: '/internal-only',
     handler: () => '' as never,
-  }, true)
+  }, 'admin')
 
-  const { absolutePaths: publicPaths } = routeProcessor('rest', false)
+  const { absolutePaths: publicPaths } = routeProcessor('rest', DEFAULT_APPLICATION)
   assertExists(publicPaths['/public-only/GET'])
   assertEquals(publicPaths['/internal-only/GET'], undefined)
 
-  const { absolutePaths: internalPaths } = routeProcessor('rest', true)
+  const { absolutePaths: internalPaths } = routeProcessor('rest', 'admin')
   assertExists(internalPaths['/internal-only/GET'])
   assertEquals(internalPaths['/public-only/GET'], undefined)
 
-  // Default (no isInternal argument) behaves like `false` (public)
+  // Default (no application argument) behaves like the default Application
   const { absolutePaths: defaultPaths } = routeProcessor('rest')
   assertExists(defaultPaths['/public-only/GET'])
   assertEquals(defaultPaths['/internal-only/GET'], undefined)

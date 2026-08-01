@@ -20,6 +20,7 @@ export { ProgramModule }
 export { AsyncContext } from 'modules/infra/base/storage.ts'
 export { BaseContainer as ProgramContainer } from 'modules/program/metadata/base.ts'
 export { TargetContainer } from 'modules/program/metadata/targets/main.ts'
+export { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 
 // Handlers
 export { HandlerGenericClass } from 'handlers/generic.ts'
@@ -92,13 +93,11 @@ export type {
 
 // Constants
 export {
-  ADMIN_GRAPHQL_PORT,
   ADMIN_PROTOCOL_HEADER,
-  ADMIN_REST_PORT,
-  ADMIN_SOCKET_PORT,
-  ADMIN_STATIC_PORT,
   AUTH_HEADERS,
   DEFAULT_PROTOCOL_VERSION,
+  /** Header a Discovery-consuming HTTP client should declare — see `DiscoveryProvider`. */
+  DISCOVERY_PROTOCOL_HEADER,
   GENERAL_HEADERS,
   GRAPHQL_PORT,
   JSON_CONTENT_HEADER,
@@ -109,7 +108,22 @@ export {
   STATIC_PORT,
   ZANIX_SERVER_MODULES,
 } from 'utils/constants.ts'
+/**
+ * The Discovery protocol version this package's own Mount layer negotiates — see
+ * `DISCOVERY_PROTOCOL_HEADER` and `ProgramModule.defineDiscovery`. A Discovery-consuming HTTP
+ * client should declare this value; the server accepts a request that omits it, defaulting to this
+ * same version.
+ */
+export { DISCOVERY_PROTOCOL_VERSION } from 'modules/discovery/provider.ts'
 export { getServiceId, sanitizeIdentifier } from 'utils/identity.ts'
+export {
+  ADMIN_SERVER_ID_ENV,
+  ADMIN_SERVER_ID_PREVIOUS_ENV,
+  guardSingleAdminRegistration,
+  releaseAdminRegistration,
+  resolveAdminServerId,
+  resolvePreviousAdminServerId,
+} from 'utils/admin-server.ts'
 
 // Utils
 export { TargetError } from 'utils/errors/target.ts'
@@ -166,6 +180,7 @@ export type {
 export type {
   BootstrapServerOptions,
   CorsAllowedMethods,
+  Runtime,
   ServerHandler,
   ServerID,
   ServerManagerData,
@@ -221,6 +236,11 @@ export type {
 } from 'typings/targets.ts'
 export type { GqlOptions, RestFullOptions } from 'typings/clients.ts'
 export type { HandlerFunction, HandlerResponse, HttpMethod } from 'typings/router.ts'
+/**
+ * Implement this to expose a resource under `/.well-known/zanix/{resourceType}` — see
+ * `ProgramModule.defineDiscovery` and `docs/HANDLERS.md`'s "Discovery" section.
+ */
+export type { DiscoveryProvider } from 'typings/discovery.ts'
 export type {
   ConnectorDecoratorOptions,
   HandlerDecoratorMethodOptions,
@@ -246,3 +266,5 @@ export type { RegistryContainer } from 'modules/program/metadata/registry.ts'
 // Main
 export { WebServerManager } from 'modules/webserver/manager.ts'
 export { bootstrapServers, webServerManager } from 'webserver/mod.ts'
+export { compileRuntime } from 'modules/webserver/runtime.ts'
+export type { RuntimeActivation } from 'modules/webserver/runtime.ts'

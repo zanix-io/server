@@ -7,36 +7,36 @@ Deno.test('bootstrapServers: returns no servers when nothing is registered to se
   assertEquals(servers, [])
 })
 
-Deno.test('bootstrapServers: a rest route is only served by a matching isInternal', async () => {
+Deno.test('bootstrapServers: a rest route is only served by a matching Application', async () => {
   Program.routes.resetContainer()
   Program.routes.defineRoute('rest', {
-    path: '/internal-admin-only',
+    path: '/admin-only',
     handler: () => 'ok' as never,
-  }, true)
+  }, 'admin')
 
-  const publicServers = await bootstrapServers({ rest: { port: 1297 } })
-  assertEquals(publicServers, [])
+  const defaultServers = await bootstrapServers({ rest: { port: 1297 } })
+  assertEquals(defaultServers, [])
 
-  const internalServers = await bootstrapServers({
-    rest: { isInternal: true, port: 1296 },
+  const adminServers = await bootstrapServers({
+    rest: { application: 'admin', port: 1296 },
   })
-  assertEquals(internalServers.length, 1)
+  assertEquals(adminServers.length, 1)
 
-  await webServerManager.stop(internalServers)
+  await webServerManager.stop(adminServers)
 })
 
-Deno.test('bootstrapServers: forwards an explicit `id` to an isInternal server', async () => {
+Deno.test('bootstrapServers: forwards an explicit `id` to a server', async () => {
   Program.routes.resetContainer()
   Program.routes.defineRoute('rest', {
-    path: '/internal-admin-only',
+    path: '/admin-only',
     handler: () => 'ok' as never,
-  }, true)
+  }, 'admin')
 
-  const internalServers = await bootstrapServers({
-    rest: { isInternal: true, port: 1298, id: 'custom-admin' },
+  const adminServers = await bootstrapServers({
+    rest: { application: 'admin', port: 1298, id: 'custom-admin' },
   })
 
-  assertEquals(internalServers, ['custom-admin'])
+  assertEquals(adminServers, ['custom-admin'])
 
-  await webServerManager.stop(internalServers)
+  await webServerManager.stop(adminServers)
 })

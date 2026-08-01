@@ -54,7 +54,7 @@ try {
   assert(!Object.keys(Program.context).length)
 
   // All instantiated classes
-  assertEquals(Object.keys(Program.targets).length, 26)
+  assertEquals(Object.keys(Program.targets).length, 28)
 
   await targetInitializations('postBoot')
 
@@ -71,8 +71,10 @@ try {
   assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'interactor').length)
   assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'provider').length)
 
-  // Persisted instances
-  assertEquals(Object.keys(Program.targets).length, 19)
+  // Persisted instances — one more than before this fix: `type:connector` is no longer wiped by
+  // `cleanupInitializationsMetadata('postBoot')` (it's now cleared by `closeAllConnections` at
+  // actual shutdown instead, since that's its only reader after boot).
+  assertEquals(Object.keys(Program.targets).length, 20)
 } catch (e) {
   logger.debug('An error ocurred', e)
   // ignore

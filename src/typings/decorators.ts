@@ -112,12 +112,6 @@ export type GenericHandlerOptions = {
   /** Interactor class injected and made available as `this.interactor`. */
   Interactor?: ZanixInteractorClass
   /**
-   * Whether every route/operation this handler defines should only be mounted on a server
-   * bootstrapped with a matching `isInternal` value (see `bootstrapServers`'s
-   * `BootstrapServerOptions[type].isInternal`). Defaults to `false` (public).
-   */
-  isInternal?: boolean
-  /**
    * Negotiates a protocol version on every request/response this handler serves: rejects an
    * incoming request that declares an unsupported version (via a `Guard`), and stamps the
    * negotiated version on every response (via an `Interceptor`). `true` (or omitting the

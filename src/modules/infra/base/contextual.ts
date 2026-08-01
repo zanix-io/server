@@ -59,16 +59,19 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
     this.contextId = contextId
   }
   /**
-   * Provides access to the environment configuration for the current execution context.
+   * Provides read-only access to environment variables for the current execution context.
    *
-   * This getter exposes a subset of `Deno.env` methods, including `get`, `set`, and `delete`, allowing for
-   * environment variable management. This is useful for accessing environment-specific settings or configuration
-   * during the lifecycle of the component.
+   * This getter exposes only `get` and `has` from `Deno.env`. Mutating the process environment
+   * (`set`/`delete`) is intentionally out of scope here: `Deno.env` is a process-wide, non-request-scoped
+   * store, and mutating it from an interactor/provider/connector would silently affect every other
+   * concurrent context, contradicting the per-request isolation this class otherwise provides via `context`.
+   * Environment configuration belongs at bootstrap, not in component business logic.
    */
-  protected get config(): Omit<typeof Deno.env, 'toObject' | 'has'> {
-    const { get, set, delete: del } = Deno.env
-    // TODO: implement types on keys params. e.g get(currentKeys:types)
-    return { get, set, delete: del }
+  protected get config(): Pick<typeof Deno.env, 'get' | 'has'> {
+    return {
+      get: Deno.env.get.bind(Deno.env),
+      has: Deno.env.has.bind(Deno.env),
+    }
   }
 
   /**

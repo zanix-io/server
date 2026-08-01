@@ -6,13 +6,15 @@ import {
   defineResolverRequestDecorator,
 } from 'modules/infra/handlers/graphql/decorators/assembly.ts'
 import { ZanixResolver } from 'modules/infra/handlers/graphql/base.ts'
+import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
+import ProgramModule from 'modules/program/mod.ts'
 
 Deno.test('defineSchema: injects default Query/Mutation resolvers when none are registered', () => {
   const schema = defineSchema()
   assert(schema)
 })
 
-Deno.test('defineSchema: isInternal buckets stay independent (no cross-reset)', () => {
+Deno.test('defineSchema: Application buckets stay independent (no cross-reset)', async () => {
   class PublicResolver extends ZanixResolver {
     public publicOnlyField() {
       return 'public'
@@ -32,17 +34,19 @@ Deno.test('defineSchema: isInternal buckets stay independent (no cross-reset)', 
   defineResolverRequestDecorator('Query', { name: 'internalOnlyField' })(
     InternalResolver.prototype.internalOnlyField,
   )
-  defineResolverDecorator({ isInternal: true })(InternalResolver as never)
+  await ProgramModule.applications.define('admin', () => {
+    defineResolverDecorator()(InternalResolver as never)
+  })
 
-  // Building the internal schema first must not wipe the still-pending public accumulator.
+  // Building the internal (admin) schema first must not wipe the still-pending public accumulator.
   const internalFields = Object.keys(
-    (defineSchema(true).getType('Query') as GraphQLObjectType).getFields(),
+    (defineSchema('admin').getType('Query') as GraphQLObjectType).getFields(),
   )
   assert(internalFields.includes('internalonlyfield'))
   assert(!internalFields.includes('publiconlyfield'))
 
   const publicFields = Object.keys(
-    (defineSchema(false).getType('Query') as GraphQLObjectType).getFields(),
+    (defineSchema(DEFAULT_APPLICATION).getType('Query') as GraphQLObjectType).getFields(),
   )
   assert(publicFields.includes('publiconlyfield'))
   assert(!publicFields.includes('internalonlyfield'))

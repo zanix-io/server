@@ -15,38 +15,70 @@ Deno.test('Program class initializes all containers', () => {
   assert(program.context)
 })
 
-Deno.test('cleanupInitializationsMetadata(onBoot) resets everything except routes', () => {
-  const program = new ProgramClass()
+Deno.test(
+  'cleanupInitializationsMetadata(onBoot) with finalize:true (default) resets everything except routes',
+  () => {
+    const program = new ProgramClass()
 
-  // Stub the resetContainer methods
-  const resetRoutesStub = stub(program.routes, 'resetContainer')
-  const resetMiddlewaresStub = stub(program.middlewares, 'resetContainer')
-  const resetDecoratorsStub = stub(program.decorators, 'resetContainer')
-  const resetTargetsStub = stub(program.targets, 'resetContainer')
+    // Stub the resetContainer methods
+    const resetRoutesStub = stub(program.routes, 'resetContainer')
+    const resetMiddlewaresStub = stub(program.middlewares, 'resetContainer')
+    const resetDecoratorsStub = stub(program.decorators, 'resetContainer')
+    const resetTargetsStub = stub(program.targets, 'resetContainer')
 
-  // Call cleanupInitializationsMetadata
-  program.cleanupInitializationsMetadata('onBoot')
+    // Call cleanupInitializationsMetadata with the default finalize:true
+    program.cleanupInitializationsMetadata('onBoot')
 
-  // Routes are deliberately never reset here — a consumer calling `bootstrapServers` more than
-  // once in the same boot (internal server first, then public) needs every not-yet-claimed route
-  // to still be there for the later call, regardless of `isInternal` scope. See the regression
-  // test below for the concrete scenario this protects.
-  assertSpyCalls(resetRoutesStub, 0)
-  assertSpyCalls(resetMiddlewaresStub, 1)
-  assertSpyCalls(resetDecoratorsStub, 1)
-  assertSpyCalls(resetTargetsStub, 1)
+    // Routes are deliberately never reset here — a consumer calling `bootstrapServers` more than
+    // once in the same boot (the `admin` Application's server first, then `main`'s) needs every
+    // not-yet-claimed route to still be there for the later call, regardless of which Application it
+    // belongs to. See the regression test below for the concrete scenario this protects.
+    assertSpyCalls(resetRoutesStub, 0)
+    assertSpyCalls(resetMiddlewaresStub, 1)
+    assertSpyCalls(resetDecoratorsStub, 1)
+    assertSpyCalls(resetTargetsStub, 1)
 
-  // Assert resetTargets called with argument ['properties']
-  const calledWith = resetTargetsStub.calls[0].args[0] as any
+    // Assert resetTargets called with argument ['properties']
+    const calledWith = resetTargetsStub.calls[0].args[0] as any
 
-  assertEquals(calledWith, [HANDLER_METADATA_PROPERTY_KEY, 'startMode:onSetup', 'startMode:onBoot'])
+    assertEquals(
+      calledWith,
+      [HANDLER_METADATA_PROPERTY_KEY, 'startMode:onSetup', 'startMode:onBoot'],
+    )
 
-  // Restore stubs
-  resetRoutesStub.restore()
-  resetMiddlewaresStub.restore()
-  resetDecoratorsStub.restore()
-  resetTargetsStub.restore()
-})
+    // Restore stubs
+    resetRoutesStub.restore()
+    resetMiddlewaresStub.restore()
+    resetDecoratorsStub.restore()
+    resetTargetsStub.restore()
+  },
+)
+
+Deno.test(
+  'cleanupInitializationsMetadata(onBoot, finalize:false) preserves middlewares/decorators',
+  () => {
+    const program = new ProgramClass()
+
+    const resetMiddlewaresStub = stub(program.middlewares, 'resetContainer')
+    const resetDecoratorsStub = stub(program.decorators, 'resetContainer')
+    const resetTargetsStub = stub(program.targets, 'resetContainer')
+
+    // A non-final call in a multi-call boot sequence (e.g. `@zanix/core`'s internal admin server,
+    // followed by its public one) must not purge global middlewares/decorators a later call's own
+    // composition might still register into before its own `webServerManager.create()` reads them.
+    program.cleanupInitializationsMetadata('onBoot', false)
+
+    assertSpyCalls(resetMiddlewaresStub, 0)
+    assertSpyCalls(resetDecoratorsStub, 0)
+    // The per-request handler/target bookkeeping still runs regardless of `finalize` — it's inert
+    // per-call cleanup, not part of the multi-call-sequence survival concern this flag protects.
+    assertSpyCalls(resetTargetsStub, 1)
+
+    resetMiddlewaresStub.restore()
+    resetDecoratorsStub.restore()
+    resetTargetsStub.restore()
+  },
+)
 
 Deno.test(
   'cleanupInitializationsMetadata("onBoot") does not break routes.defineRoute for later Target-based registrations',
@@ -80,8 +112,8 @@ Deno.test(
     const program = new ProgramClass()
 
     // Regression: a route registered BEFORE an earlier `bootstrapServers` call (e.g. `@zanix/core`
-    // registering both isInternal:true and isInternal:false admin routes up front, then calling
-    // `bootstrapServers` for the internal server first) used to vanish once that first call
+    // registering both `'admin'`-Application and default-Application admin routes up front, then
+    // calling `bootstrapServers` for the admin server first) used to vanish once that first call
     // triggered this cleanup — even though it belonged to a DIFFERENT scope and was never served by
     // that call. `onBoot` cleanup must never wipe routes another, later `bootstrapServers` call
     // still needs to find.
@@ -99,44 +131,83 @@ Deno.test(
   },
 )
 
-Deno.test('cleanupInitializationsMetadata calls resetContainer on post boot', () => {
-  const program = new ProgramClass()
+Deno.test({
+  name:
+    'cleanupInitializationsMetadata(postBoot) with finalize:true (default) also clears type:resolver and routes',
+  fn: () => {
+    const program = new ProgramClass()
 
-  // Stub the resetContainer methods
-  const resetRoutesStub = stub(program.routes, 'resetContainer')
-  const resetMiddlewaresStub = stub(program.middlewares, 'resetContainer')
-  const resetDecoratorsStub = stub(program.decorators, 'resetContainer')
-  const resetTargetsStub = stub(program.targets, 'resetContainer')
+    // Stub the resetContainer methods
+    const resetRoutesStub = stub(program.routes, 'resetContainer')
+    const resetMiddlewaresStub = stub(program.middlewares, 'resetContainer')
+    const resetDecoratorsStub = stub(program.decorators, 'resetContainer')
+    const resetTargetsStub = stub(program.targets, 'resetContainer')
 
-  // Call cleanupInitializationsMetadata
-  program.cleanupInitializationsMetadata('postBoot')
+    // Call cleanupInitializationsMetadata with the default finalize:true
+    program.cleanupInitializationsMetadata('postBoot')
 
-  // Assert all resetContainer methods were called once
-  assertSpyCalls(resetRoutesStub, 0)
-  assertSpyCalls(resetMiddlewaresStub, 0)
-  assertSpyCalls(resetDecoratorsStub, 0)
-  assertSpyCalls(resetTargetsStub, 1)
+    assertSpyCalls(resetMiddlewaresStub, 0)
+    assertSpyCalls(resetDecoratorsStub, 0)
 
-  // Assert resetTargets called with argument ['properties']
-  const calledWithPostBoot = resetTargetsStub.calls[0].args[0] as any
+    // `type:connector` is intentionally never reset here — see `closeAllConnections`, which clears
+    // it at actual process shutdown instead, since that's its only reader after boot.
+    const calledWithPostBoot = resetTargetsStub.calls[0].args[0] as any
+    assertEquals(calledWithPostBoot, [
+      'provider:startMode:postBoot',
+      'connector:startMode:postBoot',
+      'interactor:startMode:postBoot',
+      'provider:startMode:onBoot',
+      'connector:startMode:onBoot',
+      'interactor:startMode:onBoot',
+      'provider:startMode:onSetup',
+      'connector:startMode:onSetup',
+      'interactor:startMode:onSetup',
+    ])
 
-  assertEquals(calledWithPostBoot, [
-    'type:connector',
-    'type:resolver',
-    'provider:startMode:postBoot',
-    'connector:startMode:postBoot',
-    'interactor:startMode:postBoot',
-    'provider:startMode:onBoot',
-    'connector:startMode:onBoot',
-    'interactor:startMode:onBoot',
-    'provider:startMode:onSetup',
-    'connector:startMode:onSetup',
-    'interactor:startMode:onSetup',
-  ])
+    // `type:resolver` and the route registry are only safe to purge once the whole multi-call boot
+    // sequence is finished — with finalize:true (the default, meaning "this is the last call"),
+    // both get cleared too.
+    assertSpyCalls(resetTargetsStub, 2)
+    assertEquals(resetTargetsStub.calls[1].args[0], ['type:resolver'])
+    assertSpyCalls(resetRoutesStub, 1)
 
-  // Restore stubs
-  resetRoutesStub.restore()
-  resetMiddlewaresStub.restore()
-  resetDecoratorsStub.restore()
-  resetTargetsStub.restore()
+    // Restore stubs
+    resetRoutesStub.restore()
+    resetMiddlewaresStub.restore()
+    resetDecoratorsStub.restore()
+    resetTargetsStub.restore()
+  },
+})
+
+Deno.test({
+  name:
+    'cleanupInitializationsMetadata(postBoot, finalize:false) preserves type:resolver and routes',
+  fn: () => {
+    const program = new ProgramClass()
+
+    const resetRoutesStub = stub(program.routes, 'resetContainer')
+    const resetTargetsStub = stub(program.targets, 'resetContainer')
+
+    // A non-final call in a multi-call boot sequence (e.g. `@zanix/core`'s internal admin server,
+    // followed by its public one) must not purge metadata the later call still needs to read.
+    program.cleanupInitializationsMetadata('postBoot', false)
+
+    assertSpyCalls(resetRoutesStub, 0)
+    // Only the startMode lists are cleared — `type:resolver` is left untouched.
+    assertSpyCalls(resetTargetsStub, 1)
+    assertEquals(resetTargetsStub.calls[0].args[0], [
+      'provider:startMode:postBoot',
+      'connector:startMode:postBoot',
+      'interactor:startMode:postBoot',
+      'provider:startMode:onBoot',
+      'connector:startMode:onBoot',
+      'interactor:startMode:onBoot',
+      'provider:startMode:onSetup',
+      'connector:startMode:onSetup',
+      'interactor:startMode:onSetup',
+    ])
+
+    resetRoutesStub.restore()
+    resetTargetsStub.restore()
+  },
 })

@@ -13,10 +13,6 @@ import { GRAPHQL_PORT, JSON_CONTENT_HEADER, SOCKET_PORT } from 'jsr:@zanix/serve
 | `SOCKET_PORT`          | `20201`                                                                          | Default port used for the socket server.                                                                                                          |
 | `STATIC_PORT`          | `20202`                                                                          | Default port reserved for a static server.                                                                                                        |
 | `GRAPHQL_PORT`         | `20203`                                                                          | Default port used for the GraphQL server.                                                                                                         |
-| `ADMIN_REST_PORT`      | `30248`                                                                          | Default port reserved for an admin REST server.                                                                                                   |
-| `ADMIN_GRAPHQL_PORT`   | `30249`                                                                          | Default port reserved for an admin GQL server.                                                                                                    |
-| `ADMIN_SOCKET_PORT`    | `30250`                                                                          | Default port reserved for an admin socket server.                                                                                                 |
-| `ADMIN_STATIC_PORT`    | `30251`                                                                          | Default port reserved for an admin static server.                                                                                                 |
 | `JSON_CONTENT_HEADER`  | `{ 'Content-Type': 'application/json' }`                                         | Default JSON content-type header.                                                                                                                 |
 | `ZANIX_SERVER_MODULES` | `['.handler.ts', '.interactor.ts', '.connector.ts', '.provider.ts', '.defs.ts']` | Ordered list of module file suffixes (see the [file naming conventions](../README.md#file-naming-conventions)); `.defs.ts` must be resolved last. |
 
@@ -24,14 +20,17 @@ import { GRAPHQL_PORT, JSON_CONTENT_HEADER, SOCKET_PORT } from 'jsr:@zanix/serve
 explicit `port` is given for that server type (REST defaults to `8000` unless overridden by the
 `PORT`/`PORT_REST` environment variables — see below).
 
-The `ADMIN_*_PORT` constants are reserved ports meant to back a second, `isInternal: true`
-`bootstrapServers` call — one whose servers mount only `isInternal: true` routes/resolvers/sockets
-(an admin API, a health check, etc.), isolated from the public API. See
-[Handlers → Internal-only handlers](./HANDLERS.md#internal-only-handlers) for the full mechanism. A
-distinct port is no longer _required_ for this — a same-`type` public and `isInternal` server
-sharing one port now works instead of failing with `AddrInUse` — but the `ADMIN_*_PORT` constants
-remain the recommended way to keep the internal server isolated at the network level too. See
-[Handlers → Sharing a port with the public server](./HANDLERS.md#sharing-a-port-with-the-public-server).
+A second, `application: 'admin', id: <explicit-id>` `bootstrapServers` call — one whose servers
+mount only the `'admin'` Application's routes/resolvers/sockets (an admin API, a health check,
+etc.), isolated (routing-wise — see the caveat below) from the default Application's — no longer
+needs a reserved port of its own: a same-`type` unanchored and anchored server sharing one port now
+works instead of failing with `AddrInUse`. See [Handlers → Applications](./HANDLERS.md#applications)
+for the full mechanism (including what this routing separation does and doesn't protect against) and
+[Handlers → Sharing a port with an unanchored server](./HANDLERS.md#sharing-a-port-with-an-unanchored-server)
+for the shared-port trade-offs. There's no `ADMIN_*_PORT`-style constant for this anymore — a
+package building an admin-server pattern on top of `@zanix/server` (`@zanix/core`, `@zanix/admin`)
+picks its own port, and can derive a stable server `id` instead via
+[Utilities → Admin server helpers](./UTILITIES.md#admin-server-helpers).
 
 ### Auth & admin-protocol headers
 
@@ -75,15 +74,16 @@ defaults, for backward compatibility with its own already-shipped wire contract.
 
 ## Environment variables
 
-| Name            | Description                            |
-| --------------- | -------------------------------------- |
-| `SSL_KEY_PATH`  | Path to the SSL private key file.      |
-| `SSL_CERT_PATH` | Path to the SSL certificate file.      |
-| `PORT`          | Base/default port for the application. |
-| `PORT_GRAPHQL`  | Port for the GraphQL API.              |
-| `PORT_SOCKET`   | Port for WebSocket connections.        |
-| `PORT_REST`     | Port for the REST API.                 |
-| `PORT_SSR`      | Port for the SSR server.               |
+| Name              | Description                                                                                                                                                                                                                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SSL_KEY_PATH`    | Path to the SSL private key file.                                                                                                                                                                                                                                         |
+| `SSL_CERT_PATH`   | Path to the SSL certificate file.                                                                                                                                                                                                                                         |
+| `PORT`            | Base/default port for the application.                                                                                                                                                                                                                                    |
+| `PORT_GRAPHQL`    | Port for the GraphQL API.                                                                                                                                                                                                                                                 |
+| `PORT_SOCKET`     | Port for WebSocket connections.                                                                                                                                                                                                                                           |
+| `PORT_REST`       | Port for the REST API.                                                                                                                                                                                                                                                    |
+| `PORT_SSR`        | Port for the SSR server.                                                                                                                                                                                                                                                  |
+| `ADMIN_SERVER_ID` | Read by `resolveAdminServerId()` (not by `@zanix/server` itself) to derive a stable, restart-safe id for an admin-server package's own `bootstrapServers`/`webServerManager.create()` call — see [Utilities → Admin server helpers](./UTILITIES.md#admin-server-helpers). |
 
 A type-specific variable (e.g. `PORT_GRAPHQL`) takes precedence over the generic `PORT`, which in
 turn takes precedence over the constant defaults above. `PORT_SSR` only applies if you manually

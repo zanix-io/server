@@ -28,13 +28,22 @@ class TestContextual extends ContextualBaseClass {
   }
 }
 
-Deno.test('ContextualBaseClass.testConfig returns env accessors', () => {
+Deno.test('ContextualBaseClass.testConfig reads env vars via get/has', () => {
   const instance = new TestContextual('ctx1')
   const config = instance.testConfig
 
-  assertEquals(typeof config.get, 'function')
-  assertEquals(typeof config.set, 'function')
-  assertEquals(typeof config.delete, 'function')
+  Deno.env.set('ZNX_TEST_CONFIG_KEY', 'zanix-value')
+  try {
+    assertEquals(config.get('ZNX_TEST_CONFIG_KEY'), 'zanix-value')
+    assertEquals(config.has('ZNX_TEST_CONFIG_KEY'), true)
+    assertEquals(config.get('ZNX_TEST_CONFIG_MISSING_KEY'), undefined)
+    assertEquals(config.has('ZNX_TEST_CONFIG_MISSING_KEY'), false)
+  } finally {
+    Deno.env.delete('ZNX_TEST_CONFIG_KEY')
+  }
+
+  assertEquals('set' in config, false)
+  assertEquals('delete' in config, false)
 })
 
 Deno.test('ContextualBaseClass.testContext throws in SINGLETON mode', () => {

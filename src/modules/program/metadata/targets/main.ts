@@ -51,7 +51,11 @@ export class TargetContainer extends BaseInstancesContainer {
     const { key } = this.toBeInstantiated(baseKey, { ...opts, startMode })
 
     this.setTargetByStartMode(key, startMode, type)
-    this.setTargetByType(baseKey, type, !!(opts.dataProps as { isInternal?: boolean })?.isInternal)
+    this.setTargetByType(
+      baseKey,
+      type,
+      (opts.dataProps as { application?: string })?.application,
+    )
     this.setTarget(key, Target)
   }
 
@@ -82,13 +86,15 @@ export class TargetContainer extends BaseInstancesContainer {
    * Registers a key under a specific module type.
    * @param key The key to register.
    * @param type The module type identifier.
+   * @param application The Application (see `ApplicationContainer`) this key was registered
+   * under — for `type: 'resolver'` only, used later by `getTargetsByType`'s own filtering.
    * @param container Optional container object (defaults to `this`).
    * @protected
    */
   protected setTargetByType(
     key: string,
     type: ModuleTypes,
-    isInternal = false,
+    application?: string,
     container: object = this,
   ) {
     if (type !== 'connector' && type !== 'resolver') return // is not neccesary (yet) to save other types
@@ -98,10 +104,8 @@ export class TargetContainer extends BaseInstancesContainer {
     if (!targets.includes(key)) targets.push(key)
     this.setData(`type:${type}`, targets, container)
 
-    // `setData` can't store a literal `false` (its `data || key` fallback would substitute the
-    // key string instead) — only write when `true`; a missing entry already reads as falsy below.
-    if (type === 'resolver' && isInternal) {
-      this.setData(`type:${type}:isInternal:${key}`, isInternal, container)
+    if (type === 'resolver' && application) {
+      this.setData(`type:${type}:application:${key}`, application, container)
     }
   }
 
@@ -123,23 +127,23 @@ export class TargetContainer extends BaseInstancesContainer {
   /**
    * Gets all registered keys for a specific module type.
    * @param type The module type identifier.
-   * @param isInternal - For `type: 'resolver'` only: when given, only keys registered with a
-   * matching `isInternal` flag (see `@Resolver`'s `isInternal` option) are returned. Omit to get
-   * every key regardless of `isInternal`. Has no effect for `type: 'connector'`.
+   * @param application - For `type: 'resolver'` only: when given, only keys registered under a
+   * matching Application (see `ApplicationContainer`) are returned. Omit to get every key
+   * regardless of Application. Has no effect for `type: 'connector'`.
    * @param container Optional container object (defaults to `this`).
    * @returns An array of registered keys.
    */
   public getTargetsByType(
     type: Extract<ModuleTypes, 'connector' | 'resolver'>,
-    isInternal?: boolean,
+    application?: string,
     container: object = this,
   ): string[] {
     const targets = this.getData<string[]>(`type:${type}`, container) || []
 
-    if (type !== 'resolver' || isInternal === undefined) return targets
+    if (type !== 'resolver' || application === undefined) return targets
 
     return targets.filter((key) =>
-      !!this.getData<boolean>(`type:${type}:isInternal:${key}`, container) === isInternal
+      this.getData<string>(`type:${type}:application:${key}`, container) === application
     )
   }
 

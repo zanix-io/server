@@ -468,26 +468,32 @@ class _ControllerGuard extends ZanixController {
   }
 }
 
-/** isInternal-tagged fixtures: only reachable when bootstrapped with a matching isInternal server */
-@Controller({ isInternal: true })
-class _InternalController extends ZanixController {
-  @Get('internal-hello')
-  public internalHello() {
-    return 'internal response'
+/**
+ * `'admin'`-Application fixtures: only reachable when bootstrapped with a matching
+ * `application: 'admin'` server — registered inside `defineApplication` so they're attributed to
+ * the `'admin'` Application rather than the default one every other fixture above belongs to.
+ */
+await ProgramModule.applications.define('admin', () => {
+  @Controller()
+  class _AdminController extends ZanixController {
+    @Get('admin-hello')
+    public adminHello() {
+      return 'admin response'
+    }
   }
-}
 
-@Socket({ route: 'internal-sock', isInternal: true })
-class _InternalSocket extends ZanixWebSocket {
-  protected override onmessage() {
-    return { message: 'internal socket response' }
+  @Socket({ route: 'admin-sock' })
+  class _AdminSocket extends ZanixWebSocket {
+    protected override onmessage() {
+      return { message: 'admin socket response' }
+    }
   }
-}
 
-@Resolver({ isInternal: true })
-class _InternalResolver extends ZanixResolver {
-  @Query()
-  public internalHello2() {
-    return 'internal gql response'
+  @Resolver()
+  class _AdminResolver extends ZanixResolver {
+    @Query()
+    public adminHello2() {
+      return 'admin gql response'
+    }
   }
-}
+})

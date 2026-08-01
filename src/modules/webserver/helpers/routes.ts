@@ -3,6 +3,7 @@ import type { WebServerTypes } from 'typings/server.ts'
 import type { HandlerTypes } from 'typings/program.ts'
 
 import { getParamNames, pathToRegex } from 'utils/routes.ts'
+import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { capitalize } from '@zanix/helpers'
 import { InternalError } from '@zanix/errors'
@@ -11,17 +12,18 @@ import { PARAM_PATTERN, ZANIX_PROPS } from 'utils/constants.ts'
 
 /**
  * Function to process routes
- * @param isInternal - Only routes whose own `isInternal` flag (default `false`) matches this
- * value are included — see `bootstrapServers`'s `BootstrapServerOptions[type].isInternal`.
+ * @param application - Only routes registered under this Application (see
+ * `ApplicationContainer`) are included — see `bootstrapServers`'s
+ * `BootstrapServerOptions[type].application`. Defaults to the default Application (`'main'`).
  */
 export const routeProcessor = (
   server: WebServerTypes,
-  isInternal: boolean = false,
+  application: string = DEFAULT_APPLICATION,
   globalPrefix: string = '',
 ) => {
   const allRoutes = ProgramModule.routes.getRoutes(server) || {}
   const routeKeys = Object.keys(allRoutes).filter((route) =>
-    !!allRoutes[route].isInternal === isInternal
+    allRoutes[route].application === application
   )
   const serverName = capitalize(server)
 
