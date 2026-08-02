@@ -1,16 +1,11 @@
 import type { InteractorDecoratorOptions, ZanixClassDecorator } from 'typings/decorators.ts'
-import type { ZanixConnector } from 'connectors/base.ts'
-import type { ZanixProvider } from 'providers/base.ts'
 import type { Lifetime } from 'typings/program.ts'
 
 import { defineInteractorDecorator } from './assembly.ts'
 
 /**
- * Class decorator for `interactors` that depend on connectors (e.g., clients or service providers).
- *
- * This decorator is used to configure how an interactor integrates with a specific connector,
- * such as a database provider.
- * It also defines the dependency injection strategy and lifecycle behavior.
+ * Class decorator that registers a class as an `interactor` — the layer implementing business
+ * logic, typically consumed by handlers.
  *
  * By default, the interactor uses the `SCOPED` lifetime strategy unless otherwise specified.
  *
@@ -21,8 +16,6 @@ import { defineInteractorDecorator } from './assembly.ts'
  * since its reference will be discarded immediately after use.
  *
  * @param {InteractorDecoratorOptions} [options] - Configuration object that defines:
- *   - `Connector`: (Optional) The connector class to inject as a dependency of the interactor.
- *   - `Provider`: (Optional) The provider class to inject as a dependency of the interactor.
  *   - `lifetime`: (Optional) The lifetime strategy for the interactor (`SCOPED`, `SINGLETON`, `TRANSIENT`).
  *   - `startMode`: (Optional) The initialization mode for the interactor (`onSetup`, `onBoot`, `postBoot`,
  *     or `lazy` — `lazy` is not allowed when `lifetime` is `TRANSIENT`).
@@ -31,20 +24,16 @@ import { defineInteractorDecorator } from './assembly.ts'
  *
  * @example
  * ```ts
- * \@Interactor({ Connector: UsersConnector })
- * class UsersInteractor extends ZanixInteractor<{ Connector: UsersConnector }> {
+ * \@Interactor()
+ * class UsersInteractor extends ZanixInteractor {
  *   public findById(id: string) {
- *     return this.connector.findById(id)
+ *     return this.providers.get(UsersRepository).findById(id)
  *   }
  * }
  * ```
  */
-export function Interactor<
-  C extends typeof ZanixConnector,
-  P extends typeof ZanixProvider,
-  L extends Lifetime,
->(
-  options?: InteractorDecoratorOptions<C, P, L>,
+export function Interactor<L extends Lifetime>(
+  options?: InteractorDecoratorOptions<L>,
 ): ZanixClassDecorator {
   return defineInteractorDecorator(options)
 }

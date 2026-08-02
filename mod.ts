@@ -56,15 +56,15 @@ export { GraphQLClient } from 'connectors/core/graphql.ts'
 export { RestClient } from 'connectors/core/rest.ts'
 export { ZanixSearchConnector } from 'connectors/core/search.ts'
 export { Connector } from 'connectors/decorators/base.ts'
+export { registerCoreConnectorSlot } from 'connectors/core/all.ts'
 
 // Providers
 export { ZanixProvider } from 'providers/base.ts'
 export { ZanixCacheProvider } from 'providers/core/cache.ts'
 export { ZanixWorkerProvider } from 'providers/core/worker.ts'
 export { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
-export { ZanixCoreAuthProvider } from 'providers/core/auth.ts'
-export { ZanixCoreNotificationsProvider } from 'providers/core/notifications.ts'
 export { Provider } from 'providers/decorators/base.ts'
+export { registerCoreProviderSlot } from 'providers/core/all.ts'
 
 // Middlewares
 export {
@@ -135,6 +135,7 @@ export type { ErrorLogThrottleConfig, ErrorLogThrottleStore } from 'utils/errors
 export {
   cleanupInitializationsMetadata,
   closeAllConnections,
+  getConnectorKey,
   getTargetKey,
   targetInitializations,
 } from 'utils/targets.ts'
@@ -157,6 +158,8 @@ export type {
   GeneralTargetTypes,
   GenericTargets,
   HandlerTypes,
+  KnownCoreConnectors,
+  KnownCoreProviders,
   Lifetime,
   MetadataInstances,
   MetadataObjects,
@@ -218,7 +221,7 @@ export type {
   ClassConstructor,
   ConnectorAutoInitOptions,
   ConnectorOptions,
-  CoreConnectorTemplates,
+  CoreModules,
   GQLPrototype,
   HandlerPrototype,
   SocketPrototype,

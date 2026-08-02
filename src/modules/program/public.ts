@@ -1,23 +1,67 @@
 import type { CoreConnectors, CoreProviders } from 'typings/program.ts'
 import type { RegistryContainer } from './metadata/registry.ts'
-import type { ZanixConnector } from 'connectors/base.ts'
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 import type { DiscoveryProvider } from 'typings/discovery.ts'
 import type { MiddlewareGuard } from 'typings/middlewares.ts'
 import type {
+  CoreModules,
   ZanixConnectorClass,
   ZanixConnectorsGetter,
   ZanixInteractorClass,
   ZanixInteractorGeneric,
   ZanixInteractorsGetter,
   ZanixProviderClass,
-  ZanixProviderGeneric,
   ZanixProvidersGetter,
 } from 'typings/targets.ts'
 
 import { type AsyncContext, asyncContext } from 'modules/infra/base/storage.ts'
 import { getTargetKey } from 'utils/targets.ts'
+import { getCoreProviderSlot, resolveCoreProviderTargetAlias } from 'providers/core/all.ts'
+import { getCoreConnectorSlot, resolveCoreConnectorTargetAlias } from 'connectors/core/all.ts'
+import { InternalError } from '@zanix/errors'
 import ProgramModule from './mod.ts'
+
+/**
+ * Composes the explicit "missing core slot" error described in the ADR for this mechanism
+ * (`registerCoreProviderSlot`/`registerCoreConnectorSlot`, see `providers/core/all.ts`): naming
+ * the slot and, when known, the package expected to register it — never a generic "not found".
+ * Two distinct failure modes: the slot itself was never registered (its owning `/core` module
+ * likely wasn't imported), or it was registered but resolving an actual instance still failed
+ * (registered, but no concrete implementation was ever instantiated for it in this process).
+ */
+function missingCoreSlotError(
+  kind: 'provider' | 'connector',
+  key: string,
+  slot: { sourcePackage?: string } | undefined,
+  cause?: unknown,
+): InternalError {
+  const hint = slot?.sourcePackage
+    ? ` Did you forget to import "${slot.sourcePackage}"?`
+    : ' Check that the package owning this capability was imported.'
+
+  const message = slot
+    ? `Core ${kind} slot "${key}" is registered but no implementation was found for it in the ` +
+      `current process.${hint}`
+    : `Missing core ${kind} slot "${key}". No provider was registered for this slot.${hint}`
+
+  return new InternalError(message, {
+    meta: { source: 'zanix', slot: key, kind, sourcePackage: slot?.sourcePackage },
+    cause,
+  })
+}
+
+/**
+ * Narrows a caught resolution error down to specifically "no target was ever registered for this
+ * key" (see `BaseInstancesContainer.getInstance`'s own `targetName` fallback string,
+ * `modules/program/metadata/targets/instances.ts`) — as opposed to any other failure (a real bug
+ * inside an already-resolved provider/connector's own constructor, for instance). Only the former
+ * should be reworded into the friendlier "missing core slot" message; anything else must propagate
+ * unchanged so a real error is never masked behind a misleading "did you forget to import" hint.
+ */
+function isUnresolvedTargetError(e: unknown): boolean {
+  const meta = (e as { meta?: { targetName?: string } })?.meta
+  return typeof meta?.targetName === 'string' && meta.targetName.includes('unknown')
+}
 
 /**
  * Represents the main program interface that can be exported and used by other libraries.
@@ -64,25 +108,52 @@ export class Program {
    *                            the provider is retrieved globally.
    * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `true`
    *
-   * @returns {ZanixProvidersGetter} An object with a `get` method that retrieves the requested provider.
+   * @returns {ZanixProvidersGetter<T>} An object with a `get` method that retrieves the requested
+   * provider — pass `T` explicitly (the same `CoreModules` map given to the calling
+   * `ZanixInteractor`/`ZanixProvider`/`ZanixConnector`) to get a precise return type back for a
+   * string key; a class reference is always precisely typed regardless of `T`.
+   *
+   * For a *core* slot (`cache`, `auth`, `asyncmq`, ...), both forms resolve the identical
+   * singleton: `get('cache')` and `get(Target)` — where `Target` is whatever class a package (or
+   * a consumer rewriting that slot) decorated with `@Provider({ type: 'cache' })` — are aliases
+   * of the same cached instance, never two separate ones. This only holds for a class actually
+   * decorated for that slot; a plain reference to the slot's abstract contract type resolves
+   * nothing (it isn't itself a registered target).
    *
    * @example
    * const providers = getProviders('myContextId');
    * const provider = providers.get(MyProviderClass);
    */
-  public getProviders(
+  public getProviders<T extends CoreModules = object>(
     ctxId?: string,
     verbose?: boolean,
     caller?: TargetBaseClass,
-  ): ZanixProvidersGetter {
-    return {
-      get: <D extends ZanixProviderGeneric>(
-        Provider: ZanixProviderClass<D> | CoreProviders,
-      ): D => {
-        const key = typeof Provider === 'string' ? Provider : getTargetKey(Provider)
-        return ProgramModule.targets.getProvider<D>(key, { contextId: ctxId, verbose, caller })
-      },
+  ): ZanixProvidersGetter<T> {
+    const get = (Provider: ZanixProviderClass | CoreProviders) => {
+      if (typeof Provider !== 'string') {
+        // A class that was decorated for a core slot (e.g. a consumer's own `@Provider({ type:
+        // 'cache' })` rewrite) resolves through its slot's canonical string key here, so it
+        // shares the exact same cached singleton as `get('cache')` — see
+        // `resolveCoreProviderTargetAlias`'s doc (`providers/core/all.ts`). Any other class (the
+        // common case) has no alias and resolves under its own class-derived key, unchanged.
+        const targetKey = getTargetKey(Provider)
+        const key = resolveCoreProviderTargetAlias(targetKey) ?? targetKey
+        return ProgramModule.targets.getProvider(key, { contextId: ctxId, verbose, caller })
+      }
+
+      const key = Provider
+      const slot = getCoreProviderSlot(key)
+      if (!slot) throw missingCoreSlotError('provider', key, undefined)
+
+      try {
+        return ProgramModule.targets.getProvider(key, { contextId: ctxId, verbose, caller })
+      } catch (e) {
+        if (isUnresolvedTargetError(e)) throw missingCoreSlotError('provider', key, slot, e)
+        throw e
+      }
     }
+
+    return { get } as unknown as ZanixProvidersGetter<T>
   }
 
   /**
@@ -102,25 +173,39 @@ export class Program {
    *                            the connector is retrieved globally.
    * @param {boolean} [verbose] - Enables verbose logging system during the process. Dedaults to `true`
    *
-   * @returns {ZanixConnectorsGetter} An object with a `get` method that retrieves the requested connector.
+   * @returns {ZanixConnectorsGetter<T>} An object with a `get` method that retrieves the requested
+   * connector — same `T` reasoning as {@link getProviders}.
    *
    * @example
    * const connectors = getConnectors('myContextId');
    * const connector = connectors.get(MyConnectorClass);
    */
-  public getConnectors(
+  public getConnectors<T extends CoreModules = object>(
     ctxId?: string,
     verbose?: boolean,
     caller?: TargetBaseClass,
-  ): ZanixConnectorsGetter {
-    return {
-      get: <D extends ZanixConnector>(
-        Connector: ZanixConnectorClass<D> | CoreConnectors,
-      ): D => {
-        const key = typeof Connector === 'string' ? Connector : getTargetKey(Connector)
-        return ProgramModule.targets.getConnector<D>(key, { contextId: ctxId, verbose, caller })
-      },
+  ): ZanixConnectorsGetter<T> {
+    const get = (Connector: ZanixConnectorClass | CoreConnectors) => {
+      if (typeof Connector !== 'string') {
+        // See the matching branch in `getProviders` above — same reasoning, connector side.
+        const targetKey = getTargetKey(Connector)
+        const key = resolveCoreConnectorTargetAlias(targetKey) ?? targetKey
+        return ProgramModule.targets.getConnector(key, { contextId: ctxId, verbose, caller })
+      }
+
+      const key = Connector
+      const slot = getCoreConnectorSlot(key)
+      if (!slot) throw missingCoreSlotError('connector', key, undefined)
+
+      try {
+        return ProgramModule.targets.getConnector(key, { contextId: ctxId, verbose, caller })
+      } catch (e) {
+        if (isUnresolvedTargetError(e)) throw missingCoreSlotError('connector', key, slot, e)
+        throw e
+      }
     }
+
+    return { get } as unknown as ZanixConnectorsGetter<T>
   }
 
   /**
@@ -173,7 +258,7 @@ export class Program {
    * @example
    * const provider = ProgramModule.providers.get(MyProviderClass);
    */
-  public get providers(): ZanixProvidersGetter {
+  public get providers(): ZanixProvidersGetter<object> {
     return this.getProviders()
   }
 
@@ -186,7 +271,7 @@ export class Program {
    * @example
    * const connector = ProgramModule.connectors.get(MyConnectorClass);
    */
-  public get connectors(): ZanixConnectorsGetter {
+  public get connectors(): ZanixConnectorsGetter<object> {
     return this.getConnectors()
   }
 

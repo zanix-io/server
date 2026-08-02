@@ -1,10 +1,8 @@
 import type {
-  CoreConnectorTemplates,
-  ZanixConnectorGeneric,
+  CoreModules,
   ZanixInteractorClass,
   ZanixInteractorGeneric,
   ZanixInteractorsGetter,
-  ZanixProviderGeneric,
 } from 'typings/targets.ts'
 
 import { getTargetKey } from 'utils/targets.ts'
@@ -22,60 +20,23 @@ import { ZANIX_PROPS } from 'utils/constants.ts'
  *
  * Interactors can also interact with other interactors, allowing for a modular and decoupled system architecture.
  *
+ * Reach any provider/connector — including one declared on the interactor's own domain, or any
+ * other registered elsewhere — via the generic `this.providers.get(X)`/`this.connectors.get(X)`
+ * (inherited from `CoreBaseClass`).
+ *
  * @abstract
  * @extends CoreBaseClass
- * @template Connector - A generic type representing the type of connector used by the interactor.
- *                       By default, it is set to `never`, meaning no connector is provided unless explicitly specified.
- * @template T - A generic type representing the type of core connectors used by the interactor.
+ * @template T - A generic type representing the type of core modules used by the interactor.
  *                       By default, it is set to `object`, meaning the base core connector types are provided unless explicitly specified.
  */
-export abstract class ZanixInteractor<
-  T extends CoreConnectorTemplates & {
-    Provider?: ZanixProviderGeneric
-    Connector?: ZanixConnectorGeneric
-  } = object,
-> extends CoreBaseClass<T> {
-  #connector
-  #provider
+export abstract class ZanixInteractor<T extends CoreModules = object> extends CoreBaseClass<T> {
   #key
 
   /** Creates the interactor instance, scoped to the given context id. */
   constructor(contextId?: string) {
     super(contextId)
-    const { key, data } = this[ZANIX_PROPS]
-    this.#connector = data.connector as string
-    this.#provider = data.provider as string
+    const { key } = this[ZANIX_PROPS]
     this.#key = key as string
-  }
-
-  /**
-   * Returns the connector instance associated with this interactor.
-   *
-   * This getter exposes a dynamic utility that allows the current interactor to retrieve and
-   * communicate with a connector.
-   *
-   * @protected
-   * @returns {T['Connector']} The resolved connector instance.
-   */
-  protected get connector(): T['Connector'] extends ZanixConnectorGeneric ? T['Connector'] : never {
-    return ProgramModule.targets.getConnector<
-      T['Connector'] extends ZanixConnectorGeneric ? T['Connector'] : never
-    >(this.#connector, { contextId: this.contextId, caller: this })
-  }
-
-  /**
-   * Returns the provider instance associated with this interactor.
-   *
-   * This getter exposes a dynamic utility that allows the current interactor to retrieve and
-   * communicate with a provider.
-   *
-   * @protected
-   * @returns {T['Provider']} The resolved provider instance.
-   */
-  protected get provider(): T['Provider'] extends ZanixProviderGeneric ? T['Provider'] : never {
-    return ProgramModule.targets.getProvider<
-      T['Provider'] extends ZanixProviderGeneric ? T['Provider'] : never
-    >(this.#provider, { contextId: this.contextId, caller: this })
   }
 
   /**

@@ -1,6 +1,6 @@
-import type { CoreConnectorTemplates, ZanixCacheConnectorGeneric } from 'typings/targets.ts'
+import type { CoreModules, ZanixCacheConnectorGeneric } from 'typings/targets.ts'
 import type { CacheProviderSetOptions, CacheSetOptions } from 'typings/general.ts'
-import type { CoreCacheConnectors } from 'typings/program.ts'
+import type { CoreCacheConnectors, CoreConnectors } from 'typings/program.ts'
 
 import ConnectorCoreModules from 'connectors/core/all.ts'
 import { ZanixProvider } from '../base.ts'
@@ -21,8 +21,7 @@ import { InternalError } from '@zanix/errors'
  * @abstract
  * @extends ZanixProvider
  */
-export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = object>
-  extends ZanixProvider<T> {
+export abstract class ZanixCacheProvider<T extends CoreModules = object> extends ZanixProvider<T> {
   /**
    * **Note**: Use `this` to access the instance instead.
    */
@@ -47,7 +46,7 @@ export abstract class ZanixCacheProvider<T extends CoreConnectorTemplates = obje
     verbose: boolean = false,
   ): ZanixCacheConnectorGeneric<P> {
     const cacheId = `cache:${cache}` as const
-    return this.getProviderConnector(ConnectorCoreModules[cacheId].key, verbose)
+    return this.getProviderConnector(ConnectorCoreModules[cacheId].key as CoreConnectors, verbose)
   }
 
   /**

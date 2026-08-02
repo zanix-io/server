@@ -8,8 +8,15 @@ import { ZanixProvider } from 'modules/infra/providers/base.ts'
 import { ZanixCacheProvider } from 'modules/infra/providers/core/cache.ts'
 import { ZanixWorkerProvider } from 'modules/infra/providers/core/worker.ts'
 import { InternalError } from '@zanix/errors'
+import { registerCoreProviderSlot } from 'modules/infra/providers/core/all.ts'
 
 console.error = () => {}
+
+// `'worker'`/`'cache'` are no longer self-registered by `@zanix/server` itself (ownership moved to
+// `@zanix/asyncmq`'s and `@zanix/datamaster`'s own `/core`) — this suite simulates that
+// registration directly, since it doesn't depend on those packages.
+registerCoreProviderSlot('worker', ZanixWorkerProvider)
+registerCoreProviderSlot('cache', ZanixCacheProvider)
 
 class InvalidProvider {} // Doesn't extend ZanixProvider
 
@@ -18,7 +25,7 @@ Deno.test('defineProviderDecorator: registers non-core provider with default set
 
   class CustomProvider extends ZanixProvider {}
 
-  const decorator = defineProviderDecorator({ type: 'custom' })
+  const decorator = defineProviderDecorator({ slot: 'custom' })
   decorator(CustomProvider)
 
   assertSpyCalls(defineTargetSpy, 1)
@@ -43,7 +50,7 @@ Deno.test('defineProviderDecorator: registers core provider with correct base', 
     }
   }
 
-  const decorator = defineProviderDecorator({ type: 'worker' })
+  const decorator = defineProviderDecorator({ slot: 'worker' })
   decorator(WorkerImpl as never)
 
   assertSpyCalls(defineTargetSpy, 1)
@@ -55,7 +62,7 @@ Deno.test('defineProviderDecorator: registers core provider with correct base', 
 })
 
 Deno.test("defineProviderDecorator: throws if class doesn't extend ZanixProvider", () => {
-  const decorator = defineProviderDecorator({ type: 'custom' })
+  const decorator = defineProviderDecorator({ slot: 'custom' })
 
   assertThrows(
     () => decorator(InvalidProvider as any),
@@ -74,7 +81,7 @@ Deno.test("defineProviderDecorator: throws if core provider doesn't extend requi
     }
   }
 
-  const decorator = defineProviderDecorator({ type: 'cache' })
+  const decorator = defineProviderDecorator({ slot: 'cache' })
 
   assertThrows(
     () => decorator(WrongCacheBase as never),
@@ -97,4 +104,19 @@ Deno.test('defineProviderDecorator: supports short string syntax', () => {
   assertEquals(call.args[1].Target, CacheImpl)
 
   defineTargetSpy.restore()
+})
+
+Deno.test('defineProviderDecorator: throws for an unregistered reserved core slot', () => {
+  // 'auth' is one of the 5 built-in placeholder slots (`ProviderCoreModules`) — nothing in this
+  // test file registers it, so it stays as the non-callable placeholder `Target`.
+  class UnregisteredSlotProvider extends ZanixProvider {}
+
+  const decorator = defineProviderDecorator({ slot: 'auth' })
+
+  const error = assertThrows(
+    () => decorator(UnregisteredSlotProvider as never),
+    InternalError,
+    "hasn't been registered yet",
+  )
+  assertEquals((error as any).message.includes('TypeError'), false)
 })

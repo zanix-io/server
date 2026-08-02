@@ -31,9 +31,9 @@
     "jsr:@std/streams@~0.224.5": "0.224.5",
     "jsr:@std/testing@1.0.9": "1.0.9",
     "jsr:@std/uuid@0.224": "0.224.3",
-    "jsr:@zanix/utils@*": "2.4.3",
-    "jsr:@zanix/utils@2": "2.4.3",
-    "jsr:@zanix/utils@2.4": "2.4.3",
+    "jsr:@zanix/utils@*": "2.4.5",
+    "jsr:@zanix/utils@2": "2.4.5",
+    "jsr:@zanix/utils@2.4": "2.4.5",
     "npm:@types/node@*": "24.2.0",
     "npm:esbuild@0.20.2": "0.20.2",
     "npm:graphql-jit@0.1.0": "0.1.0_graphql@16.12.0",
@@ -166,8 +166,8 @@
         "jsr:@std/crypto"
       ]
     },
-    "@zanix/utils@2.4.3": {
-      "integrity": "a03c356b290fba79d89277950d010d0e8931282a6e6c2d12b1a62c60a3d8f665",
+    "@zanix/utils@2.4.5": {
+      "integrity": "1c63a97018c29acdba39aeea9f583cae53f260be6a4fe36755a8c8e4a2fba3dc",
       "dependencies": [
         "jsr:@luca/esbuild-deno-loader",
         "jsr:@std/fmt@0.224",

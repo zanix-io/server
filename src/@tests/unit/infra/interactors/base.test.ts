@@ -1,54 +1,31 @@
 // tests/zanix_interactor_test.ts
 import { assertEquals, assertInstanceOf, assertStrictEquals } from '@std/assert'
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
-import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import { stub } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
 
-// Mock ZanixConnector
-class MockConnector extends ZanixConnector {
-  protected override initialize(): Promise<void> | void {
-  }
-  protected override close(): unknown {
-    return true
-  }
-  public override isHealthy(): Promise<boolean> | boolean {
-    return true
-  }
-  public foo = 'bar'
-}
-
 // Mock Interactor to extend the abstract class
-class MockInteractor extends ZanixInteractor<{ Connector: MockConnector }> {
+class MockInteractor extends ZanixInteractor {
 }
 
 // Needed to simulate access to zanix props
 MockInteractor.prototype[ZANIX_PROPS] = {
   ...MockInteractor.prototype[ZANIX_PROPS],
-  data: { connector: 'Z$MockConnector$1' },
   key: 'Z$MockInteractor$1',
 }
 
 // Another interactor to simulate "other" class
-class OtherInteractor extends ZanixInteractor<{ Connector: MockConnector }> {
+class OtherInteractor extends ZanixInteractor {
   public v = 3
 }
 // Needed to simulate access to zanix props
 OtherInteractor.prototype[ZANIX_PROPS] = {
   ...OtherInteractor.prototype[ZANIX_PROPS],
-  data: { connector: 'Z$MockConnector$1' },
   key: 'Z$OtherInteractor$1',
 }
 
 // Set up spies/stubs
-const getConnectorStub = stub(
-  Program.targets,
-  'getConnector',
-  (_key: string) => {
-    return new MockConnector()
-  },
-)
 const getInteractorsStub = stub(
   Program.targets,
   'getInteractor',
@@ -57,12 +34,6 @@ const getInteractorsStub = stub(
     return new OtherInteractor(contextId)
   },
 )
-
-Deno.test('ZanixInteractor.connector returns connector instance from Program', () => {
-  const instance = new MockInteractor('ctx-abc')
-  const connector = instance['connector']
-  assertInstanceOf(connector, MockConnector)
-})
 
 Deno.test('ZanixInteractor.interactors returns the same instance for circular dependency', () => {
   const instance = new MockInteractor('ctx-circular')
@@ -89,5 +60,4 @@ Deno.test('ZanixInteractor.interactors.get passes correct context', () => {
 // Cleanup
 Deno.test('Cleanup stubs', () => {
   getInteractorsStub.restore()
-  getConnectorStub.restore()
 })

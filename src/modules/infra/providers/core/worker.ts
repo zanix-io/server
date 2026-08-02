@@ -1,4 +1,4 @@
-import type { CoreConnectorTemplates } from 'typings/targets.ts'
+import type { CoreModules } from 'typings/targets.ts'
 import type { ScopedContext } from 'typings/context.ts'
 import type { MessageQueue, QueueMessageOptions } from 'typings/queues.ts'
 import type { TaskCallback } from '@zanix/types'
@@ -21,8 +21,7 @@ import { WorkerManager } from '@zanix/workers'
  * @abstract
  * @extends ZanixProvider
  */
-export abstract class ZanixWorkerProvider<T extends CoreConnectorTemplates = object>
-  extends ZanixProvider<T> {
+export abstract class ZanixWorkerProvider<T extends CoreModules = object> extends ZanixProvider<T> {
   #generalTasker = new WorkerManager({ pool: 3 })
 
   /**

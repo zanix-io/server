@@ -1,11 +1,9 @@
 import { assertSpyCalls, spy } from '@std/testing/mock'
 import Program from 'modules/program/mod.ts'
-import { ZanixDatabaseConnector } from 'modules/infra/connectors/core/database.ts'
 import { ZanixInteractor } from 'modules/infra/interactors/base.ts'
 import { defineInteractorDecorator } from 'modules/infra/interactors/decorators/assembly.ts'
 import { assertEquals } from '@std/assert/assert-equals'
 import { assertThrows } from '@std/assert/assert-throws'
-import { ZANIX_PROPS } from 'utils/constants.ts'
 import { InternalError } from '@zanix/errors'
 
 console.error = () => {}
@@ -44,6 +42,24 @@ Deno.test('should register a valid interactor', () => {
   Program.targets.defineTarget = originalDefineTarget
 })
 
+Deno.test('should register an interactor with explicit options (lifetime/startMode)', () => {
+  const defineTargetSpy = spy(Program.targets, 'defineTarget')
+
+  class MyOptionsInteractor extends ZanixInteractor {}
+
+  const Decorator = defineInteractorDecorator({ lifetime: 'SINGLETON', startMode: 'onBoot' })
+  Decorator(MyOptionsInteractor)
+
+  assertSpyCalls(defineTargetSpy, 1)
+  assertEquals(defineTargetSpy.calls[0].args[1].lifetime, 'SINGLETON')
+  assertEquals(defineTargetSpy.calls[0].args[1].startMode, 'onBoot')
+
+  defineTargetSpy.restore()
+
+  // Restore Program.targets
+  Program.targets.defineTarget = originalDefineTarget
+})
+
 Deno.test('should throw error if class is not an interactor', () => {
   class NotAnInteractor {}
 
@@ -53,45 +69,5 @@ Deno.test('should throw error if class is not an interactor', () => {
     () => Decorator(NotAnInteractor as never),
     InternalError,
     `'NotAnInteractor' is not a valid Interactor. Please extend ZanixInteractor`,
-  )
-})
-
-Deno.test('should throw error if using core connector directly', () => {
-  // Create a fake core connector
-  class CoreConnector extends ZanixDatabaseConnector {
-    public override getModel(_: unknown): unknown {
-      throw new Error('Method not implemented.')
-    }
-    protected override initialize(): Promise<void> | void {
-      throw new Error('Method not implemented.')
-    }
-    protected override close(): unknown {
-      throw new Error('Method not implemented.')
-    }
-    public override isHealthy(): Promise<boolean> | boolean {
-      throw new Error('Method not implemented.')
-    }
-  }
-
-  class MyInteractor extends ZanixInteractor {}
-  class BadConnector extends CoreConnector {
-  }
-
-  // Mock getTarget and defineTarget
-  Program.targets['getTarget'] = () =>
-    ({
-      prototype: {
-        [ZANIX_PROPS]: {
-          type: undefined, // Simulates no custom type
-        },
-      },
-    }) as never
-
-  const Decorator = defineInteractorDecorator({ Connector: BadConnector as never })
-
-  assertThrows(
-    () => Decorator(MyInteractor),
-    InternalError,
-    `Invalid dependency injection: 'BadConnector' is a core connector that can be overridden but should not be manually injected into 'MyInteractor'. Access it through 'this.database' inside your class, and remove it from the Interactor decorator configuration.`,
   )
 })

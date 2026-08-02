@@ -51,7 +51,7 @@ class DatabaseConnector extends ZanixConnector {
 }
 ```
 
-Defaults when no options are given: `type: 'custom'`, `startMode: 'postBoot'`,
+Defaults when no options are given: `slot: 'custom'`, `startMode: 'postBoot'`,
 `lifetime: 'SINGLETON'`, `autoInitialize: true`.
 
 ### `autoInitialize`
@@ -63,6 +63,26 @@ Controls whether the connector initializes itself automatically on instantiation
 - An object — fine-tunes automatic initialization:
   - `timeoutConnection` — max time (ms) to wait for the connection. Defaults to **10000ms**.
   - `retryInterval` — time (ms) between retries. Defaults to **500ms**.
+
+### `connectorKey` — a connector's own identity
+
+Every connector instance exposes `protected readonly connectorKey: string` — the DI key it was
+actually registered under: the literal slot string for a class aliased to a core slot (`'database'`,
+regardless of which subclass implements it), or an auto-generated key unique to that class
+otherwise. `getConnectorKey(ConnectorClass)` resolves the same value from the class itself, before
+any instance exists — useful for a companion package that needs to bind its own state to a specific
+connector without requiring that connector to declare an explicit `slot` (`@zanix/datamaster`'s
+`registerModel(model, type, ConnectorClass)` is the reference example: two different connector
+classes always resolve to two different keys, decorated with a slot or not).
+
+```ts
+import { getConnectorKey } from 'jsr:@zanix/server@[version]'
+
+@Connector({ slot: 'billing' })
+class BillingConnector extends ZanixConnector {/* ... */}
+
+getConnectorKey(BillingConnector) // "billing", once BillingConnector has been decorated
+```
 
 ## Providers
 
@@ -87,7 +107,7 @@ class UsersRepository extends ZanixProvider<{ database: ZanixMongoConnector }> {
 }
 ```
 
-Defaults when no options are given: `type: 'custom'`, `startMode: 'lazy'`, `lifetime: 'SINGLETON'`.
+Defaults when no options are given: `slot: 'custom'`, `startMode: 'lazy'`, `lifetime: 'SINGLETON'`.
 
 For a connector that doesn't fit one of the named slots (`database`/`cache`/`worker`/`asyncmq`/
 `kvLocal`/`search`), you have two other options: reach it dynamically with
@@ -110,32 +130,21 @@ class NotificationsProvider extends ZanixProvider {
 ```ts
 import { Interactor, ZanixInteractor } from 'jsr:@zanix/server@[version]'
 
-@Interactor({ Connector: DatabaseConnector })
-class UsersInteractor extends ZanixInteractor<{ Connector: DatabaseConnector }> {
+@Interactor()
+class UsersInteractor extends ZanixInteractor {
   public findById(id: string) {
-    return this.connector.findById(id)
+    return this.providers.get(UsersRepository).findById(id)
   }
 }
 ```
 
-An interactor may declare a `Connector`, a `Provider`, or both as dependencies, accessed via
-`this.connector`/`this.provider`. Defaults when no options are given: `lifetime: 'SCOPED'`,
-`startMode: 'lazy'`.
-
-> ⚠️ Only declare **custom** connectors/providers this way (ones extending `ZanixConnector`/
-> `ZanixProvider` directly). Passing a class that extends one of the
-> [built-in base classes](#built-in-connector-and-provider-base-classes) (`ZanixDatabaseConnector`,
-> `ZanixCacheConnector`, etc.) as `@Interactor`'s `Connector`/`Provider` option throws an
-> `InternalError` — access those through the matching named getter instead (`this.database`,
-> `this.cache`, etc., same as on a [provider](#providers)), without declaring them on the decorator
-> at all.
+Defaults when no options are given: `lifetime: 'SCOPED'`, `startMode: 'lazy'`.
 
 ## Reaching other dependencies (`this.providers`, `this.connectors`, `this.interactors`)
 
-`this.connector`/`this.provider` (above) only give you the _one_ dependency declared on the
-decorator. Both providers and interactors also expose dynamic getters for reaching **any other**
-registered connector or provider by class — this is the common pattern when a provider or interactor
-needs more than one dependency:
+Providers and interactors expose dynamic getters for reaching **any** registered connector or
+provider by class — the standard pattern for every dependency a provider or interactor needs,
+whether it's the only one or one of several:
 
 ```ts
 class UsersInteractor extends ZanixInteractor {
@@ -151,15 +160,105 @@ class UsersInteractor extends ZanixInteractor {
 Interactors additionally expose `this.interactors.get(OtherInteractorClass)` to call another
 interactor directly (circular self-references resolve to the same instance rather than recursing).
 
-| Getter                    | Available on           | Resolves                                                    |
-| ------------------------- | ---------------------- | ----------------------------------------------------------- |
-| `this.connectors.get(X)`  | Providers, Interactors | Any registered connector, by class or `CoreConnectors` key. |
-| `this.providers.get(X)`   | Providers, Interactors | Any registered provider, by class or `CoreProviders` key.   |
-| `this.interactors.get(X)` | Interactors only       | Any registered interactor, by class.                        |
+A string key (`this.providers.get('auth')`) resolves too, but only returns a precisely-typed result
+if you've declared that key on your class's own `CoreModules` generic — see
+[Typing a string-keyed `get` call](#typing-a-string-keyed-get-call) below; otherwise you get back
+the loosely-typed base provider/connector type (still correct at runtime, just less specific).
+String-key lookup only works for **core** slots (`cache`, `auth`, `asyncmq`, ...) — a custom
+provider/connector you register yourself has no string key at all, only its class, unless you
+register your own slot first (see [Registering your own core slot](#registering-your-own-core-slot)
+below).
+
+If you rewrite a core slot with your own implementation (`@Provider({ slot: 'cache' })` extending
+`ZanixCacheProvider`), `this.providers.get('cache')` and `this.providers.get(YourCacheClass)`
+resolve the exact same singleton instance — pick whichever reads better at the call site; neither
+creates a second instance.
+
+| Getter                    | Available on           | Resolves                                          |
+| ------------------------- | ---------------------- | ------------------------------------------------- |
+| `this.connectors.get(X)`  | Providers, Interactors | Any registered connector, by class or string key. |
+| `this.providers.get(X)`   | Providers, Interactors | Any registered provider, by class or string key.  |
+| `this.interactors.get(X)` | Interactors only       | Any registered interactor, by class.              |
+
+## Typing a string-keyed `get` call
+
+`this.providers.get('auth')`/`this.connectors.get('asyncmq')` resolve correctly at runtime
+regardless of typing (or throw an explicit "missing core slot" error naming the slot and the package
+expected to own it, if nothing registered it). To also get a _precisely-typed_ result back for a
+string key — instead of the loosely-typed base provider/connector type — declare that key on the
+`CoreModules` generic your class extends:
+
+```ts
+import type { ZanixAuthProvider } from '@zanix/auth'
+
+class UsersInteractor extends ZanixInteractor<{ auth: ZanixAuthProvider }> {
+  public async currentUserRole() {
+    return this.providers.get('auth').session // typed as ZanixAuthProvider, not the generic base
+  }
+}
+```
+
+This works the same way for `ZanixProvider<T>`/`ZanixConnector<T>`. There is no ambient/global
+mechanism for this (an earlier design tried `declare module` augmentation, but that doesn't reliably
+carry a real per-key type across package boundaries, and JSR's `no-slow-types` publish check flags
+ambient module augmentation reachable from a package's public surface) — an explicit generic on your
+own class is the one reliable way to get full typing for a string key.
 
 > ℹ️ These getters resolve within the **current request's context** automatically — you don't pass a
 > context id yourself here (unlike the `ProgramModule` accessors below, which are for use _outside_
 > a handler/interactor/provider instance and do require one).
+
+## Registering your own core slot
+
+`registerCoreProviderSlot`/`registerCoreConnectorSlot` let you give your **own** provider/connector
+a string key — the same mechanism `@zanix/auth`, `@zanix/notifications`, and `@zanix/asyncmq` use
+internally to register `'auth'`, `'notifications'`, and `'asyncmq'`. This is a two-step flow, and
+the **order matters**:
+
+```ts
+import { Connector, registerCoreConnectorSlot, ZanixConnector } from 'jsr:@zanix/server@[version]'
+
+// Step 1 — register the slot's contract, once, BEFORE any decorator references it.
+export abstract class BillingConnector extends ZanixConnector {
+  abstract charge(amount: number): Promise<void>
+}
+registerCoreConnectorSlot('billing', BillingConnector)
+
+// Step 2 — decorate the concrete implementation, extending the contract above.
+@Connector({ slot: 'billing' })
+export class StripeConnector extends BillingConnector {
+  protected override initialize() {}
+  protected override close() {}
+  public override isHealthy() {
+    return true
+  }
+  public override async charge(amount: number) {
+    // ...
+  }
+}
+```
+
+Once both steps have run, `this.connectors.get('billing')` and
+`this.connectors.get(StripeConnector)` resolve the exact same singleton — same behavior as a
+built-in core slot (see [Typing a string-keyed `get` call](#typing-a-string-keyed-get-call) to get a
+precise return type back for the string form). `registerCoreProviderSlot` works identically for
+`@Provider`.
+
+> ⚠️ **`registerCore*Slot` must run before the `@Connector`/`@Provider` decorator for that slot is
+> evaluated — not merely before you call `get()`.** A class decorator runs synchronously the instant
+> its class is declared. If `registerCoreConnectorSlot('billing', ...)` is placed _after_ the
+> `@Connector({ slot: 'billing' })` class in the same file (or otherwise executes later), the
+> decorator doesn't see `'billing'` as a known slot yet and silently falls back to treating it as a
+> plain custom connector, keyed by its own class instead of `'billing'`.
+> `this.connectors.get(StripeConnector)` still works in that case, but
+> `this.connectors.get('billing')` throws
+> `Core connector slot "billing"
+> is registered but no implementation was found for it in the current process`
+> — the slot itself got registered, but no target was ever stored under that key. If you hit that
+> error, check the order, not just presence, of the two calls. For a library package (not a single
+> app), put the `registerCore*Slot` call in its own entrypoint (e.g. `your-package/core.ts`) that
+> consumers import before anything that decorates against the slot — see `@zanix/auth`'s
+> `auth/src/modules/providers/core.ts` for the reference pattern.
 
 ## Built-in connector and provider base classes
 
@@ -170,20 +269,27 @@ etc.) either comes from a companion Zanix package built on top of one of these b
 `ZanixMongoConnector` from `@zanix/datamaster`, extending `ZanixDatabaseConnector`), or you write it
 yourself, as shown in the `PostgresConnector` example below.
 
-| Class                            | Extends          | Purpose                                                                                           |
-| -------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------- |
-| `ZanixDatabaseConnector`         | `ZanixConnector` | Foundation for relational/non-relational database connectors.                                     |
-| `ZanixAsyncmqConnector`          | `ZanixConnector` | Foundation for message broker connectors (RabbitMQ, Kafka, MQTT...).                              |
-| `ZanixCacheConnector`            | `ZanixConnector` | Foundation for caching backends (Redis, Memcached, in-memory).                                    |
-| `ZanixKVConnector`               | `ZanixConnector` | Foundation for key-value store connectors, with optional TTL support.                             |
-| `RestClient`                     | `ZanixConnector` | REST HTTP client with base URL resolution, JSON parsing, and unified error handling.              |
-| `GraphQLClient`                  | `RestClient`     | Extends `RestClient` to simplify sending GraphQL queries over `POST`.                             |
-| `ZanixSearchConnector`           | `RestClient`     | Foundation for search/indexing engine connectors (Elasticsearch, OpenSearch...).                  |
-| `ZanixCacheProvider`             | `ZanixProvider`  | Orchestrates one or more `ZanixCacheConnector`s.                                                  |
-| `ZanixWorkerProvider`            | `ZanixProvider`  | Orchestrates background/worker task execution.                                                    |
-| `ZanixAsyncMQProvider`           | `ZanixProvider`  | Orchestrates one or more `ZanixAsyncmqConnector`s.                                                |
-| `ZanixCoreAuthProvider`          | `ZanixProvider`  | Foundation for authentication/authorization providers (e.g. `@zanix/auth`'s `ZanixAuthProvider`). |
-| `ZanixCoreNotificationsProvider` | `ZanixProvider`  | Foundation for notification-sending providers (e.g. `@zanix/notifications`'s `NotifierProvider`). |
+These are specifically the slots with a dedicated `this.xxx` getter on `CoreBaseClass` (`cache`,
+`database`, `asyncmq`, `worker`, `kvLocal`, `search`) — hosting that getter's return-type signature
+is what requires `@zanix/server` to import the abstract contract directly, so it's the only package
+that can host it without creating a reverse dependency. Core slots _without_ a dedicated getter
+(`auth`, `notifications`) have no such requirement, so their abstract contracts live with their
+owning package instead: `@zanix/auth`'s `ZanixCoreAuthProvider` and `@zanix/notifications`'s
+`ZanixCoreNotificationsProvider` — extend those directly from the owning package, not from
+`@zanix/server`.
+
+| Class                    | Extends          | Purpose                                                                              |
+| ------------------------ | ---------------- | ------------------------------------------------------------------------------------ |
+| `ZanixDatabaseConnector` | `ZanixConnector` | Foundation for relational/non-relational database connectors.                        |
+| `ZanixAsyncmqConnector`  | `ZanixConnector` | Foundation for message broker connectors (RabbitMQ, Kafka, MQTT...).                 |
+| `ZanixCacheConnector`    | `ZanixConnector` | Foundation for caching backends (Redis, Memcached, in-memory).                       |
+| `ZanixKVConnector`       | `ZanixConnector` | Foundation for key-value store connectors, with optional TTL support.                |
+| `RestClient`             | `ZanixConnector` | REST HTTP client with base URL resolution, JSON parsing, and unified error handling. |
+| `GraphQLClient`          | `RestClient`     | Extends `RestClient` to simplify sending GraphQL queries over `POST`.                |
+| `ZanixSearchConnector`   | `RestClient`     | Foundation for search/indexing engine connectors (Elasticsearch, OpenSearch...).     |
+| `ZanixCacheProvider`     | `ZanixProvider`  | Orchestrates one or more `ZanixCacheConnector`s.                                     |
+| `ZanixWorkerProvider`    | `ZanixProvider`  | Orchestrates background/worker task execution.                                       |
+| `ZanixAsyncMQProvider`   | `ZanixProvider`  | Orchestrates one or more `ZanixAsyncmqConnector`s.                                   |
 
 ```ts
 import { Connector, ZanixDatabaseConnector } from 'jsr:@zanix/server@[version]'
@@ -224,10 +330,10 @@ share a cached value; override it in a subclass to scope by additional/different
 
 ## Accessing instances outside any class (`ProgramModule`)
 
-The getters above (`this.connector`, `this.providers.get(...)`, etc.) only work from within a
-provider, interactor, or handler instance. For the rarer case where you need an instance from
-somewhere with no `this` at all — a standalone script, a test, or a custom middleware function —
-`ProgramModule` exposes the same accessors directly:
+The getters above (`this.cache`, `this.providers.get(...)`, etc.) only work from within a provider,
+interactor, or handler instance. For the rarer case where you need an instance from somewhere with
+no `this` at all — a standalone script, a test, or a custom middleware function — `ProgramModule`
+exposes the same accessors directly:
 
 ```ts
 import { ProgramModule } from 'jsr:@zanix/server@[version]'

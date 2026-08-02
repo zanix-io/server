@@ -8,8 +8,6 @@ import type {
   MiddlewareTypes,
 } from './middlewares.ts'
 import type { ConnectorTypes, HandlerTypes, Lifetime, ProviderTypes, StartMode } from './program.ts'
-import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
-import type { ZanixProvider } from 'providers/base.ts'
 import type { HttpMethod } from './router.ts'
 import type { VersionProtocolOption } from 'middlewares/protocol-version.ts'
 
@@ -141,20 +139,24 @@ export type StartModeOnTransient<L extends Lifetime> = L extends 'TRANSIENT'
   ? { startMode: Exclude<StartMode, 'lazy'> }
   : { startMode?: StartMode }
 
-/** Options accepted by the `@Interactor` class decorator. */
-export type InteractorDecoratorOptions<
-  C extends typeof ZanixConnector,
-  P extends typeof ZanixProvider,
-  L extends Lifetime,
-> = {
-  Connector?: C
-  Provider?: P
+/**
+ * Options accepted by the `@Interactor` class decorator. There is deliberately no `Connector`/
+ * `Provider` single-slot option here — reach any dependency (including a class-based provider or
+ * connector) via `this.providers.get(X)`/`this.connectors.get(X)`, inherited from `CoreBaseClass`.
+ */
+export type InteractorDecoratorOptions<L extends Lifetime> = {
   lifetime?: L
 } & StartModeOnTransient<L>
 
 /** Options accepted by the object-argument overload of the `@Connector` class decorator. */
 export type ConnectorDecoratorOptions<L extends Lifetime> = {
-  type?: ConnectorTypes
+  /**
+   * Which core connector slot this class registers under (e.g. `'database'`, `'cache:redis'`),
+   * or omitted/`'custom'` for a plain connector resolved only by class reference. Named `slot`,
+   * not `type`, because it's only ever a real registration key for a core slot — for a custom
+   * connector there's no key here at all (the actual lookup key is derived from the class itself).
+   */
+  slot?: ConnectorTypes
   lifetime?: L
   /**
    * Indicates whether the connector should automatically initialize.
@@ -170,8 +172,13 @@ export type ConnectorDecoratorOptions<L extends Lifetime> = {
 
 /** Options accepted by the object-argument overload of the `@Provider` class decorator. */
 export type ProviderDecoratorOptions<L extends Exclude<Lifetime, 'TRANSIENT'>> = {
-  /** The kind of provider being registered. */
-  type?: ProviderTypes
+  /**
+   * Which core provider slot this class registers under (e.g. `'cache'`, `'auth'`), or
+   * omitted/`'custom'` for a plain provider resolved only by class reference. Named `slot`, not
+   * `type`, because it's only ever a real registration key for a core slot — for a custom
+   * provider there's no key here at all (the actual lookup key is derived from the class itself).
+   */
+  slot?: ProviderTypes
   /** The instance lifetime strategy (`'SINGLETON'` or `'SCOPED'`). */
   lifetime?: L
   /** The initialization mode for the provider's instance. */

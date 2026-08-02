@@ -72,25 +72,51 @@ export type CoreCacheTypes<K> = {
 }
 
 /**
- * Defines the available connectors in the system, including cache, async message queues,
- * database and key-value store systems.
- *
- * This type includes connectors for different system components:
- * - `cache:{CoreCacheConnectors}`: Represents cache connectors, such as Redis or Memcached.
- * - `'asyncmq'`: Represents an asynchronous message queue system.
- * - `'database'`: Represents a generic database connector.
- * - `'kvLocal'`: Represents a generic key-value store connector.
- * - `'search'`: Represents a generic search engine and document indexing connector.
+ * Any core-connector slot key registered via `registerCoreConnectorSlot`
+ * (`modules/infra/connectors/core/all.ts`). Deliberately just `string`, not a closed union or an
+ * ambiently-augmented type: an earlier design tried making this `keyof` a `declare module`
+ * -augmented registry interface, but that ambient-global-augmentation approach doesn't reliably
+ * carry through to a real per-key return type anyway (TypeScript never mapped the string argument
+ * to a specific return type from it — only validated that the string was "known"), and ambient
+ * module augmentation is explicitly unsupported by JSR's `no-slow-types` publish check when it's
+ * reachable from a package's public export surface. Real compile-time typing for
+ * `this.providers.get(key)`/`this.connectors.get(key)` now comes from the `CoreModules` generic
+ * each consumer can explicitly pass to `ZanixInteractor`/`ZanixProvider`/`ZanixConnector`
+ * (`typings/targets.ts`) — this type exists only to document intent and give `@Connector`/
+ * `@Provider`'s `type` option something narrower than a bare `string` to point at. Validity of a
+ * given key is enforced entirely at runtime by `registerCoreConnectorSlot`/`getCoreConnectorSlot`,
+ * with an explicit "missing core slot" error naming the slot and the package expected to own it.
  */
-export type CoreConnectors =
-  | `cache:${CoreCacheConnectors}`
+// deno-lint-ignore ban-types
+export type CoreConnectors = KnownCoreConnectors | (string & {})
+
+/**
+ * The connector slot keys `@zanix/server` itself pre-seeds (`ConnectorCoreModules`,
+ * `modules/infra/connectors/core/all.ts`) — editor-autocomplete hints only, not an exhaustive or
+ * enforced list. `CoreConnectors` still accepts any other string (a slot registered by a package
+ * this type doesn't know about), via the `string & {}` widening trick: it's structurally identical
+ * to `string` so nothing is rejected, but nominally distinct enough that TypeScript doesn't
+ * collapse the union down to plain `string` and drop the literal suggestions.
+ */
+export type KnownCoreConnectors =
+  | 'cache:redis'
+  | 'cache:memcached'
+  | 'cache:custom'
+  | 'cache:local'
+  | 'kvLocal'
   | 'asyncmq'
   | 'database'
-  | 'kvLocal'
   | 'search'
 
-/** Defines the available core provider types in the system. */
-export type CoreProviders = 'asyncmq' | 'cache' | 'worker' | 'auth' | 'notifications'
+/**
+ * Any core-provider slot key registered via `registerCoreProviderSlot`
+ * (`modules/infra/providers/core/all.ts`) — same reasoning as {@link CoreConnectors}.
+ */
+// deno-lint-ignore ban-types -- same deliberate widening trick as `CoreConnectors` above.
+export type CoreProviders = KnownCoreProviders | (string & {})
+
+/** The provider slot keys `@zanix/server` itself pre-seeds — see {@link KnownCoreConnectors}. */
+export type KnownCoreProviders = 'cache' | 'asyncmq' | 'worker' | 'auth' | 'notifications'
 /** Any valid connector type: a core connector, or a `GenericTargets` (`'custom'`) one. */
 export type ConnectorTypes = CoreConnectors | GenericTargets
 /** Any valid provider type: a core provider, or a `GenericTargets` (`'custom'`) one. */

@@ -4,6 +4,7 @@ import type { ZanixGlobalExports } from './program.ts'
 import type { HttpMethod } from './router.ts'
 import type { WebServerTypes } from './server.ts'
 import type {
+  CoreModules,
   ZanixConnectorsGetter,
   ZanixInteractorsGetter,
   ZanixProvidersGetter,
@@ -16,11 +17,17 @@ export type GuardResponse = {
   /** Extra headers to merge into the eventual response. */
   headers?: Record<string, string>
 }
-/** The context passed to a per-handler guard: `HandlerContext` plus DI getters. */
+/**
+ * The context passed to a per-handler guard: `HandlerContext` plus DI getters. `providers`/
+ * `connectors` are parameterized with the base `CoreModules` (not the untyped default) so a guard
+ * gets the same precise typing for the 6 foundational slots (`this.cache`, `this.database`, ...)
+ * that a `ZanixProvider`/`ZanixInteractor` subclass does out of the box — a guard isn't tied to any
+ * one consuming class, so it can't declare its own narrower `T`.
+ */
 export type GuardContext = HandlerContext & {
   interactors: ZanixInteractorsGetter
-  providers: ZanixProvidersGetter
-  connectors: ZanixConnectorsGetter
+  providers: ZanixProvidersGetter<CoreModules>
+  connectors: ZanixConnectorsGetter<CoreModules>
 }
 /** The context passed to a global pipe/interceptor: `HandlerContext` plus the interactors getter. */
 export type GlobalMidContext = HandlerContext & { interactors: ZanixInteractorsGetter }

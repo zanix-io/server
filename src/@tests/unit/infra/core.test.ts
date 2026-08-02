@@ -1,11 +1,30 @@
-import { assert, assertEquals } from '@std/assert'
-import ConnectorCoreModules from 'connectors/core/all.ts'
-import ProviderCoreModules from 'providers/core/all.ts'
+import { assert, assertEquals, assertThrows } from '@std/assert'
+import ConnectorCoreModules, { registerCoreConnectorSlot } from 'connectors/core/all.ts'
+import ProviderCoreModules, { registerCoreProviderSlot } from 'providers/core/all.ts'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 
 // Mock de Program.targets
 import ProgramModule from 'modules/program/mod.ts'
 import { CoreBaseClass } from 'modules/infra/base/core.ts'
+import { ZanixWorkerProvider } from 'providers/core/worker.ts'
+import { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
+import { ZanixCacheProvider } from 'providers/core/cache.ts'
+import { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
+import { ZanixDatabaseConnector } from 'connectors/core/database.ts'
+import { ZanixSearchConnector } from 'connectors/core/search.ts'
+
+// `'worker'`/`'asyncmq'`/`'cache'`/`'database'`/`'search'` are no longer self-registered by
+// `@zanix/server` itself (ownership moved to `@zanix/asyncmq`'s and `@zanix/datamaster`'s own
+// `/core` entrypoints) — this test simulates that registration directly, the same way those
+// packages' `/core` would, since this suite doesn't depend on them.
+registerCoreProviderSlot('worker', ZanixWorkerProvider)
+registerCoreProviderSlot('asyncmq', ZanixAsyncMQProvider)
+registerCoreProviderSlot('cache', ZanixCacheProvider)
+registerCoreConnectorSlot('asyncmq', ZanixAsyncmqConnector)
+registerCoreConnectorSlot('database', ZanixDatabaseConnector)
+registerCoreConnectorSlot('search', ZanixSearchConnector)
+
+console.error = () => {}
 
 Deno.test('CoreBaseClass should call getInstance correctly for all connectors or providers', () => {
   // Create class from CoreBaseClass
@@ -76,3 +95,43 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
   assertEquals(getCoreConnectorsSpy.calls[0].args, [ConnectorCoreModules.database.key, ctx])
   assertEquals(getCoreConnectorsSpy.calls[1].args, [ConnectorCoreModules.search.key, ctx])
 })
+
+Deno.test(
+  'registerCoreProviderSlot: throws when re-registering an already-registered slot with a different base class',
+  () => {
+    class FirstBase {}
+    class OtherBase {}
+
+    registerCoreProviderSlot('conflicting-provider-slot', FirstBase)
+
+    // Idempotent: re-registering with the SAME base class never throws.
+    registerCoreProviderSlot('conflicting-provider-slot', FirstBase)
+
+    assertThrows(
+      () => registerCoreProviderSlot('conflicting-provider-slot', OtherBase),
+      Error,
+      'Core provider slot "conflicting-provider-slot" is already registered with a different ' +
+        "base class ('FirstBase'). Cannot re-register it with 'OtherBase'.",
+    )
+  },
+)
+
+Deno.test(
+  'registerCoreConnectorSlot: throws when re-registering an already-registered slot with a different base class',
+  () => {
+    class FirstBase {}
+    class OtherBase {}
+
+    registerCoreConnectorSlot('conflicting-connector-slot', FirstBase)
+
+    // Idempotent: re-registering with the SAME base class never throws.
+    registerCoreConnectorSlot('conflicting-connector-slot', FirstBase)
+
+    assertThrows(
+      () => registerCoreConnectorSlot('conflicting-connector-slot', OtherBase),
+      Error,
+      'Core connector slot "conflicting-connector-slot" is already registered with a different ' +
+        "base class ('FirstBase'). Cannot re-register it with 'OtherBase'.",
+    )
+  },
+)

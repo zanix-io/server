@@ -1,8 +1,4 @@
-import type {
-  CoreConnectorTemplates,
-  ZanixConnectorClass,
-  ZanixConnectorGeneric,
-} from 'typings/targets.ts'
+import type { CoreModules, ZanixConnectorClass, ZanixConnectorGeneric } from 'typings/targets.ts'
 import type { ZanixConnector } from 'connectors/base.ts'
 import type { CoreConnectors } from 'typings/program.ts'
 
@@ -30,8 +26,7 @@ import { TargetError } from 'utils/errors/target.ts'
  * @template T - A generic type representing the core connectors used by this provider. By default, it is set to `object`,
  *               which corresponds to the base core connector types, unless explicitly specified.
  */
-export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
-  extends CoreBaseClass<T> {
+export abstract class ZanixProvider<T extends CoreModules = object> extends CoreBaseClass<T> {
   /**
    * Get a connector instance and checks if is available.
    *
@@ -39,14 +34,17 @@ export abstract class ZanixProvider<T extends CoreConnectorTemplates = object>
    * in the current context before executing the provided callback function.
    * If the instance is not available, it throws a `TargetError`.
    */
-  protected getProviderConnector<T extends ZanixConnectorGeneric>(
-    connector: CoreConnectors | ZanixConnectorClass<T>,
+  protected getProviderConnector<D extends ZanixConnectorGeneric>(
+    connector: CoreConnectors | ZanixConnectorClass<D>,
     verbose?: boolean,
-  ): T {
+  ): D {
     const { startMode } = this[ZANIX_PROPS]
 
     try {
-      return getConnectors(this.contextId, false, this).get<T>(connector)
+      const connectors = getConnectors(this.contextId, false, this)
+      return typeof connector === 'string' ? connectors.get<D>(connector) : connectors.get(
+        connector,
+      )
     } catch {
       const connectorName = typeof connector === 'string' ? connector : connector.name
 

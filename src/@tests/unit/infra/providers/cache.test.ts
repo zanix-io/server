@@ -3,6 +3,14 @@ import { HttpError, InternalError } from '@zanix/errors'
 import { ZanixCacheProvider } from 'providers/core/cache.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import Program from 'modules/program/mod.ts'
+import { registerCoreConnectorSlot } from 'connectors/core/all.ts'
+import { ZanixCacheConnector } from 'connectors/core/cache.ts'
+
+// `'cache:redis'`/`'cache:local'` are no longer self-registered by `@zanix/server` itself
+// (ownership moved to `@zanix/datamaster`'s own `/core`) — this test simulates that registration
+// directly, since this suite doesn't depend on that package.
+registerCoreConnectorSlot('cache:redis', ZanixCacheConnector)
+registerCoreConnectorSlot('cache:local', ZanixCacheConnector)
 
 console.error = () => {}
 

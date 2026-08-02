@@ -1,17 +1,11 @@
-import { ZanixAsyncmqConnector } from './asyncmq.ts'
 import { ZanixCacheConnector } from './cache.ts'
-import { ZanixDatabaseConnector } from './database.ts'
-import ConnectorCoreModules from './all.ts'
-import { ZanixKVConnector } from './kv.ts'
-import { ZanixSearchConnector } from './search.ts'
+import ConnectorCoreModules, { registerCoreConnectorSlot } from './all.ts'
 
-ConnectorCoreModules.kvLocal.Target = ZanixKVConnector
-ConnectorCoreModules.asyncmq.Target = ZanixAsyncmqConnector
-ConnectorCoreModules.database.Target = ZanixDatabaseConnector
-ConnectorCoreModules.search.Target = ZanixSearchConnector
-ConnectorCoreModules['cache:custom'].Target = ZanixCacheConnector
-ConnectorCoreModules['cache:memcached'].Target = ZanixCacheConnector
-ConnectorCoreModules['cache:local'].Target = ZanixCacheConnector
-ConnectorCoreModules['cache:redis'].Target = ZanixCacheConnector
+// `'cache:custom'`/`'cache:memcached'` still self-register here because no package currently
+// ships a concrete implementation for either — there's no owner to hand the registration call to
+// yet. `'kvLocal'`/`'database'`/`'search'`/`'asyncmq'`/`'cache:local'`/`'cache:redis'` all moved to
+// their owning packages' own `/core` entrypoints (`@zanix/datamaster`, `@zanix/asyncmq`).
+registerCoreConnectorSlot('cache:custom', ZanixCacheConnector)
+registerCoreConnectorSlot('cache:memcached', ZanixCacheConnector)
 
 export default ConnectorCoreModules

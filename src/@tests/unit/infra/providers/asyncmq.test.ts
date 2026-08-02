@@ -4,6 +4,12 @@ import { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
 import { ZanixAsyncmqConnector } from 'modules/infra/connectors/core/asyncmq.ts'
 import Program from 'modules/program/mod.ts'
 import ProgramModule from 'modules/program/mod.ts'
+import { registerCoreConnectorSlot } from 'connectors/core/all.ts'
+
+// `'asyncmq'` is no longer self-registered by `@zanix/server` itself (ownership moved to
+// `@zanix/asyncmq`'s own `/core`) — this test simulates that registration directly, since this
+// suite doesn't depend on that package.
+registerCoreConnectorSlot('asyncmq', ZanixAsyncmqConnector)
 
 console.error = () => {}
 

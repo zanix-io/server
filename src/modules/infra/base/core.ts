@@ -5,15 +5,9 @@ import type { ZanixWorkerProvider } from 'providers/core/worker.ts'
 import type { ZanixCacheProvider } from 'providers/core/cache.ts'
 import type { RegistryContainer } from '../../program/metadata/registry.ts'
 import type { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
-import type {
-  CoreConnectorTemplates,
-  ZanixConnectorsGetter,
-  ZanixProvidersGetter,
-} from 'typings/targets.ts'
+import type { CoreModules, ZanixConnectorsGetter, ZanixProvidersGetter } from 'typings/targets.ts'
 
 import { getConnectors, getProviders } from 'modules/program/public.ts'
-import ConnectorCoreModules from 'connectors/core/all.ts'
-import ProviderCoreModules from 'providers/core/all.ts'
 import { ContextualBaseClass } from './contextual.ts'
 import ProgramModule from '../../program/mod.ts'
 
@@ -35,8 +29,7 @@ import ProgramModule from '../../program/mod.ts'
  * @extends ContextualBaseClass
  * @template T - The type representing the core connectors used in the current implementation. Defaults to `object`.
  */
-export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
-  extends ContextualBaseClass {
+export abstract class CoreBaseClass<T extends CoreModules = object> extends ContextualBaseClass {
   /**
    * Accesses the connectors registered within the system.
    *
@@ -47,9 +40,9 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * Use this utility when you need to access specific connectors within your provider's logic or orchestration layer.
    *
    * @protected
-   * @returns {ZanixConnectorsGetter} A utility for retrieving and interacting with other connectors.
+   * @returns {ZanixConnectorsGetter<T>} A utility for retrieving and interacting with other connectors.
    */
-  protected get connectors(): ZanixConnectorsGetter {
+  protected get connectors(): ZanixConnectorsGetter<T> {
     return getConnectors(this.contextId, undefined, this)
   }
 
@@ -65,9 +58,9 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * that is already implemented elsewhere in the system.
    *
    * @protected
-   * @returns {ZanixProvidersGetter} A utility for retrieving and interacting with other providers.
+   * @returns {ZanixProvidersGetter<T>} A utility for retrieving and interacting with other providers.
    */
-  protected get providers(): ZanixProvidersGetter {
+  protected get providers(): ZanixProvidersGetter<T> {
     return getProviders(this.contextId, undefined, this)
   }
 
@@ -105,9 +98,8 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    */
   protected get kvLocal(): T['kvLocal'] extends ZanixKVConnector ? T['kvLocal']
     : ZanixKVConnector {
-    return this.connectors.get<
-      T['kvLocal'] extends ZanixKVConnector ? T['kvLocal'] : ZanixKVConnector
-    >(ConnectorCoreModules.kvLocal.key)
+    return this.connectors.get('kvLocal') as T['kvLocal'] extends ZanixKVConnector ? T['kvLocal']
+      : ZanixKVConnector
   }
 
   /**
@@ -123,9 +115,9 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    */
   protected get database(): T['database'] extends ZanixDatabaseConnector ? T['database']
     : ZanixDatabaseConnector {
-    return this.connectors.get<
-      T['database'] extends ZanixDatabaseConnector ? T['database'] : ZanixDatabaseConnector
-    >(ConnectorCoreModules.database.key)
+    return this.connectors.get('database') as T['database'] extends ZanixDatabaseConnector
+      ? T['database']
+      : ZanixDatabaseConnector
   }
 
   /**
@@ -140,9 +132,8 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    */
   protected get search(): T['search'] extends ZanixSearchConnector ? T['search']
     : ZanixSearchConnector {
-    return this.connectors.get<
-      T['search'] extends ZanixSearchConnector ? T['search'] : ZanixSearchConnector
-    >(ConnectorCoreModules.search.key)
+    return this.connectors.get('search') as T['search'] extends ZanixSearchConnector ? T['search']
+      : ZanixSearchConnector
   }
 
   /**
@@ -157,9 +148,8 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    */
   protected get asyncmq(): T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq']
     : ZanixAsyncMQProvider {
-    return this.providers.get<
-      T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq'] : ZanixAsyncMQProvider
-    >(ProviderCoreModules.asyncmq.key)
+    return this.providers.get('asyncmq') as T['asyncmq'] extends ZanixAsyncMQProvider ? T['asyncmq']
+      : ZanixAsyncMQProvider
   }
 
   /**
@@ -173,9 +163,8 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    * @returns {T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider} The cache provider instance associated with the current context.
    */
   protected get cache(): T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider {
-    return this.providers.get<
-      T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider
-    >(ProviderCoreModules.cache.key)
+    return this.providers.get('cache') as T['cache'] extends ZanixCacheProvider ? T['cache']
+      : ZanixCacheProvider
   }
 
   /**
@@ -190,8 +179,7 @@ export abstract class CoreBaseClass<T extends CoreConnectorTemplates = object>
    */
   protected get worker(): T['worker'] extends ZanixWorkerProvider ? T['worker']
     : ZanixWorkerProvider {
-    return this.providers.get<
-      T['worker'] extends ZanixWorkerProvider ? T['worker'] : ZanixWorkerProvider
-    >(ProviderCoreModules.worker.key)
+    return this.providers.get('worker') as T['worker'] extends ZanixWorkerProvider ? T['worker']
+      : ZanixWorkerProvider
   }
 }

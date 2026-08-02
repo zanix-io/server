@@ -34,6 +34,15 @@ import { ZanixKVConnector } from 'modules/infra/connectors/core/kv.ts'
 import { registerGlobalPipe } from 'modules/infra/middlewares/defs/pipes.ts'
 import { registerGlobalInterceptor } from 'modules/infra/middlewares/defs/interceptors.ts'
 import { Post } from 'modules/infra/handlers/rest/decorators/post.ts'
+import { registerCoreConnectorSlot } from 'connectors/core/all.ts'
+import { registerCoreProviderSlot } from 'providers/core/all.ts'
+
+// `'cache'`/`'cache:local'`/`'kvLocal'` are no longer self-registered by `@zanix/server` itself
+// (ownership moved to `@zanix/datamaster`'s own `/core`) — this fixture simulates that
+// registration directly, since this suite doesn't depend on that package.
+registerCoreProviderSlot('cache', ZanixCacheProvider)
+registerCoreConnectorSlot('cache:local', ZanixCacheConnector)
+registerCoreConnectorSlot('kvLocal', ZanixKVConnector)
 
 /** RTOS */
 class C extends BaseRTO {
@@ -105,7 +114,7 @@ class Connectors extends ZanixConnector {
   }
 }
 
-@Connector({ type: 'kvLocal', startMode: 'lazy', lifetime: 'SCOPED' })
+@Connector({ slot: 'kvLocal', startMode: 'lazy', lifetime: 'SCOPED' })
 class _KVLocal extends ZanixKVConnector {
   public override get<O = any>(_: string): O | undefined {
     return 'my kv local value' as any
@@ -190,8 +199,8 @@ class ProviderClass extends ZanixProvider<{ cache: any }> {
 }
 
 /** Interactors */
-@Interactor({ Connector: Connectors, Provider: ProviderClass })
-class InteractorX extends ZanixInteractor<{ Connector: Connectors; Provider: ProviderClass }> {
+@Interactor()
+class InteractorX extends ZanixInteractor {
   constructor(contextId?: string) {
     super(contextId)
     this.interactors.get(InteractorD).interactorDMessage
@@ -204,15 +213,16 @@ class InteractorX extends ZanixInteractor<{ Connector: Connectors; Provider: Pro
   }
 
   public providerInfo() {
-    return this.provider.providerMessage + this.connectors.get(Connectors).def() +
+    return this.providers.get(ProviderClass).providerMessage +
+      this.connectors.get(Connectors).def() +
       this.providers.get(ProviderClass).providerMessage
   }
 
   public connectorMessage() {
-    this.connector.changeLocals(this.context)
+    this.connectors.get(Connectors).changeLocals(this.context)
     return `this connector is ${
-      this.connector.getConnected() && 'connected' || 'disconnected'
-    } over def ${this.connector.def()} by ${
+      this.connectors.get(Connectors).getConnected() && 'connected' || 'disconnected'
+    } over def ${this.connectors.get(Connectors).def()} by ${
       isUUID(this.context.id) && 'uuid' || 'normal'
     } context and query param ${this.context.payload.search<S>('qparam')}`
   }

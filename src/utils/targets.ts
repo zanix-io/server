@@ -1,7 +1,7 @@
 import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 import type { ModuleTypes, StartMode } from 'typings/program.ts'
 
-import { INSTANCE_KEY_SEPARATOR } from './constants.ts'
+import { INSTANCE_KEY_SEPARATOR, ZANIX_PROPS } from './constants.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
 
@@ -61,6 +61,35 @@ export const getTargetKey = (target?: { name: string }): string => {
   classIds.set(target, newId)
 
   return newId
+}
+
+/**
+ * Resolves the DI target key a `@Connector`-decorated class was actually registered under —
+ * `'database'` for a class aliased to a core slot (regardless of subclassing, since the alias is
+ * keyed by the slot's string, not the concrete class), or the class's own auto-generated
+ * `getTargetKey` key otherwise. Reads the metadata `@Connector` already wrote to `Target.prototype`
+ * at decoration time (`defineConnectorDecorator`/`BaseInstancesContainer.toBeInstantiated`) — no new
+ * computation, just exposing an already-resolved value.
+ *
+ * Useful to identify a connector class *before* any instance exists — e.g. `@zanix/datamaster`'s
+ * `registerModel(model, type, ConnectorClass)` uses this to bind a model to a specific connector
+ * without requiring an explicit `slot` (two different connector classes always resolve to two
+ * different keys, decorated with a slot or not).
+ *
+ * @param {Function} Target - The connector class to resolve. Must already be `@Connector`-decorated.
+ * @returns {string | undefined} The resolved key, or `undefined` if `Target` hasn't been decorated yet.
+ *
+ * @example
+ * ```ts
+ * @Connector({ slot: 'otrabd' })
+ * class OtraBD extends ZanixConnector { ... }
+ *
+ * getConnectorKey(OtraBD) // "otrabd" if pre-registered via registerCoreConnectorSlot, else "Z$OtraBD$n"
+ * ```
+ */
+// deno-lint-ignore ban-types
+export function getConnectorKey(Target: Function): string | undefined {
+  return (Target.prototype as { [ZANIX_PROPS]?: { key?: string } })?.[ZANIX_PROPS]?.key
 }
 
 /** Connector module setup init mode */

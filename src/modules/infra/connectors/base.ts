@@ -20,6 +20,16 @@ export abstract class ZanixConnector extends ContextualBaseClass {
   protected timeoutConnection: number
   /** The interval (in milliseconds) between each retry when attempting to auto-initialize. */
   protected retryInterval: number
+  /**
+   * The DI target key this connector class was actually registered under — `'database'` for a
+   * class aliased to that core slot (regardless of subclassing), or an auto-generated key otherwise.
+   * Same value {@link getConnectorKey} (`utils/targets.ts`) resolves from the class itself, exposed
+   * here on the instance for convenience. Stable per connector *class*, not per instance — the
+   * correct dimension to namespace per-connector state by (e.g. `@zanix/datamaster`'s model/seeder
+   * registries), since unlike `this.constructor`, it doesn't change when a consumer subclasses a
+   * core connector.
+   */
+  protected readonly connectorKey: string
 
   /** Constructor with initialization logic where the connector might be auto-initialized. */
   constructor(options: string | ConnectorOptions = {}) {
@@ -29,7 +39,9 @@ export abstract class ZanixConnector extends ContextualBaseClass {
 
     super(contextId)
 
-    const { data, startMode } = this[ZANIX_PROPS]
+    const { data, startMode, key } = this[ZANIX_PROPS]
+
+    this.connectorKey = key
 
     // Auto-initialization settings
     const autoInitializeOpts = data?.autoInitialize ?? autoInitialize

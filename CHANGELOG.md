@@ -5,7 +5,231 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] - 2026-07-31
+
+Consolidates everything since `2.1.1` — none of the intermediate `2.1.2`/`2.2.0`/`2.3.0` work was
+ever published, so it's folded into this one entry instead of three, per the project's own CHANGELOG
+discipline. The headline change: **`isInternal` is retired entirely**, replaced by two independent
+concepts — **Application** (composition/ownership) and **`anchored`** (URL-obscurity) — that
+redistribute what `isInternal` used to conflate into one boolean.
+
+Also continues that same composition redesign one layer down, for core provider/connector slots
+(`cache`, `database`, `auth`, ...): they move from a closed set `@zanix/server` hardcodes and
+self-registers, to an **open registry** any package can add to. `@zanix/server` now only ships the
+mechanism and the abstract contracts for the slots that need a dedicated `this.xxx` getter — it no
+longer bundles a default implementation, or even a self-registration call, for `cache`, `worker`,
+`asyncmq`, `database`, `kvLocal`, or `search`; the packages that actually implement them
+(`@zanix/datamaster`, `@zanix/asyncmq`, `@zanix/auth`, `@zanix/notifications`, ...) register
+themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
+
+### Added
+
+- **Application — a composition boundary for routes/resolvers/sockets**, replacing `isInternal` as
+  the ownership axis. `ProgramModule.defineApplication(name, setup)` runs `setup` with `name` as the
+  ambient Application every `@Controller`/`@Resolver`/`@Socket` registered inside it belongs to
+  (default: `'main'`, when no scope is active) — never a decorator option, resolved automatically
+  from context. See [Handlers → Applications](docs/HANDLERS.md#applications).
+- **`BootstrapServerOptions[type].application`** — which Application a given server mounts; only
+  capabilities registered under that exact Application are served. Purely an ownership/composition
+  boundary — carries no URL-anchoring or exposure meaning of its own (a non-default Application like
+  `'admin'`/`'billing'`/`'metrics'` is not, by itself, "internal" or hidden).
+- **`BootstrapServerOptions[type].anchored`** — a fully independent flag deciding whether a server's
+  own id doubles as an obscuring URL prefix (a random UUID by default, rotating on every restart)
+  instead of a plain `globalPrefix`-based one. Defaults to `false`. This is what `isInternal` used
+  to imply automatically for any non-default scope; it's now an explicit, separate decision — see
+  [Handlers → Anchored servers](docs/HANDLERS.md#anchored-servers). `globalPrefix` alongside
+  `anchored: true` is additive (`{id}/{globalPrefix}/...`), not a replacement, same as before.
+- **`bootstrapServers` auto-discovers an anchored server's generated id.** When a server type is
+  `anchored` and no explicit `id` was given, the random id `webServerManager.create()` picks isn't
+  something the caller already knows — `bootstrapServers` now stamps it into
+  `` `${APPLICATION}_${TYPE}_SERVER_ID` `` (uppercased; non-`[A-Z0-9]` characters in `application`
+  become `_`), e.g. `application: 'billing'`'s `rest` server → `BILLING_REST_SERVER_ID`, the
+  built-in `'admin'` Application's own `graphql` server → `ADMIN_GRAPHQL_SERVER_ID`. Skipped
+  entirely when the id was explicit (nothing to discover). See
+  [Handlers → Anchored servers § Discovering an auto-generated id](docs/HANDLERS.md#anchored-servers).
+- **`Runtime`/`compileRuntime`** (`modules/webserver/runtime.ts`) — the one place
+  Application/anchoring resolves into a concrete server activation (id validation/normalization,
+  multiplexer dispatch key, route-table prefix), entirely before `WebServerManager.create` runs.
+  `WebServerManager` itself never derives any of this — it only ever consumes an already-compiled
+  `Runtime`, keeping it fully agnostic of what Application/anchoring mean.
+- **`resolveAdminServerId`/`guardSingleAdminRegistration`/`releaseAdminRegistration`**
+  (`utils/admin-server.ts`) — a small shared helper so `@zanix/core`'s `start()` and
+  `@zanix/admin`'s own `start()` resolve a stable `ADMIN_SERVER_ID`-derived id the same way instead
+  of each hand-rolling it independently (previously only one of them actually did, so the other got
+  a fresh random id every restart), and so running both together in one process fails loudly
+  (`InternalError`) instead of silently corrupting shared route/resolver metadata.
+- **`bootstrapServers` gained a `{ finalize }` option (default `true`)** so a multi-call boot
+  sequence (e.g. `@zanix/core`'s `'admin'`-Application server followed by its default-Application
+  one) can defer cleanup of metadata shared across the whole sequence — pending GraphQL resolvers
+  (`type:resolver`) and the route registry — until the actual last call, instead of after every
+  individual call. Pass `{ finalize: false }` on every call except the last one in such a sequence.
+- `BootstrapServerOptions[type].id` — an explicit id for that server, forwarded to `compileRuntime`.
+  Omit it to keep the default (randomly generated, unique per boot). Useful for an `anchored` server
+  whose URL path prefix needs to stay stable across restarts.
+- `ServerID`/`getServiceId()`/`sanitizeIdentifier()` — see the `2.1.1`-era notes below; unaffected
+  by the Application/anchored redesign.
+- **Discovery — `ProgramModule.defineDiscovery(resourceType, provider, options?)`** — a separate,
+  read-only mechanism from `/admin/*`: a module implements `DiscoveryProvider` (just `snapshot()`,
+  optionally `version()`) with zero knowledge of HTTP, and gets a
+  `/.well-known/zanix/{resourceType}` route mounted automatically once `bootstrapServers()`
+  activates a REST server for its Application — same lazy-registration mechanism GraphQL's own POST
+  route already uses, no new server type or `WebServerManager` concept involved. No built-in auth
+  (`@zanix/server` has no notion of permissions/roles — that's `@zanix/auth`); `options.guards`
+  forwards whatever the registering module supplies, same generic `MiddlewareGuard` mechanism any
+  route already has, and omitting them leaves the endpoint unauthenticated on purpose, not silently
+  protected. Negotiates its own protocol version via `DISCOVERY_PROTOCOL_HEADER`
+  (`X-Znx-Discovery-Protocol`), independent of `/admin/*`'s own protocol so the two can evolve
+  separately. `stream()`/pagination for unbounded resources is specified but not built this round —
+  see [Handlers → Discovery](docs/HANDLERS.md#discovery).
+- **`registerCoreProviderSlot(key, BaseTarget, options?)` /
+  `registerCoreConnectorSlot(key,
+  BaseTarget, options?)`** (new exports) — the mechanism a package
+  uses to declare "I own the `'billing'` core provider/connector slot, and `BaseTarget` is the
+  abstract contract a concrete implementation must extend." Idempotent when called twice with the
+  same `BaseTarget` for the same `key` (e.g. a `/core` module evaluated more than once); throws if
+  called twice with a _different_ `BaseTarget` for the same `key` — a genuine ownership conflict
+  between two packages. An optional `{ sourcePackage }` names the package expected to own the slot,
+  surfaced in the "missing core slot" error below. This is also how you can register your own core
+  slot in application code, not just from a library — see
+  [Dependency Injection → Registering your own core slot](docs/DEPENDENCY-INJECTION.md#registering-your-own-core-slot).
+- **`this.providers.get(Class)`/`this.connectors.get(Class)` now resolve the same singleton as
+  `get('name')` for any registered core slot** — built-in or custom, via
+  `registerCoreProviderSlot`/`registerCoreConnectorSlot` above. If you back a slot with your own
+  implementation (`@Provider({ slot: 'cache' })` extending `ZanixCacheProvider`), you can look it up
+  either way — `this.providers.get('cache')` or `this.providers.get(YourCacheClass)` — and get back
+  the identical instance. Previously, class-based lookup only worked for custom (non-core)
+  providers/connectors; a core slot's concrete class was only resolvable by its string key.
+- **A missing core slot now throws an explicit, actionable error** instead of a generic "not found":
+  naming the slot and, when `sourcePackage` was given at registration, hinting which package to
+  import
+  (`Missing core provider slot "auth". No provider was registered for this slot.
+  Did you forget to import "@zanix/auth"?`).
+  A slot that _is_ registered but has no concrete instance in the current process gets a distinct
+  message for that case too. Any other resolution failure (a real bug inside an already-resolved
+  provider/connector) still propagates unchanged.
+- **`getConnectorKey(ConnectorClass)`** (new export) and **`connectorKey`** (new
+  `protected
+  readonly` field on every `ZanixConnector` instance) — resolve the DI key a
+  `@Connector`-decorated class was actually registered under (the slot string for a class aliased to
+  a core slot, regardless of subclassing; an auto-generated key otherwise), from the class itself or
+  from an instance. See
+  [Dependency Injection → `connectorKey`](docs/DEPENDENCY-INJECTION.md#connectorkey--a-connectors-own-identity).
+- `CoreProviders`/`CoreConnectors` now suggest, in editor autocomplete, the slot keys
+  `@zanix/server` itself pre-seeds — 5 for providers (`'cache'`, `'asyncmq'`, `'worker'`, `'auth'`,
+  `'notifications'`) and 8 for connectors (`'cache:redis'`, `'cache:memcached'`, `'cache:custom'`,
+  `'cache:local'`, `'kvLocal'`, `'asyncmq'`, `'database'`, `'search'`) — while still accepting any
+  other string: a package's own custom slot key isn't statically known to this type, but is still
+  valid at runtime once registered.
+
+### Changed (breaking)
+
+- **`isInternal` removed from `@Controller`/`@Resolver`/`@Socket`'s options entirely.** A route's
+  Application is resolved from ambient composition context instead (see `Added` above) — there is no
+  direct replacement option on the decorators themselves; wrap the registering code in
+  `ProgramModule.defineApplication(name, setup)` instead.
+- **`WebServerManager.create`'s 3rd parameter is now `Runtime`-only** — it no longer accepts a plain
+  `serverID` string. Direct callers that don't care about Application/anchoring can simply omit it
+  (defaults to `compileRuntime(type, { globalPrefix: options.server?.globalPrefix })`); callers that
+  need an explicit id, or anchored/Application-scoped behavior, build a `Runtime` via
+  `compileRuntime` first.
+- **`ServerManagerOptions` no longer has an `application` field.** Application/anchoring resolution
+  happens entirely in `compileRuntime`, before `WebServerManager.create` ever runs — `create` itself
+  stays fully agnostic of both concepts.
+- Two web servers of the **same** `type` (e.g. two `'rest'` servers, one unanchored and one
+  `anchored`) that resolve to the same port now share one real `Deno.serve()` listener instead of
+  failing with `AddrInUse`. Each port's own dispatch table (`HandlerBox`) is never mutated in place
+  — every new registration on a port builds an entirely new, frozen table and atomically swaps a
+  pointer to it, so a request always sees either the fully-old or fully-new table, never a partial
+  one. Whichever server binds the port first owns the real socket (its own SSL/hostname/etc. options
+  are what actually apply); a later server sharing that port only reuses the bound address for its
+  own route table, and stopping it directly is a no-op — stop the server that originally bound the
+  port to actually release it. See `create()`'s own JSDoc for the full trade-off list.
+- `RestClient` now enables conditional `ETag` caching for `GET` requests by default. Responses that
+  include an `ETag` header are cached and reused through `If-None-Match` / `304 Not Modified`
+  validation on subsequent requests. The behavior can be disabled per client or per request with
+  `etag: false`, and subclasses can customize ETag participation and cache identity rules.
+- `InternalProgram.cleanupInitializationsMetadata` takes a second `finalize: boolean = true`
+  parameter (only meaningful for `mode: 'postBoot'`) — see `bootstrapServers`'s `{ finalize }`
+  above.
+- `@Provider`/`@Connector`'s object-argument option is now `slot`, not `type` — e.g.
+  `@Provider({ slot: 'cache' })`, `@Connector({ slot: 'database' })`. Renamed because `type` never
+  actually meant "kind of provider" — for a core slot it's literally the registration key, and for a
+  custom provider/connector there's no key here at all (the real key comes from the class itself).
+  `slot` names what the option actually does in both cases. The single-argument string shorthand
+  (`@Provider('cache')`, `@Connector('database')`) is unaffected.
+- `ZanixCoreAuthProvider` and `ZanixCoreNotificationsProvider` are no longer exported from
+  `@zanix/server`. Both were empty marker classes whose only purpose was to satisfy
+  `@Provider({ slot: 'auth' | 'notifications' })`'s base-class check — unlike the 6 core slots with
+  a dedicated `CoreBaseClass` getter (`cache`, `database`, `asyncmq`, `worker`, `kvLocal`,
+  `search`), neither `auth` nor `notifications` has one, so nothing in `@zanix/server`'s own source
+  actually needed to import them. They're now owned by the packages that actually implement them:
+  import `ZanixCoreAuthProvider` from `@zanix/auth` and `ZanixCoreNotificationsProvider` from
+  `@zanix/notifications` instead.
+- `@zanix/server` no longer self-registers the `cache`/`worker`/`asyncmq` core provider slots, nor
+  the `database`/`kvLocal`/`search`/`asyncmq` core connector slots — ownership moved to the packages
+  that actually implement them (`@zanix/datamaster`, `@zanix/asyncmq`, ...), which now call
+  `registerCoreProviderSlot`/`registerCoreConnectorSlot` themselves. Only
+  `cache:custom`/`cache:memcached` still self-register directly in `@zanix/server`, since no package
+  owns a concrete implementation for either yet. A project must import the package that owns a given
+  slot (or call `registerCore*Slot` itself) before using that slot's `this.xxx` getter
+  (`this.cache`, `this.database`, ...) or referencing it by string key — omitting it now throws the
+  explicit "missing core slot" error above instead of resolving a bundled default.
+- `@Interactor`'s object-argument `Connector`/`Provider` options, and `ZanixInteractor`'s
+  corresponding `this.connector`/`this.provider` getters, are removed entirely. Reach any dependency
+  — including one that used to be the interactor's single declared connector/provider — through the
+  generic `this.providers.get(X)`/`this.connectors.get(X)` (inherited from `CoreBaseClass`), the
+  same mechanism providers already use. Replace `@Interactor({ Connector: X,
+  Provider: Y })` /
+  `class Foo extends ZanixInteractor<{ Connector: X; Provider: Y }>` with plain `@Interactor()` /
+  `class Foo extends ZanixInteractor`, and `this.connector`/`this.provider` call sites with
+  `this.connectors.get(X)`/`this.providers.get(Y)`.
+- `CoreConnectorTemplates` is renamed to `CoreModules` and gains an index signature
+  (`Partial<{ [key: string]: ZanixConnector | ZanixProvider }>`) alongside its existing 6 named,
+  optional slots (`worker`, `asyncmq`, `cache`, `database`, `kvLocal`, `search`) — the generic every
+  `CoreBaseClass` subclass (`ZanixProvider`, `ZanixConnector`, `ZanixInteractor`) accepts to type
+  `this.providers.get(key)`/`this.connectors.get(key)` precisely for a string key, not just the 6
+  named slots. `ZanixInteractor`'s generic no longer accepts/needs `{ Connector, Provider }` — see
+  the `@Interactor` change above. `ZanixProvidersGetter`/`ZanixConnectorsGetter` are now generic
+  (`ZanixProvidersGetter<T extends CoreModules>`) for the same reason;
+  `getProviders`/`getConnectors` (`ProgramModule` and the instance-level accessors) accept an
+  explicit type parameter to get a precisely-typed `get` back. See
+  [Dependency Injection → Typing a string-keyed `get` call](docs/DEPENDENCY-INJECTION.md#typing-a-string-keyed-get-call).
+
+### Removed (breaking)
+
+- **`ADMIN_REST_PORT`/`ADMIN_GRAPHQL_PORT`/`ADMIN_SOCKET_PORT`/`ADMIN_STATIC_PORT`** — fixed-port
+  constants that were never reachable on a platform exposing only one externally-routable port
+  (Heroku, Render, Railway, …). Nothing outside `@zanix/core`'s own `start.ts` used them (confirmed
+  across the monorepo); `@zanix/core` replaces them with a port that defaults to whichever one the
+  default-Application server for that type resolves to, overridable via `PORT`/`PORT_<TYPE>`
+  (unchanged) or an explicit per-type option.
+
+### Fixed
+
+- **`RouteContainer.defineRoute`'s plain `{path, handler}` registration form (the escape hatch
+  GraphQL's lazy POST route, and now Discovery, both use) silently dropped any `guards` passed
+  alongside it** — `pipes`/`interceptors` were destructured and stored, `guards` wasn't, so a route
+  registered this way could never actually be gated by anything. Only affects direct, non-decorator
+  registration (`@Controller`/`@Resolver`/`@Socket`-driven routes were unaffected, since those go
+  through a separate code path). Found while wiring Discovery's own optional `guards`.
+- **`type:connector` is no longer cleared by `cleanupInitializationsMetadata('postBoot')` at all.**
+  It's the only registry `closeAllConnections()` (invoked on process shutdown, via the `unload`
+  listener) reads to know which connectors to `.close()` — since it was wiped during boot instead,
+  `closeAllConnections()` had nothing left to iterate, so connectors (Mongo, Redis, etc.) never
+  actually got a graceful `.close()` call. It's now cleared by `closeAllConnections()` itself, right
+  after it's done using it — process shutdown, not boot completion, being its true end of life.
+- The internal request multiplexer (`webserver/helpers/handler.ts`'s `multiplexer()`) now always
+  dereferences the port's dispatch table fresh per request instead of closing over a fixed snapshot
+  — fixes a bug where a handler registered on a shared port _after_ that port's listener was already
+  bound could never be reached. A request whose path doesn't match any handler on a shared port now
+  gets a proper `404`, instead of a `500`-class dispatch error.
+- `@Socket`'s class decorator never drained the shared method-decorator queue (unlike
+  `@Controller`/`@Resolver`, it never called `applyMiddlewaresToTarget`) — left a stray entry
+  sitting around to be incorrectly drained onto whichever _next_ handler class happened to call this
+  function. Found and fixed as a prerequisite for wiring `versionProtocol` into `@Socket`.
+- `identityKey()` (`connectors/core/rest.ts`) had a literal raw NUL byte embedded in its source
+  instead of the intended `\0` escape sequence — functionally equivalent at runtime, but made the
+  file register as binary to `git diff`/`file`. Restored to the proper `'\0'` escape text.
 
 ## [2.1.1] - 2026-07-28
 

@@ -46,8 +46,8 @@ const mockDefineTarget = {
 
 // deno-lint-ignore camelcase
 const mockCORE_CONNECTORS = {
-  cache: { Target: CacheConnector },
-  database: { Target: DbConnector },
+  cache: { Target: CacheConnector, registered: true },
+  database: { Target: DbConnector, registered: true },
 }
 
 // Inject into global (mocking actual imports)
@@ -71,14 +71,14 @@ Deno.test('defineConnectorDecorator: registers non-core connector with default s
     }
   }
 
-  const decorator = defineConnectorDecorator({ type: 'custom' })
+  const decorator = defineConnectorDecorator({ slot: 'custom' })
   decorator(CustomConnector)
 
   const call = mockDefineTarget.calls[0] as any
   assertEquals(call.key, 'Z$CustomConnector$1')
   assertEquals(call.opts.Target, CustomConnector)
   assertEquals(call.opts.type, 'connector')
-  assertEquals(call.opts.dataProps.type, 'custom')
+  assertEquals(call.opts.dataProps.slot, 'custom')
   assertEquals(call.opts.startMode, 'postBoot') // default
   assertEquals(call.opts.lifetime, 'SINGLETON') // default
 })
@@ -88,17 +88,17 @@ Deno.test('defineConnectorDecorator: registers core connector with correct base'
 
   class CacheImpl extends CacheConnector {}
 
-  const decorator = defineConnectorDecorator({ type: 'cache:local' })
+  const decorator = defineConnectorDecorator({ slot: 'cache:local' })
   decorator(CacheImpl as never)
 
   const call = mockDefineTarget.calls[0] as any
   assertEquals(call.key, 'cache:local')
   assertEquals(call.opts.Target, CacheImpl)
-  assertEquals(call.opts.dataProps.type, 'cache:local')
+  assertEquals(call.opts.dataProps.slot, 'cache:local')
 })
 
 Deno.test("defineConnectorDecorator: throws if class doesn't extend ZanixConnector", () => {
-  const decorator = defineConnectorDecorator({ type: 'custom' })
+  const decorator = defineConnectorDecorator({ slot: 'custom' })
 
   assertThrows(() => {
     decorator(InvalidConnector as any)
@@ -118,7 +118,7 @@ Deno.test("defineConnectorDecorator: throws if core connector doesn't extend req
     }
   }
 
-  const decorator = defineConnectorDecorator({ type: 'cache:local' })
+  const decorator = defineConnectorDecorator({ slot: 'cache:local' })
 
   assertThrows(() => {
     decorator(WrongHttpBase as any)
@@ -136,4 +136,27 @@ Deno.test('defineConnectorDecorator: supports short string syntax', () => {
   const call = mockDefineTarget.calls[0] as any
   assertEquals(call.key, 'database')
   assertEquals(call.opts.Target, DbImpl)
+})
+
+Deno.test('defineConnectorDecorator: throws for an unregistered reserved core slot', () => {
+  // 'kvLocal' is one of the 8 built-in placeholder slots (`ConnectorCoreModules`) — nothing in
+  // this test file registers it, so it stays as the non-callable placeholder `Target`.
+  class UnregisteredSlotConnector extends ZanixConnector {
+    protected override initialize(): Promise<void> | void {}
+    protected override close(): unknown {
+      return
+    }
+    public override isHealthy(): Promise<boolean> | boolean {
+      return true
+    }
+  }
+
+  const decorator = defineConnectorDecorator({ slot: 'kvLocal' })
+
+  const error = assertThrows(
+    () => decorator(UnregisteredSlotConnector as never),
+    InternalError,
+    "hasn't been registered yet",
+  )
+  assertEquals((error as any).message.includes('TypeError'), false)
 })

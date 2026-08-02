@@ -1,6 +1,6 @@
 import type { MessageQueue, QueueMessageOptions, ScheduleOptions } from 'typings/queues.ts'
 import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
-import type { CoreConnectorTemplates } from 'typings/targets.ts'
+import type { CoreModules } from 'typings/targets.ts'
 import type { ScopedContext } from '@zanix/server'
 
 import ProgramModule from 'modules/program/mod.ts'
@@ -13,12 +13,12 @@ import { InternalError } from '@zanix/errors'
  * This class provides an interface for sending messages to queues and global topics asynchronously.
  * It is intended to be extended by concrete classes that implement specific MQ provider logic.
  *
- * @template T - The template type extending `CoreConnectorTemplates`. Defaults to `object` if not specified.
+ * @template T - The template type extending `CoreModules`. Defaults to `object` if not specified.
  *
  * @abstract
  * @extends {ZanixProvider<T>}
  */
-export abstract class ZanixAsyncMQProvider<T extends CoreConnectorTemplates = object>
+export abstract class ZanixAsyncMQProvider<T extends CoreModules = object>
   extends ZanixProvider<T> {
   /**
    * **Note**: Use `this` to access the instance instead.
