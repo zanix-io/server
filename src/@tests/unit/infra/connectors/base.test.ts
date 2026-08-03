@@ -60,7 +60,7 @@ Deno.test('ZanixConnector: should avoid autoconnect', async () => {
 
   const time = Date.now()
   const ready = await conn['isReady']
-  assertAlmostEquals(Date.now() - time, 0) // No waiting for initialization is needed.
+  assertAlmostEquals(Date.now() - time, 0, 5) // No waiting for initialization is needed (tolerance for CI jitter).
   assert(ready)
 })
 
