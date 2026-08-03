@@ -116,14 +116,18 @@ export {
  */
 export { DISCOVERY_PROTOCOL_VERSION } from 'modules/discovery/provider.ts'
 export { getServiceId, sanitizeIdentifier } from 'utils/identity.ts'
+export { resolveApplicationServerId, resolvePreviousApplicationServerId } from 'utils/app-server.ts'
+/**
+ * Builds a self-contained `isStarting`/`isRunning` reentry guard for a package's own `start()`/
+ * `stop()` pair — shared by `@zanix/core`'s `Zanix.start()` and `@zanix/admin`'s
+ * `ZanixAdminHub.start()` so neither hand-rolls its own copy of the same module-level-boolean
+ * pattern. See its own doc for the exact races it guards and why its 4 methods aren't fused.
+ */
 export {
-  ADMIN_SERVER_ID_ENV,
-  ADMIN_SERVER_ID_PREVIOUS_ENV,
-  guardSingleAdminRegistration,
-  releaseAdminRegistration,
-  resolveAdminServerId,
-  resolvePreviousAdminServerId,
-} from 'utils/admin-server.ts'
+  createStartLifecycleGuard,
+  type StartLifecycleGuard,
+  type StartLifecycleGuardOptions,
+} from 'utils/start-lifecycle-guard.ts'
 
 // Utils
 export { TargetError } from 'utils/errors/target.ts'

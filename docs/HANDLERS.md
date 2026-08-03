@@ -236,9 +236,50 @@ requires passing `{ finalize: false }` to every call except the last one: `postB
 the shared route/pending-resolver registries by default, and an earlier call finalizing would wipe
 routes/resolvers a later call in the same sequence still needs to read. See `bootstrapServers`'s own
 doc comment for the full mechanism, and
-[Utilities → Admin server helpers](./UTILITIES.md#admin-server-helpers) for
-`resolveAdminServerId()`/`guardSingleAdminRegistration()` — the rest of the plumbing
-`@zanix/core`/`@zanix/admin` share for this same pattern.
+[Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) for
+`resolveApplicationServerId()` — the rest of the plumbing `@zanix/core`/`@zanix/admin` share for
+this same pattern.
+
+### Boot sessions
+
+The `{ finalize: false }` pattern above coordinates calls WITHIN one sequence you control end to end
+(one `async function`, like `@zanix/core`'s own `start()`). It doesn't, by itself, protect two
+_independent_ top-level sequences — e.g. `@zanix/core`'s `Zanix.start()` and `@zanix/admin`'s own
+`ZanixAdminHub.start()` — from corrupting each other if they're ever fired without a sequential
+`await` between them: whichever one's own last `bootstrapServers()` call finalizes first would
+otherwise wipe the _other_ sequence's not-yet-served routes/discovery/resolvers too, since
+`finalize` used to purge those registries unconditionally, regardless of who registered what.
+
+`bootstrapServers()` now wraps its own body in a **boot session** (`ProgramModule.sessions` /
+`BootSessionContainer`) — an `AsyncContext`-backed ambient scope, the same mechanism
+`ApplicationContainer` already uses to resolve "which Application is registering right now" safely
+across concurrent async batches (see above). `finalize` cleanup asks "which Applications does some
+_other_, still-running session currently own?" and preserves only those — everything else is swept,
+exactly like the original unscoped wipe. When no other session is genuinely concurrent right now
+(the common case, including every call within one single-session multi-call sequence), that "other
+sessions' Applications" set is empty, so cleanup reduces to precisely the original full wipe — this
+is deliberately NOT "only remove what _my own_ session touched": most real registration (a
+`@Controller`/`@Resolver` decorator, triggered by a plain `import()`) happens _before_ any
+`bootstrapServers()`/session ever starts, so an "only my own" rule would leave it untracked by every
+session and stop being cleared at all. A bare `bootstrapServers()` call gets a session of its own
+automatically — nothing to opt into for ordinary use. A package composing a WIDER multi-call
+sequence (its own `start()`, in the same spirit as `@zanix/core`'s) should wrap that whole sequence
+in one outer session so every `bootstrapServers()` call nested inside shares it, instead of each
+forking its own:
+
+```ts
+import { ProgramModule } from 'jsr:@zanix/server@[version]'
+
+await ProgramModule.runBootSession(async () => {
+  await defineAdminMetadata()
+  await bootstrapServers(adminOptions, { finalize: false })
+  await bootstrapServers(mainOptions) // last call — finalizes the whole session
+})
+```
+
+This is what lets `Zanix.start({ admin: true })` and `ZanixAdminHub.start()` safely coexist in one
+process even fired concurrently (no `await` between them) — see `@zanix/core`'s
+`docs/admin-architecture.md#running-both-servers`.
 
 ### Anchored servers
 
@@ -295,8 +336,9 @@ is nothing to rotate _from_), and **isn't supported for a `graphql` server**: bu
 handler for the previous prefix would compile an empty stub schema instead of the real one (see
 `handlers/graphql/schema.ts`'s `defineSchema`, which consumes its Query/Mutation accumulator once a
 schema is built). Rotate a `graphql` Application's `rest`/`socket` servers instead. See
-[Utilities → Admin server helpers](./UTILITIES.md#admin-server-helpers) for
-`resolvePreviousAdminServerId()`/`ADMIN_SERVER_ID_PREVIOUS`, the built-in admin rotation runbook.
+[Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) for
+`resolvePreviousApplicationServerId()`, the built-in rotation runbook any Application-scoped server
+(admin or otherwise) can use.
 
 ### Sharing a port with an unanchored server
 
@@ -483,5 +525,5 @@ overhead per request — enable it only when the handler actually needs per-requ
 
 - [Middlewares](./MIDDLEWARES.md) — guards, pipes, and interceptors that run around these handlers.
 - [Dependency Injection](./DEPENDENCY-INJECTION.md) — how `Interactor` injection and lifecycle work.
-- [Utilities → Admin server helpers](./UTILITIES.md#admin-server-helpers) — the shared
-  id/registration plumbing behind the `'admin'`-Application server pattern above.
+- [Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) — the
+  shared stable-id plumbing behind the `'admin'`-Application server pattern above.

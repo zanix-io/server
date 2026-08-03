@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [3.1.0] - 2026-08-03
+
+### Added
+
+- **`createStartLifecycleGuard`** (`utils/start-lifecycle-guard.ts`) — builds a self-contained
+  `isStarting`/`isRunning` reentry guard for a package's own `start()`/`stop()` pair, guarding
+  against a second call overlapping a first still in flight and against a second call issued after a
+  previous one already completed without an intervening `stop()`. Extracted from `@zanix/core`'s
+  `Zanix.start()` and `@zanix/admin`'s `ZanixAdminHub.start()`, which each previously hand-rolled an
+  identical pair of module-level booleans — both now compose this instead, with zero behavior change
+  (same error messages/`meta`, same timing).
+- **Boot sessions (`BootSessionContainer`,
+  `ProgramModule.sessions`/`ProgramModule.runBootSession`)** — `bootstrapServers()` now wraps its
+  own body in an `AsyncContext`-backed ambient "boot session" (mirroring `ApplicationContainer`'s
+  own concurrency-safe pattern), and `finalize` cleanup now preserves whichever Applications a
+  DIFFERENT, still-in-flight session currently owns, sweeping everything else — exactly the original
+  unscoped wipe whenever no other session is genuinely concurrent right now. Fixes a real corruption
+  bug: two independent top-level `bootstrapServers()`-driven sequences (e.g. `@zanix/core`'s
+  `Zanix.start()` and `@zanix/admin`'s `ZanixAdminHub.start()`) running in the same process without
+  a sequential `await` between them could silently wipe each other's not-yet-served routes —
+  whichever sequence's own `finalize: true` call ran first would clear the other's registrations
+  before they were ever bound to a server. A package composing its own multi-call
+  `bootstrapServers()` sequence (its own `start()`) should wrap the whole thing in one outer
+  `ProgramModule.runBootSession(...)` call so every nested `bootstrapServers()` call shares that
+  session instead of forking its own — see `docs/HANDLERS.md#boot-sessions`.
+- **`resolveApplicationServerId(application, type)`/`resolvePreviousApplicationServerId(application, type)`**
+  — a generic Application-scoped stable-id resolver, deriving its env var name from the Application
+  itself (`` `${APPLICATION}_SERVER_ID}` ``/`` `${APPLICATION}_SERVER_ID_PREVIOUS}` ``, e.g.
+  `'admin'` → `ADMIN_SERVER_ID`, `'admin-hub'` → `ADMIN_HUB_SERVER_ID`), so any Application-scoped
+  server package gets the same stable-id-across-restarts capability without a hand-written
+  function/env-var pair of its own. See `docs/UTILITIES.md#application-server-id-helpers`.
+
+### Removed
+
+- **`resolveAdminServerId`/`resolvePreviousAdminServerId`/`ADMIN_SERVER_ID_ENV`/
+  `ADMIN_SERVER_ID_PREVIOUS_ENV`/`guardSingleAdminRegistration`/`releaseAdminRegistration`** (all
+  from the former `utils/admin-server.ts`, now `utils/app-server.ts`) — replaced by the generic
+  `resolveApplicationServerId`/`resolvePreviousApplicationServerId` above (call with `'admin'` for
+  identical behavior to the removed `resolveAdminServerId`). The guard functions are removed
+  outright, not replaced: they enforced a mutual-exclusion rule (`@zanix/core`'s embedded admin XOR
+  `@zanix/admin`'s standalone `ZanixAdminHub`) that the new boot-session isolation above makes
+  unnecessary — both may now register and boot concurrently in the same process.
+
 ## [3.0.0] - 2026-07-31
 
 Consolidates everything since `2.1.1` — none of the intermediate `2.1.2`/`2.2.0`/`2.3.0` work was

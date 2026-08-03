@@ -139,6 +139,7 @@ export function defineResolverDecorator(
     })
 
     ProgramModule.decorators.deleteDecorators('resolver')
+    ProgramModule.sessions.recordApplication(application)
 
     ProgramModule.targets.defineTarget(getTargetKey(Target), {
       type: 'resolver',

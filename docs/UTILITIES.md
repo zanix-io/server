@@ -55,28 +55,33 @@ bootstrapping code:
 | `closeAllConnections()`            | Closes every registered connector instance concurrently, then clears the `type:connector` registry — process shutdown, not boot completion, is that registry's true end of life, since this is its only reader afterward. Called automatically on process `unload`.                         |
 | `cleanupInitializationsMetadata()` | Resets both `onBoot` and `postBoot` initialization metadata in one call. The normal `bootstrapServers`/`webServerManager` flow clears each mode individually as that stage completes; this function is mainly useful for tests or custom bootstrap scripts that want to reset both at once. |
 
-## Admin server helpers
+## Application server-id helpers
 
 ```ts
 import {
-  ADMIN_SERVER_ID_ENV,
-  guardSingleAdminRegistration,
-  releaseAdminRegistration,
-  resolveAdminServerId,
+  resolveApplicationServerId,
+  resolvePreviousApplicationServerId,
 } from 'jsr:@zanix/server@[version]'
 ```
 
-Shared plumbing for a package that builds an "admin server" pattern on top of `@zanix/server` —
-`@zanix/core`'s embedded admin support and `@zanix/admin`'s own standalone deployment both call
-these rather than each hand-rolling the same logic independently. A typical application doesn't call
-these directly.
+Shared plumbing for a package that builds an "admin server"-style pattern on top of `@zanix/server`
+— a second, Application-scoped server that wants a stable, predictable id across restarts instead of
+a random one. `@zanix/core`'s embedded admin support (`'admin'` Application) and `@zanix/admin`'s
+own standalone `ZanixAdminHub.start()` (`'admin-hub'` Application) both call these rather than each
+hand-rolling the same env-var-suffixing logic independently, or needing their own named
+function/env-var pair. A typical application doesn't call these directly.
 
-| Export                                | Purpose                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `resolveAdminServerId(type)`          | Resolves `` `${ADMIN_SERVER_ID}-${type}` `` from the `ADMIN_SERVER_ID` env var (read at call time, not import time) to pass as `bootstrapServers`'s explicit `id` — see [Handlers → Applications](./HANDLERS.md#applications) for why a stable `id` matters. Returns `undefined` when the env var isn't set, falling back to a randomly generated default.                |
-| `guardSingleAdminRegistration(owner)` | Throws an `InternalError` if a _different_ `owner` already called this in the current process — guards against `@zanix/core`'s embedded admin support and `@zanix/admin`'s standalone `start()` both registering admin metadata at once, which would otherwise silently corrupt the shared route/resolver registries. A repeated call with the _same_ `owner` is a no-op. |
-| `releaseAdminRegistration(owner)`     | Releases the claim `guardSingleAdminRegistration` took, if `owner` is the one currently holding it. Pair with it on `stop()` so a service that shuts down doesn't hold the claim forever — needed for test suites that start/stop the same service repeatedly in one process.                                                                                             |
-| `ADMIN_SERVER_ID_ENV`                 | The literal env var name (`'ADMIN_SERVER_ID'`) that `resolveAdminServerId()` reads — exported so callers reference the same constant instead of hardcoding the string.                                                                                                                                                                                                    |
+| Export                                                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `resolveApplicationServerId(application, type)`         | Resolves `` `${id}-${type}` `` from that Application's own stable-id env var — `` `${APPLICATION}_SERVER_ID` `` (e.g. `'admin'` → `ADMIN_SERVER_ID`, `'admin-hub'` → `ADMIN_HUB_SERVER_ID`) — read at call time, not import time, to pass as `bootstrapServers`'s explicit `id`. See [Handlers → Applications](./HANDLERS.md#applications) for why a stable `id` matters. Returns `undefined` when the env var isn't set — there is no random fallback. |
+| `resolvePreviousApplicationServerId(application, type)` | The rotation-window counterpart — resolves `` `${APPLICATION}_SERVER_ID_PREVIOUS` `` (e.g. `ADMIN_SERVER_ID_PREVIOUS`, `ADMIN_HUB_SERVER_ID_PREVIOUS`) to pass as `bootstrapServers`'s `previousId`. `compileRuntime` throws if this resolves to a value while `resolveApplicationServerId` doesn't (nothing to rotate from).                                                                                                                           |
+
+Two independent Application-scoped servers in the same process (e.g. `@zanix/core`'s embedded
+`admin` option alongside `@zanix/admin`'s own `ZanixAdminHub.start()`) each pin their own address
+via their own env var pair, so they can both be anchored at once without colliding on the same
+prefix — see [Handlers → Boot sessions](./HANDLERS.md#boot-sessions) for how `@zanix/server` also
+keeps their route registration from corrupting each other, even fired without a sequential `await`
+between them.
 
 ## See also
 

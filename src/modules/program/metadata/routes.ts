@@ -1,6 +1,7 @@
 import type { MiddlewaresContainer } from './middlewares.ts'
 import type { TargetContainer } from './targets/main.ts'
 import type { ApplicationContainer } from './application.ts'
+import type { BootSessionContainer } from './session.ts'
 import type { MetadataTargetSymbols } from 'typings/program.ts'
 import type { HttpMethod, RouteDefinitionProps, RoutesObject } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
@@ -19,6 +20,7 @@ export class RouteContainer extends BaseContainer {
     private middlewares: MiddlewaresContainer,
     private targets: TargetContainer,
     private applications: ApplicationContainer,
+    private sessions: BootSessionContainer,
   ) {
     super()
   }
@@ -107,6 +109,7 @@ export class RouteContainer extends BaseContainer {
       : definition as RouteDefinitionProps & { Target: MetadataTargetSymbols['Target'] }
 
     const application = applicationOverride ?? this.applications.getCurrent()
+    this.sessions.recordApplication(application)
 
     const routes = this.getData<RoutesObject>(this.#routesKey) || []
 
@@ -136,6 +139,32 @@ export class RouteContainer extends BaseContainer {
    */
   public getRoutes(type: WebServerTypes): RoutesObject[keyof RoutesObject] {
     return this.getData<RoutesObject>(this.#routesKey)?.[type]
+  }
+
+  /**
+   * Removes every route (of every server type) EXCEPT those whose `application` is in `preserve`
+   * — unlike the inherited `resetContainer()`, which wipes the entire registry unconditionally.
+   * Used by `finalize` cleanup, given the Applications a DIFFERENT, still-in-flight boot session
+   * (see `BootSessionContainer.getForeignActiveApplications`) currently owns, so an independent,
+   * temporally-overlapping session's not-yet-served routes survive. Deliberately still able to
+   * remove routes for an Application THIS call never itself served — the existing multi-call
+   * pattern (an `'admin'`-Application server followed by the default Application's, `finalize:false`
+   * then `finalize:true`) depends on the LAST call sweeping every Application touched earlier in the
+   * SAME sequence, not just its own; `preserve` only ever contains OTHER sessions' Applications.
+   */
+  public resetExceptApplications(preserve: Set<string>): void {
+    const routes = this.getData<RoutesObject>(this.#routesKey)
+    if (!routes) return
+
+    for (const type of Object.keys(routes) as WebServerTypes[]) {
+      const byPath = routes[type]
+      if (!byPath) continue
+      for (const fullPath of Object.keys(byPath)) {
+        if (!preserve.has(byPath[fullPath].application)) delete byPath[fullPath]
+      }
+    }
+
+    this.setData<RoutesObject>(this.#routesKey, routes)
   }
 
   /**

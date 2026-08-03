@@ -58,4 +58,22 @@ export class DiscoveryContainer extends BaseContainer {
     const byResource = registry?.get(application)
     return byResource ? Array.from(byResource.entries()) : []
   }
+
+  /**
+   * Removes every Application's bucket EXCEPT those in `preserve` — the Discovery-side counterpart
+   * of `RouteContainer.resetExceptApplications`, used the same way by `finalize` cleanup so an
+   * independent, temporally-overlapping boot session's not-yet-served Discovery providers survive.
+   */
+  public resetExceptApplications(preserve: Set<string>): void {
+    const registry = this.getData<Map<string, Map<string, DiscoveryRegistration>>>(
+      this.#discoveryKey,
+    )
+    if (!registry) return
+
+    for (const application of registry.keys()) {
+      if (!preserve.has(application)) registry.delete(application)
+    }
+
+    this.setData(this.#discoveryKey, registry)
+  }
 }

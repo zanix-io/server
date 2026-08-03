@@ -148,6 +148,36 @@ export class TargetContainer extends BaseInstancesContainer {
   }
 
   /**
+   * Removes every resolver key EXCEPT those tagged with an Application in `preserve` (leaving the
+   * survivors' own `type:resolver:application:{key}` tag untouched, deleting a removed key's tag
+   * alongside it) — the resolver-side counterpart of `RouteContainer.resetExceptApplications`/
+   * `DiscoveryContainer.resetExceptApplications`, used by `finalize` cleanup given the Applications
+   * a DIFFERENT, still-in-flight boot session currently owns, so an independent,
+   * temporally-overlapping session's not-yet-served resolvers survive. A key with no recorded
+   * Application tag is treated as NOT preserved (removed) — it was never attributed to any session
+   * in the first place, so it falls back to the original, unscoped full-wipe behavior for that entry.
+   */
+  public resetResolversExceptApplications(
+    preserve: Set<string>,
+    container: object = this,
+  ): void {
+    const keys = this.getData<string[]>('type:resolver', container) || []
+    const remaining: string[] = []
+
+    for (const key of keys) {
+      const tagKey = `type:resolver:application:${key}`
+      const application = this.getData<string>(tagKey, container)
+      if (application !== undefined && preserve.has(application)) {
+        remaining.push(key)
+      } else {
+        this.deleteData(tagKey, container)
+      }
+    }
+
+    this.setData('type:resolver', remaining, container)
+  }
+
+  /**
    * Function to add a `property` or `symbol` to a specified target class
    */
   public addProperty({ Target, propertyKey, type = 'handler' }: MetadataTargetSymbols) {

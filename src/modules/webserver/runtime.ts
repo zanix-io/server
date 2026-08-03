@@ -23,15 +23,16 @@ export type RuntimeActivation = {
    * named composition boundary (see `docs/HANDLERS.md`'s "Applications" section). Whether a given
    * Runtime gets the id-anchored, obscured-URL treatment is this field's own, explicit decision —
    * `@zanix/core`'s admin bootstrap and `@zanix/admin`'s own standalone server both set one for
-   * their own admin Runtime (via `ADMIN_SERVER_ID`), but that's a choice each makes for its own
-   * activation, not something implied by composing under a non-default Application.
+   * their own admin Runtime (via `resolveApplicationServerId`, reading their own
+   * `ADMIN_SERVER_ID`/`ADMIN_HUB_SERVER_ID` respectively), but that's a choice each makes for its
+   * own activation, not something implied by composing under a non-default Application.
    */
   explicitId?: ServerID
   /**
    * A previous id to keep dispatching alongside `explicitId`, for a bounded manual rotation
-   * window — see `resolvePreviousAdminServerId`/`ADMIN_SERVER_ID_PREVIOUS`. Both prefixes reach
-   * the same routes simultaneously while this is set, so callers still using the old address keep
-   * working until they're updated to the new one. Only meaningful alongside `explicitId`;
+   * window — see `resolvePreviousApplicationServerId`. Both prefixes reach the same routes
+   * simultaneously while this is set, so callers still using the old address keep working until
+   * they're updated to the new one. Only meaningful alongside `explicitId`;
    * `compileRuntime` throws if given without it (there is nothing to rotate *from*).
    *
    * **Not supported for `type: 'graphql'`** — `compileRuntime` throws if given for that type.

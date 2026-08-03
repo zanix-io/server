@@ -16,6 +16,35 @@ Deno.test('PublicProgramModule.registry: exposes the ProgramModule registry cont
   assertEquals(PublicProgramModule.registry, ProgramModule.registry)
 })
 
+Deno.test({
+  name:
+    "PublicProgramModule.runBootSession: delegates to ProgramModule.sessions.runSession, returning setup's own result",
+  fn: async () => {
+    let releaseRunBootSession: () => void = () => {}
+    const gate = new Promise<void>((resolve) => (releaseRunBootSession = resolve))
+
+    const runBootSessionPromise = PublicProgramModule.runBootSession(async () => {
+      ProgramModule.sessions.recordApplication('public-run-boot-session-test')
+      await gate
+      return 'setup-result'
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0)) // let runBootSession actually start
+
+    // Checked from a genuinely separate, concurrently-running session context — proves the ambient
+    // session `runBootSession` established really is the one `recordApplication` above wrote into
+    // (an unrelated session sees it as foreign/active while `runBootSession`'s own callback is still
+    // in flight), not just that `recordApplication` happened to run without an active session at all.
+    let sawApplications: Set<string> | undefined
+    await ProgramModule.sessions.runSession(() => {
+      sawApplications = ProgramModule.sessions.getForeignActiveApplications()
+    })
+    assert(sawApplications?.has('public-run-boot-session-test'))
+
+    releaseRunBootSession()
+    assertEquals(await runBootSessionPromise, 'setup-result')
+  },
+})
+
 class PublicTestProvider extends ZanixProvider {
   public override use(_: unknown): ZanixConnector {
     throw new Error('Method not implemented.')

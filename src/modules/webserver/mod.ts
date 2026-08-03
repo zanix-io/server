@@ -129,6 +129,15 @@ export const bootstrapServers = async (
   server: BootstrapServerOptions = {},
   { finalize = true }: { finalize?: boolean } = {},
 ): Promise<ServerID[]> => {
+  return await ProgramModule.sessions.runSession(async () =>
+    await bootstrapServersImpl(server, finalize)
+  )
+}
+
+const bootstrapServersImpl = async (
+  server: BootstrapServerOptions,
+  finalize: boolean,
+): Promise<ServerID[]> => {
   const servers: ServerID[] = []
 
   const restApplication = server.rest?.application ?? DEFAULT_APPLICATION

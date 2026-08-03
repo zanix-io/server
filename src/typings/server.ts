@@ -229,8 +229,8 @@ export type BootstrapServerOptions = Partial<
        * rotation window — both prefixes reach the same routes simultaneously while this is set, so
        * callers still using the old address keep working until they're updated to the new one. Only
        * meaningful alongside `id`; `compileRuntime` throws if given without it. See
-       * `resolvePreviousAdminServerId`/`ADMIN_SERVER_ID_PREVIOUS` for the built-in admin rotation
-       * runbook.
+       * `resolvePreviousApplicationServerId` for the built-in rotation runbook any
+       * Application-scoped server can use.
        */
       previousId?: ServerID
     }

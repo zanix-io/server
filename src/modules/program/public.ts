@@ -352,10 +352,37 @@ export class Program {
     options: { guards?: MiddlewareGuard[] } = {},
   ): void {
     const application = ProgramModule.applications.getCurrent()
+    ProgramModule.sessions.recordApplication(application)
     ProgramModule.discovery.define(application, resourceType, {
       provider,
       guards: options.guards ?? [],
     })
+  }
+
+  /**
+   * Runs `setup` (typically a whole top-level `start()`/`bootstrap()` sequence — e.g. every
+   * `defineApplication`/`bootstrapServers()` call it makes) under one shared "boot session" (see
+   * `BootSessionContainer`), so `finalize` cleanup at the end of that sequence's own last
+   * `bootstrapServers()` call preserves whichever Applications an independent,
+   * temporally-overlapping sequence (e.g. `Zanix.start()` and `ZanixAdminHub.start()` fired
+   * without an `await` between them) currently owns, never wiping its not-yet-served
+   * routes/discovery/resolvers — while still being free to sweep every Application THIS sequence
+   * itself touched, even ones an earlier call in the SAME sequence registered but never itself
+   * served. `bootstrapServers()` already wraps its own body in this, so a bare call gets a
+   * session of its own; wrapping a WIDER multi-call sequence in one outer call here is what lets
+   * every `bootstrapServers()` call nested inside share that one session instead of forking its own.
+   * Nesting is safe and cheap: an inner `runBootSession` call while one is already active just
+   * reuses the ambient session unchanged.
+   *
+   * @example
+   * await ProgramModule.runBootSession(async () => {
+   *   await defineAdminMetadata()
+   *   await bootstrapServers(adminOptions, { finalize: false })
+   *   await bootstrapServers(mainOptions) // last call — finalizes the whole session
+   * })
+   */
+  public runBootSession<R>(setup: () => R | Promise<R>): Promise<R> {
+    return ProgramModule.sessions.runSession(setup)
   }
 }
 

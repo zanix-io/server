@@ -181,6 +181,83 @@ Deno.test({
 
 Deno.test({
   name:
+    "cleanupInitializationsMetadata(postBoot, finalize:true) called while a DIFFERENT session is still active preserves that session's Applications instead of wiping everything",
+  fn: async () => {
+    const program = new ProgramClass()
+
+    const resetExceptRoutesStub = stub(program.routes, 'resetExceptApplications')
+    const resetExceptDiscoveryStub = stub(program.discovery, 'resetExceptApplications')
+    const resetResolversExceptStub = stub(program.targets, 'resetResolversExceptApplications')
+    const resetRoutesStub = stub(program.routes, 'resetContainer')
+    const resetDiscoveryStub = stub(program.discovery, 'resetContainer')
+
+    let releaseOtherSession: () => void = () => {}
+    const otherSessionGate = new Promise<void>((resolve) => {
+      releaseOtherSession = resolve
+    })
+
+    // Simulates a different, concurrently-running boot session (e.g. `ZanixAdminHub.start()`)
+    // that has registered `'admin-hub'` but hasn't finished yet.
+    const otherSession = program.sessions.runSession(async () => {
+      program.sessions.recordApplication('admin-hub')
+      await otherSessionGate
+    })
+    await new Promise((resolve) => setTimeout(resolve, 0)) // let the other session actually start
+
+    // Cleanup runs OUTSIDE that other session (mirrors any caller — a raw call, or a third
+    // session) while it's still in flight.
+    program.cleanupInitializationsMetadata('postBoot')
+
+    // The exclude-scoped methods run, preserving the still-active OTHER session's Applications —
+    // never the unconditional full-registry wipe.
+    assertSpyCalls(resetExceptRoutesStub, 1)
+    assertEquals([...(resetExceptRoutesStub.calls[0].args[0] as Set<string>)], ['admin-hub'])
+    assertSpyCalls(resetExceptDiscoveryStub, 1)
+    assertSpyCalls(resetResolversExceptStub, 1)
+    assertSpyCalls(resetRoutesStub, 0)
+    assertSpyCalls(resetDiscoveryStub, 0)
+
+    releaseOtherSession()
+    await otherSession
+
+    resetExceptRoutesStub.restore()
+    resetExceptDiscoveryStub.restore()
+    resetResolversExceptStub.restore()
+    resetRoutesStub.restore()
+    resetDiscoveryStub.restore()
+  },
+})
+
+Deno.test({
+  name:
+    'cleanupInitializationsMetadata(postBoot, finalize:true) INSIDE one session, with no other session active, still does the full unscoped wipe (including Applications this same session itself touched)',
+  fn: async () => {
+    const program = new ProgramClass()
+
+    const resetExceptRoutesStub = stub(program.routes, 'resetExceptApplications')
+    const resetRoutesStub = stub(program.routes, 'resetContainer')
+    const resetDiscoveryStub = stub(program.discovery, 'resetContainer')
+
+    await program.sessions.runSession(() => {
+      program.sessions.recordApplication('admin')
+      program.cleanupInitializationsMetadata('postBoot')
+    })
+
+    // No OTHER session was ever concurrently active, so `getForeignActiveApplications()` is
+    // empty and cleanup falls back to the original full wipe — exactly matching the existing
+    // single-sequence multi-call pattern (e.g. `'admin'` then `'main'`, both in one session).
+    assertSpyCalls(resetExceptRoutesStub, 0)
+    assertSpyCalls(resetRoutesStub, 1)
+    assertSpyCalls(resetDiscoveryStub, 1)
+
+    resetExceptRoutesStub.restore()
+    resetRoutesStub.restore()
+    resetDiscoveryStub.restore()
+  },
+})
+
+Deno.test({
+  name:
     'cleanupInitializationsMetadata(postBoot, finalize:false) preserves type:resolver and routes',
   fn: () => {
     const program = new ProgramClass()

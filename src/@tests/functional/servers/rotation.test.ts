@@ -8,7 +8,7 @@ stub(console, 'info')
 
 // Manual rotation window: `previousId` keeps the retiring anchored prefix reachable alongside the
 // new one, so callers still configured with the old address keep working until they're updated —
-// no synchronized cutover needed. See `resolvePreviousAdminServerId`/`ADMIN_SERVER_ID_PREVIOUS`.
+// no synchronized cutover needed. See `resolvePreviousApplicationServerId`.
 Deno.test(
   'rotation: both the current and previous anchored prefixes reach the same routes simultaneously, a third unrelated prefix does not',
   async () => {

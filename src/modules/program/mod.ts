@@ -9,6 +9,7 @@ import { HANDLER_METADATA_PROPERTY_KEY } from 'utils/constants.ts'
 import { RegistryContainer } from './metadata/registry.ts'
 import { ApplicationContainer } from './metadata/application.ts'
 import { DiscoveryContainer } from './metadata/discovery.ts'
+import { BootSessionContainer } from './metadata/session.ts'
 
 /**
  * Class that manages containers for middlewares, targets, routes, decorators, and context.
@@ -35,6 +36,14 @@ export class InternalProgram {
   public applications: ApplicationContainer = new ApplicationContainer()
 
   /**
+   * Boot-session container resolving which top-level `bootstrapServers()`-driven sequence a
+   * capability being registered right now belongs to — see its own doc. Declared before `routes` so
+   * it's available for injection there.
+   * @type {BootSessionContainer}
+   */
+  public sessions: BootSessionContainer = new BootSessionContainer()
+
+  /**
    * Route container that interacts with middlewares and targets.
    * @type {RouteContainer}
    */
@@ -42,6 +51,7 @@ export class InternalProgram {
     this.middlewares,
     this.targets,
     this.applications,
+    this.sessions,
   )
 
   /**
@@ -105,9 +115,20 @@ export class InternalProgram {
       this.targets.resetContainer(removeTargets)
 
       if (finalize) {
-        this.targets.resetContainer(['type:resolver'])
-        this.routes.resetContainer()
-        this.discovery.resetContainer()
+        // Preserves only what a DIFFERENT, still-in-flight session currently owns — everything
+        // else is swept, exactly like the original unscoped full wipe. Empty whenever no other
+        // session is genuinely concurrent right now (the common case, including every call within
+        // one single-session multi-call sequence), so this reduces to that original full wipe then.
+        const foreignApplications = this.sessions.getForeignActiveApplications()
+        if (foreignApplications.size) {
+          this.targets.resetResolversExceptApplications(foreignApplications)
+          this.routes.resetExceptApplications(foreignApplications)
+          this.discovery.resetExceptApplications(foreignApplications)
+        } else {
+          this.targets.resetContainer(['type:resolver'])
+          this.routes.resetContainer()
+          this.discovery.resetContainer()
+        }
       }
       return
     }
