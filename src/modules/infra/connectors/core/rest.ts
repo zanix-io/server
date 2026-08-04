@@ -75,7 +75,7 @@ function identityKey(headers: HeadersInit | undefined, identityHeaders: string[]
  * const user = await client.getUser('123');
  */
 export class RestClient extends ZanixConnector {
-  #options
+  #httpOptions
   /**
    * Headers included in the ETag cache key identity.
    * Override in subclasses to add identity-specific headers.
@@ -85,11 +85,18 @@ export class RestClient extends ZanixConnector {
     AUTH_HEADERS.api.toLowerCase(),
   ]
 
-  /** Convenience methods (`get`, `post`, `put`, `patch`, `delete`) for issuing REST requests. */
-  public http: Record<
-    Exclude<Lowercase<HttpMethod>, 'options' | 'head'>,
-    <T>(endpoint: string, options?: RestFullOptions) => Promise<T>
-  >
+  /** Convenience methods (`get`, `post`, `put`, `patch`, `delete`, `head`) for issuing REST requests. */
+  public http:
+    & Record<
+      Exclude<Lowercase<HttpMethod>, 'head'>,
+      <T>(endpoint: string, options?: RestFullOptions) => Promise<T>
+    >
+    & {
+      head: (
+        endpoint: string,
+        options?: RestFullOptions,
+      ) => Promise<Response>
+    }
 
   /**
    * Creates the REST client, merging the given options with the default JSON content headers.
@@ -107,7 +114,7 @@ export class RestClient extends ZanixConnector {
       : options
 
     super({ contextId, autoInitialize })
-    this.#options = {
+    this.#httpOptions = {
       ...restOptions,
       headers: { ...JSON_CONTENT_HEADER, ...restOptions.headers },
     }
@@ -118,6 +125,8 @@ export class RestClient extends ZanixConnector {
       delete: this.#delete.bind(this),
       get: this.#get.bind(this),
       patch: this.#patch.bind(this),
+      head: this.#head.bind(this),
+      options: this.#options.bind(this),
     }
   }
 
@@ -145,15 +154,21 @@ export class RestClient extends ZanixConnector {
   #patch = <T>(endpoint: string, options?: RestFullOptions) =>
     this.#http<T>('PATCH', endpoint, options)
 
+  #options = <T>(endpoint: string, options?: RestFullOptions) =>
+    this.#http<T>('OPTIONS', endpoint, options)
+
+  #head = (endpoint: string, options?: RestFullOptions): Promise<Response> =>
+    this.#http<Response>('HEAD', endpoint, options)
+
   #http = async <T = unknown>(
     method: string,
     endpoint: string,
     options?: RestFullOptions,
   ): Promise<T> => {
     options = {
-      ...this.#options,
+      ...this.#httpOptions,
       ...options,
-      headers: { ...this.#options.headers, ...options?.headers },
+      headers: { ...this.#httpOptions.headers, ...options?.headers },
     }
 
     const baseUrl = options.baseUrl
@@ -164,6 +179,15 @@ export class RestClient extends ZanixConnector {
     delete options.etag
 
     const [protocol, restOfUrl] = (baseUrl ? `${baseUrl}/${endpoint}` : endpoint).split('://')
+
+    if (!restOfUrl) {
+      throw new HttpError('CONFLICT', {
+        cause: '[RestClient]: invalid url',
+        message: 'Rest Client Http Error',
+        meta: { source: 'zanix', baseUrl },
+      })
+    }
+
     const url = `${protocol}:/${cleanRoute(restOfUrl, true)}`
     const cacheKey = `${url} ${identityKey(options.headers, this.etagIdentityHeaders)}`
 
@@ -186,11 +210,21 @@ export class RestClient extends ZanixConnector {
         throw new Error(`[HTTP ${response.status}] ${response.statusText}\n${text}`)
       }
 
-      const value = response.headers.get('Content-Type')?.includes(
-          JSON_CONTENT_HEADER['Content-Type'],
-        )
-        ? await response.json()
-        : await response.text()
+      if (method === 'HEAD') {
+        return response as T
+      }
+
+      if (response.status === 204 || response.status === 205) {
+        return undefined as T
+      }
+
+      const text = await response.text()
+
+      const value = response.headers
+          .get('Content-Type')
+          ?.includes(JSON_CONTENT_HEADER['Content-Type'])
+        ? (text ? JSON.parse(text) : undefined)
+        : text
 
       const etag = response.headers.get('ETag')
       if (useEtag && etag) etagCache.set(cacheKey, { etag, value })

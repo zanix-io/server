@@ -84,7 +84,7 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
 
   const ctx = {
     contextId: 'context-id',
-    verbose: undefined,
+    verbose: true,
     caller: testInstance,
   }
   // Validate args

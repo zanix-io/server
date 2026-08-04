@@ -33,6 +33,7 @@ function missingCoreSlotError(
   kind: 'provider' | 'connector',
   key: string,
   slot: { sourcePackage?: string } | undefined,
+  verbose?: boolean,
   cause?: unknown,
 ): InternalError {
   const hint = slot?.sourcePackage
@@ -47,6 +48,7 @@ function missingCoreSlotError(
   return new InternalError(message, {
     meta: { source: 'zanix', slot: key, kind, sourcePackage: slot?.sourcePackage },
     cause,
+    shouldLog: !!verbose,
   })
 }
 
@@ -143,12 +145,14 @@ export class Program {
 
       const key = Provider
       const slot = getCoreProviderSlot(key)
-      if (!slot) throw missingCoreSlotError('provider', key, undefined)
+      if (!slot) throw missingCoreSlotError('provider', key, undefined, verbose)
 
       try {
         return ProgramModule.targets.getProvider(key, { contextId: ctxId, verbose, caller })
       } catch (e) {
-        if (isUnresolvedTargetError(e)) throw missingCoreSlotError('provider', key, slot, e)
+        if (isUnresolvedTargetError(e)) {
+          throw missingCoreSlotError('provider', key, slot, verbose, e)
+        }
         throw e
       }
     }
@@ -195,12 +199,14 @@ export class Program {
 
       const key = Connector
       const slot = getCoreConnectorSlot(key)
-      if (!slot) throw missingCoreSlotError('connector', key, undefined)
+      if (!slot) throw missingCoreSlotError('connector', key, undefined, verbose)
 
       try {
         return ProgramModule.targets.getConnector(key, { contextId: ctxId, verbose, caller })
       } catch (e) {
-        if (isUnresolvedTargetError(e)) throw missingCoreSlotError('connector', key, slot, e)
+        if (isUnresolvedTargetError(e)) {
+          throw missingCoreSlotError('connector', key, slot, verbose, e)
+        }
         throw e
       }
     }

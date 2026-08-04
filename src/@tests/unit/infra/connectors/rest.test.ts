@@ -365,3 +365,85 @@ Deno.test(
     assertStrictEquals(PublicProgramModule.connectors.get(NoConstructorOverrideClient), resolved)
   },
 )
+
+Deno.test('RestClient: invalid url', () => {
+  const client = new MyApiClient({ baseUrl: undefined })
+
+  assertRejects(
+    () => client.http.get('/test'),
+    HttpError,
+    'invalid url',
+  )
+})
+
+Deno.test('HEAD makes a request with correct method and returns response metadata', async () => {
+  const mockFetch = spy((_url: string, _opts: any) =>
+    Promise.resolve(
+      new Response(null, {
+        status: 200,
+        headers: {
+          ETag: '"abc123"',
+          'Content-Length': '42',
+        },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.head('/users/123')
+
+  assertEquals(result.status, 200)
+  assertEquals(result.headers.get('ETag'), '"abc123"')
+
+  assertSpyCalls(mockFetch, 1)
+  const call = mockFetch.calls[0].args[1]
+  assertEquals(call.method, 'HEAD')
+})
+
+Deno.test('OPTIONS makes a request with correct method and returns JSON', async () => {
+  const mockFetch = spy((_url: string, _opts: any) =>
+    Promise.resolve(
+      new Response(JSON.stringify({ methods: ['GET', 'POST'] }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.options<{ methods: string[] }>('/users')
+
+  assertEquals(result, { methods: ['GET', 'POST'] })
+
+  assertSpyCalls(mockFetch, 1)
+  const call = mockFetch.calls[0].args[1]
+  assertEquals(call.method, 'OPTIONS')
+})
+
+Deno.test('204 and 205 No Content returns undefined', async () => {
+  const checkNoContent = async (status: number) => {
+    const mockFetch = spy(() =>
+      Promise.resolve(
+        new Response(null, {
+          status: status,
+        }),
+      )
+    )
+
+    globalThis.fetch = mockFetch as unknown as typeof fetch
+
+    const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+    const result = await client.http.delete('/users/123')
+
+    assertEquals(result, undefined)
+    assertSpyCalls(mockFetch, 1)
+  }
+
+  await checkNoContent(204)
+  await checkNoContent(205)
+})

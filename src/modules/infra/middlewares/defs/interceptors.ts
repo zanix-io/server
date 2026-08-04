@@ -52,6 +52,11 @@ export function registerGlobalInterceptor(
 
   getTargetKey(target) // validate internal key use
 
+  // Runtime errors retrieved by `getInteractors`, `getConnectors`, and `getProviders`
+  // are handled with `verbose` disabled. In HTTP applications, exceptions are captured by the framework's
+  // middleware and translated into the corresponding HTTP response. Server-side logging
+  // is controlled by the `verbose` option: `true` or `undefined` enables error logging,
+  // while `false` disables it.
   const interceptor: MiddlewareInterceptor = (ctx, response) => {
     return target({ ...ctx, interactors: getInteractors(ctx.id) }, response)
   }

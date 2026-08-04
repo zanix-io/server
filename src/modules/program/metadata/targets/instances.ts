@@ -130,6 +130,12 @@ export abstract class BaseInstancesContainer extends BaseContainer {
 
       const context = isSingleton ? DEFAULT_CONTEXT_ID : (params || DEFAULT_CONTEXT_ID)
 
+      if (typeof Target !== 'function') {
+        throw new TypeError(
+          '[BaseInstancesContainer]: Target is not a constructor. Ensure the corresponding class is decorated with the appropriate DI registration decorator.',
+        )
+      }
+
       const instance = new Target(context) as T
 
       this.instanceFreeze(instance)

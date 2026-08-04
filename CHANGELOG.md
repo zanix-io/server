@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.1.2] - 2026-08-04
+
+- Fixed CoreSlot verbose logging behavior.
+- Improved RestClient URL validation to prevent invalid endpoint configurations from proceeding and
+  provide a clearer HTTP conflict error when the URL is incomplete.
+- Added support for HEAD and OPTIONS HTTP methods in RestClient.
+
 ## [3.1.1] - 2026-08-03
 
 ### Fixed

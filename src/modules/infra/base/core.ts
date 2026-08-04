@@ -37,13 +37,19 @@ export abstract class CoreBaseClass<T extends CoreModules = object> extends Cont
    * modular and reusable logic. It supports seamless communication between providers and their
    * associated connectors.
    *
+   * Runtime errors are retrieved with `verbose` disabled. In HTTP applications,
+   * exceptions are captured by the framework's middleware and translated into
+   * the corresponding HTTP response. Server-side logging is controlled by the
+   * `verbose` option: `true` or `undefined` enables error logging, while `false`
+   * disables it.
+   *
    * Use this utility when you need to access specific connectors within your provider's logic or orchestration layer.
    *
    * @protected
    * @returns {ZanixConnectorsGetter<T>} A utility for retrieving and interacting with other connectors.
    */
   protected get connectors(): ZanixConnectorsGetter<T> {
-    return getConnectors(this.contextId, undefined, this)
+    return getConnectors(this.contextId, true, this)
   }
 
   /**
@@ -54,6 +60,12 @@ export abstract class CoreBaseClass<T extends CoreModules = object> extends Cont
    * Use this method for composing features that are already implemented in other providers, helping to build
    * layered and reusable system components.
    *
+   * Runtime errors are retrieved with `verbose` disabled. In HTTP applications,
+   * exceptions are captured by the framework's middleware and translated into
+   * the corresponding HTTP response. Server-side logging is controlled by the
+   * `verbose` option: `true` or `undefined` enables error logging, while `false`
+   * disables it.
+   *
    * Use this utility when you need combining or reusing existing provider functionality
    * that is already implemented elsewhere in the system.
    *
@@ -61,7 +73,7 @@ export abstract class CoreBaseClass<T extends CoreModules = object> extends Cont
    * @returns {ZanixProvidersGetter<T>} A utility for retrieving and interacting with other providers.
    */
   protected get providers(): ZanixProvidersGetter<T> {
-    return getProviders(this.contextId, undefined, this)
+    return getProviders(this.contextId, true, this)
   }
 
   /**

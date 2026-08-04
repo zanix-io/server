@@ -25,6 +25,12 @@ export const mainGuard = async (context: HandlerContext, guards: MiddlewareGuard
   let baseHeaders: Record<string, string> = {}
 
   // Avoid destructuring because guards may mutate the context at runtime
+
+  // Runtime errors are retrieved with `verbose` disabled. In HTTP applications,
+  // exceptions are captured by the framework's middleware and translated into
+  // the corresponding HTTP response. Server-side logging is controlled by the
+  // `verbose` option: `true` or `undefined` enables error logging, while `false`
+  // disables it.
   Object.assign(context, {
     interactors: getInteractors(context.id),
     providers: getProviders(context.id),

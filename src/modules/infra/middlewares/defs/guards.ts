@@ -52,6 +52,11 @@ export function registerGlobalGuard(
 
   delete target['exports' as never]
 
+  // Runtime errors retrieved by `getInteractors`, `getConnectors`, and `getProviders`
+  // are handled with `verbose` disabled. In HTTP applications, exceptions are captured by the framework's
+  // middleware and translated into the corresponding HTTP response. Server-side logging
+  // is controlled by the `verbose` option: `true` or `undefined` enables error logging,
+  // while `false` disables it.
   const guard: MiddlewareGuard = (ctx) =>
     target({
       ...ctx,
