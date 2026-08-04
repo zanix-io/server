@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import type { CoreCacheConnectors } from './program.ts'
+import type { CoreCacheConnectors, CoreConnectors, CoreProviders } from './program.ts'
 import type { ZanixCacheConnector } from 'modules/infra/connectors/core/cache.ts'
 import type { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 import type { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
@@ -113,7 +113,7 @@ export interface ZanixConnectorsGetter<T extends CoreModules = object> {
   /** Retrieves an instance of the given Connector class. */
   get<D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D>): D
   /** Retrieves an instance by a string key not declared in `T`, loosely typed. */
-  get<T extends ZanixConnectorGeneric>(key: string): T
+  get<T extends ZanixConnectorGeneric>(key: CoreConnectors): T
 }
 
 /**
@@ -128,7 +128,7 @@ export interface ZanixProvidersGetter<T extends CoreModules = object> {
   /** Retrieves an instance of the given Provider class. */
   get<D extends ZanixProviderGeneric>(Provider: ZanixProviderClass<D>): D
   /** Retrieves an instance by a string key not declared in `T`, loosely typed. */
-  get<T extends ZanixProviderGeneric>(key: string): T
+  get<T extends ZanixProviderGeneric>(key: CoreProviders): T
 }
 
 /**

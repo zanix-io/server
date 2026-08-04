@@ -7,6 +7,20 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-08-03
+
+### Fixed
+
+- `RestClient`'s constructor now also accepts a bare `contextId` string
+  (`new RestClient('some-id')`), matching the base `ZanixConnector`'s own
+  `string | ConnectorOptions` constructor — previously it only accepted an options object
+  (`RequestOptions`), breaking the contract `ZanixConnectorClass<T>`
+  (`new (contextId?: string) => T`) promises. Any `RestClient` subclass that never overrode the
+  constructor (the common case for a custom REST connector, e.g.
+  `class SAPConnector extends RestClient {}`) failed every overload of
+  `this.connectors.get(SomeRestClientSubclass)` with `deno-ts(2769) No overload matches this call` —
+  not a consumer mistake, a real gap between `RestClient` and its own base class.
+
 ## [3.1.0] - 2026-08-03
 
 ### Added

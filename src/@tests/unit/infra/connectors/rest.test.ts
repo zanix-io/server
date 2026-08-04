@@ -1,8 +1,11 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertSpyCalls, spy } from '@std/testing/mock'
-import { assert, assertEquals, assertRejects } from '@std/assert'
+import { assert, assertEquals, assertRejects, assertStrictEquals } from '@std/assert'
 import { HttpError } from '@zanix/errors'
 import { resetRestClientEtagCache, RestClient } from 'modules/infra/connectors/core/rest.ts'
+import ProgramModule from 'modules/program/mod.ts'
+import PublicProgramModule from 'modules/program/public.ts'
+import { getTargetKey } from 'utils/targets.ts'
 
 globalThis.fetch = () => {
   throw new Error('fetch not mocked')
@@ -14,6 +17,12 @@ class MyApiClient extends RestClient {
     super(options)
   }
 }
+
+// A subclass that never overrides the constructor — the common, realistic case (e.g. a
+// `@Connector`-decorated custom REST connector like `class SAPConnector extends RestClient {}`) —
+// inherits `RestClient`'s own constructor type exactly, unlike `MyApiClient` above whose explicit
+// `options?: any` constructor happens to satisfy any shape regardless of this fix.
+class NoConstructorOverrideClient extends RestClient {}
 
 // --- Tests ---
 
@@ -120,6 +129,28 @@ Deno.test('cleans route URLs with double slashes and can be rewrited by options'
 
   assertSpyCalls(mockFetch, 3)
 })
+
+Deno.test(
+  'RestClient: accepts a bare contextId string, same as the base ZanixConnector — required for a subclass to satisfy ZanixConnectorClass<T>',
+  async () => {
+    const mockFetch = spy((_url: string, _opts: any) =>
+      Promise.resolve(
+        new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    )
+    globalThis.fetch = mockFetch as unknown as typeof fetch
+
+    // Never throws while destructuring `contextId`/`autoInitialize` off a plain string — that was
+    // the actual runtime break behind the type error, not just a typing gap.
+    const client = new MyApiClient('some-context-id')
+    const result = await client.http.get('https://api.example.com/users/1')
+
+    assertEquals(result, { ok: true })
+  },
+)
 
 Deno.test('RestClient: default close() and isHealthy() implementations', () => {
   const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
@@ -311,5 +342,26 @@ Deno.test(
     assertEquals(resultA, { tenant: 'Bearer tenant-a' })
     assertEquals(resultB, { tenant: 'Bearer tenant-b' })
     assertSpyCalls(mockFetch, 2)
+  },
+)
+
+// Regression test for a real bug: a `RestClient` subclass that never overrides the constructor
+// (the common case for a custom REST connector, e.g. `class SAPConnector extends RestClient {}`)
+// used to fail every overload of `this.connectors.get(SomeRestClientSubclass)` — `deno-ts(2769)`,
+// `No overload matches this call` — because `ZanixConnectorClass<T>` expects a `(contextId?:
+// string) => T` constructor, and `RestClient` only accepted an options object before this fix.
+Deno.test(
+  'RestClient: a subclass that never overrides the constructor resolves via ProgramModule.connectors.get(Class), same as the base ZanixConnector',
+  () => {
+    ProgramModule.targets.defineTarget(getTargetKey(NoConstructorOverrideClient), {
+      Target: NoConstructorOverrideClient,
+      type: 'connector',
+      lifetime: 'SINGLETON',
+    })
+
+    const resolved = PublicProgramModule.connectors.get(NoConstructorOverrideClient)
+
+    assert(resolved instanceof NoConstructorOverrideClient)
+    assertStrictEquals(PublicProgramModule.connectors.get(NoConstructorOverrideClient), resolved)
   },
 )

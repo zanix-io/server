@@ -91,12 +91,25 @@ export class RestClient extends ZanixConnector {
     <T>(endpoint: string, options?: RestFullOptions) => Promise<T>
   >
 
-  /** Creates the REST client, merging the given options with the default JSON content headers. */
-  constructor({ contextId, autoInitialize, ...options }: RequestOptions = {}) {
+  /**
+   * Creates the REST client, merging the given options with the default JSON content headers.
+   *
+   * Accepts a bare `contextId` string, same as the base {@link ZanixConnector} — required for a
+   * `RestClient` subclass to satisfy `ZanixConnectorClass<T>` (`new (contextId?: string) => T`),
+   * the constructor shape `this.connectors.get(SomeRestClientSubclass)`'s class-based overload
+   * expects. Before this, any subclass that never overrode the constructor (the common case)
+   * inherited an options-object-only constructor, so passing the class itself to `.get()` failed
+   * every overload — not a consumer mistake, a real gap between this class and its own base.
+   */
+  constructor(options: string | RequestOptions = {}) {
+    const { contextId, autoInitialize, ...restOptions } = typeof options === 'string'
+      ? { contextId: options } as RequestOptions
+      : options
+
     super({ contextId, autoInitialize })
     this.#options = {
-      ...options,
-      headers: { ...JSON_CONTENT_HEADER, ...options.headers },
+      ...restOptions,
+      headers: { ...JSON_CONTENT_HEADER, ...restOptions.headers },
     }
 
     this.http = {
