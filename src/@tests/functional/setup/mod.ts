@@ -33,7 +33,11 @@ try {
     server: { globalPrefix: '/api//', cors: { origins: ['*'] } },
   })
   const id2 = webServerManager.create('socket', {
-    server: { port: SOCKET_PORT, globalPrefix: 'sock', cors: { origins: ['*'] } },
+    server: {
+      port: SOCKET_PORT,
+      globalPrefix: 'sock',
+      cors: { origins: ['*'] },
+    },
   })
   const id3 = webServerManager.create('graphql', {
     server: { port: GQL_PORT, globalPrefix: '/gql//' },
@@ -61,15 +65,33 @@ try {
   Program.cleanupInitializationsMetadata('postBoot')
 
   // check deleted metadata
-  assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'connector').length)
-  assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'interactor').length)
-  assertFalse(Program.targets.getTargetsByStartMode('postBoot', 'provider').length)
-  assertFalse(Program.targets.getTargetsByStartMode('onBoot', 'connector').length)
-  assertFalse(Program.targets.getTargetsByStartMode('onBoot', 'interactor').length)
-  assertFalse(Program.targets.getTargetsByStartMode('onBoot', 'provider').length)
-  assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'connector').length)
-  assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'interactor').length)
-  assertFalse(Program.targets.getTargetsByStartMode('onSetup', 'provider').length)
+  assertFalse(
+    Program.targets.getTargetsByStartMode('postBoot', 'connector').length,
+  )
+  assertFalse(
+    Program.targets.getTargetsByStartMode('postBoot', 'interactor').length,
+  )
+  assertFalse(
+    Program.targets.getTargetsByStartMode('postBoot', 'provider').length,
+  )
+  assertFalse(
+    Program.targets.getTargetsByStartMode('onBoot', 'connector').length,
+  )
+  assertFalse(
+    Program.targets.getTargetsByStartMode('onBoot', 'interactor').length,
+  )
+  assertFalse(
+    Program.targets.getTargetsByStartMode('onBoot', 'provider').length,
+  )
+  assertFalse(
+    Program.targets.getTargetsByStartMode('onSetup', 'connector').length,
+  )
+  assertFalse(
+    Program.targets.getTargetsByStartMode('onSetup', 'interactor').length,
+  )
+  assertFalse(
+    Program.targets.getTargetsByStartMode('onSetup', 'provider').length,
+  )
 
   // Persisted instances — one more than before this fix: `type:connector` is no longer wiped by
   // `cleanupInitializationsMetadata('postBoot')` (it's now cleared by `closeAllConnections` at

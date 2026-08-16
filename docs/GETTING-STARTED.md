@@ -25,8 +25,8 @@ class HelloController extends ZanixController {
 ## 2. Start the server
 
 `bootstrapServers` scans every registered controller, resolver, and socket class and starts the web
-servers they require (`rest`, `graphql`, `socket`). It only needs to be called once, after all your
-handler modules have been imported so their decorators run.
+servers they require (`rest`, `graphql`, `socket`, `ssr`). It only needs to be called once, after
+all your handler modules have been imported so their decorators run.
 
 ```ts
 import { bootstrapServers } from 'jsr:@zanix/server@[version]'
@@ -41,8 +41,10 @@ This starts a REST server exposing `GET /api/hello`.
 
 ## 3. Where to go next
 
-- [Handlers](./HANDLERS.md) — full guide to REST, GraphQL, and WebSocket handlers, including request
-  validation with RTOs.
+- [Handlers](./HANDLERS.md) — full guide to REST, GraphQL, WebSocket, and SSR handlers, including
+  request validation with RTOs.
+- [Applications](./APPLICATIONS.md) — Application composition, anchored servers, shared ports, boot
+  sessions, and Discovery.
 - [Middlewares](./MIDDLEWARES.md) — guards, pipes, interceptors, and global middleware registration.
 - [Dependency Injection](./DEPENDENCY-INJECTION.md) — connectors, providers, interactors, and how
   their lifecycle (`lifetime`/`startMode`) works.
@@ -60,7 +62,9 @@ go through controllers/resolvers.
 import { webServerManager } from 'jsr:@zanix/server@[version]'
 
 // create() returns a ServerID — use it (not the server type string) for every other call
-const serverId = webServerManager.create('rest', { handler: () => new Response('Hello World') })
+const serverId = webServerManager.create('rest', {
+  handler: () => new Response('Hello World'),
+})
 
 webServerManager.start(serverId)
 webServerManager.info(serverId) // { addr, protocol, type }

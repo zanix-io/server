@@ -28,7 +28,10 @@ export abstract class TargetBaseClass {
     // behavior, which copies own enumerable props only) so a subclass without its own
     // registered metadata keeps this class's defaults instead of inheriting a parent's.
     const prototype = this.constructor.prototype as Record<string, unknown>
-    const hasOwnZnxProps = Object.prototype.hasOwnProperty.call(prototype, ZANIX_PROPS)
+    const hasOwnZnxProps = Object.prototype.hasOwnProperty.call(
+      prototype,
+      ZANIX_PROPS,
+    )
     Object.defineProperty(this, ZANIX_PROPS, {
       value: hasOwnZnxProps ? prototype[ZANIX_PROPS] : this._znx_props_,
       enumerable: false,

@@ -25,7 +25,10 @@ Deno.test({
   name:
     'a global interceptor registered before a multi-call bootstrapServers() sequence is still baked into a controller decorated for the LATER call',
   fn: async () => {
-    const stampingInterceptor: MiddlewareGlobalInterceptor = (_ctx, response) => {
+    const stampingInterceptor: MiddlewareGlobalInterceptor = (
+      _ctx,
+      response,
+    ) => {
       response.headers.set('X-Onboot-Finalize-Test', 'applied')
       return response
     }
@@ -67,7 +70,9 @@ Deno.test({
     const info = webServerManager.info(secondServers[0])
     assert(info.addr, 'the second server should be listening')
 
-    const res = await fetch(`http://${info.addr.hostname}:${info.addr.port}/api/second`)
+    const res = await fetch(
+      `http://${info.addr.hostname}:${info.addr.port}/api/second`,
+    )
     assertEquals(res.headers.get('X-Onboot-Finalize-Test'), 'applied')
     await res.body?.cancel()
 

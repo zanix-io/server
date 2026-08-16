@@ -1,5 +1,14 @@
-import { assertEquals } from '@std/assert/assert-equals'
-import { multiplexer } from 'modules/webserver/helpers/handler.ts'
+import type { HttpError } from '@zanix/errors'
+
+import { assertEquals, assertExists } from '@std/assert'
+import { getMainHandler, multiplexer } from 'modules/webserver/helpers/handler.ts'
+import { getRequestFromError } from 'utils/errors/request-context.ts'
+import Program from 'modules/program/mod.ts'
+
+type TestHandler = (req: Request) => Promise<Response>
+
+console.info = () => {}
+console.error = () => {}
 
 Deno.test('multiplexer: dispatches to the handler matching the request prefix', async () => {
   const box = {
@@ -14,7 +23,434 @@ Deno.test('multiplexer: dispatches to the handler matching the request prefix', 
     info: unknown,
   ) => Promise<Response> | Response
 
-  const response = await dispatch(new Request('http://localhost/api/users'), {} as never)
+  const response = await dispatch(
+    new Request('http://localhost/api/users'),
+    {} as never,
+  )
 
   assertEquals(await (response as Response).text(), 'api-response')
 })
+
+Deno.test(
+  "getMainHandler: doesn't attach the request to a NOT_FOUND error by default",
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const request = new Request('http://localhost/unknown')
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'NOT_FOUND')
+    assertEquals(getRequestFromError(error), undefined)
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: attaches the request to a NOT_FOUND error when opted in via attachRequestToErrors',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      attachRequestToErrors: true,
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/unknown')
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'NOT_FOUND')
+    assertExists(getRequestFromError(error))
+    assertEquals(getRequestFromError(error), request)
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: attaches the request to a METHOD_NOT_ALLOWED error only when opted in',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const request = new Request('http://localhost/known', { method: 'POST' })
+
+    const defaultHandler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const defaultError = await defaultHandler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(defaultError.status.code, 'METHOD_NOT_ALLOWED')
+    assertEquals(getRequestFromError(defaultError), undefined)
+
+    const optedInHandler = getMainHandler('rest', undefined, '', {
+      attachRequestToErrors: true,
+    }) as unknown as TestHandler
+    const optedInError = await optedInHandler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(optedInError.status.code, 'METHOD_NOT_ALLOWED')
+    assertEquals(getRequestFromError(optedInError), request)
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: attaches the request to a CORS-rejected error only when opted in ' +
+    '(same uncaught path as route matching, not just NOT_FOUND/METHOD_NOT_ALLOWED)',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const request = new Request('http://localhost/known', {
+      headers: { Origin: 'https://evil.example' },
+    })
+
+    const defaultHandler = getMainHandler('rest', undefined, '', {
+      cors: { origins: ['https://allowed.example'] },
+    }) as unknown as TestHandler
+    const defaultError = await defaultHandler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(defaultError.status.code, 'BAD_REQUEST')
+    assertEquals(getRequestFromError(defaultError), undefined)
+
+    const optedInHandler = getMainHandler('rest', undefined, '', {
+      cors: { origins: ['https://allowed.example'] },
+      attachRequestToErrors: true,
+    }) as unknown as TestHandler
+    const optedInError = await optedInHandler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(optedInError.status.code, 'BAD_REQUEST')
+    assertEquals(getRequestFromError(optedInError), request)
+
+    Program.routes.resetContainer()
+  },
+)
+
+// --- Trailing catch-all (`:name*`) — Task #82 -------------------------------------------------
+
+/** Captures whatever `ctx.payload.params` reads as, for direct assertion — avoids any dependency
+ * on how a handler's return value gets serialized into the final `Response` body. */
+function paramsCapturingHandler(sink: { params?: unknown }, tag: string) {
+  return (ctx: { payload: { params: unknown } }) => {
+    sink.params = ctx.payload.params
+    return tag
+  }
+}
+
+Deno.test(
+  'getMainHandler: exact/static wins over :param, which wins over catch-all — deterministic, ' +
+    'independent of registration order (catch-all registered FIRST here, on purpose)',
+  async () => {
+    const catchAll: { params?: unknown } = {}
+    const param: { params?: unknown } = {}
+
+    // Registered in the OPPOSITE order precedence should produce — proves the ordering isn't
+    // "whichever was declared first".
+    Program.routes.defineRoute('rest', {
+      path: '/files/:path*',
+      handler: paramsCapturingHandler(catchAll, 'catch-all') as never,
+    })
+    Program.routes.defineRoute('rest', {
+      path: '/files/:name',
+      handler: paramsCapturingHandler(param, 'param') as never,
+    })
+    Program.routes.defineRoute('rest', {
+      path: '/files/readme',
+      handler: () => 'exact' as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+
+    const exactResponse = await handler(
+      new Request('http://localhost/files/readme'),
+    )
+    assertEquals(await exactResponse.text(), 'exact')
+
+    const paramResponse = await handler(
+      new Request('http://localhost/files/foo'),
+    )
+    assertEquals(await paramResponse.text(), 'param')
+    assertEquals(param.params, { name: 'foo' })
+
+    const catchAllResponse = await handler(
+      new Request('http://localhost/files/foo/bar'),
+    )
+    assertEquals(await catchAllResponse.text(), 'catch-all')
+    assertEquals(catchAll.params, { path: 'foo/bar' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a catch-all preserves the ORIGINAL request casing — /assets/Logo.svg → ' +
+    "params.path === 'Logo.svg', while the route itself still matches case-insensitively",
+  async () => {
+    const captured: { params?: unknown } = {}
+    Program.routes.defineRoute('rest', {
+      path: '/ASSETS/:path*',
+      handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    // Neither the route's own declared casing nor the request's matches the other — matching
+    // itself is still case-insensitive (unchanged), only the CAPTURED VALUE preserves the
+    // request's own casing.
+    const response = await handler(
+      new Request('http://localhost/assets/Logo.svg'),
+    )
+
+    assertEquals(await response.text(), 'ok')
+    assertEquals(captured.params, { path: 'Logo.svg' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a catch-all captures multiple nested segments, case preserved throughout',
+  async () => {
+    const captured: { params?: unknown } = {}
+    Program.routes.defineRoute('rest', {
+      path: '/assets/:path*',
+      handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const response = await handler(
+      new Request('http://localhost/assets/Icons/Products/Shoe.PNG'),
+    )
+
+    assertEquals(await response.text(), 'ok')
+    assertEquals(captured.params, { path: 'Icons/Products/Shoe.PNG' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: an ordinary :param (no catch-all involved) is still lowercased exactly as ' +
+    'before — the case-preservation fix is scoped to the catch-all capture only',
+  async () => {
+    const captured: { params?: unknown } = {}
+    Program.routes.defineRoute('rest', {
+      path: '/files/:name',
+      handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const response = await handler(
+      new Request('http://localhost/files/README'),
+    )
+
+    assertEquals(await response.text(), 'ok')
+    assertEquals(captured.params, { name: 'readme' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a catch-all value is never URL-decoded — same as any ordinary :param today',
+  async () => {
+    const captured: { params?: unknown } = {}
+    Program.routes.defineRoute('rest', {
+      path: '/assets/:path*',
+      handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    // '%20' is a literal, still-encoded space — must survive undecoded.
+    const response = await handler(
+      new Request('http://localhost/assets/my%20logo.svg'),
+    )
+
+    assertEquals(await response.text(), 'ok')
+    assertEquals(captured.params, { path: 'my%20logo.svg' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  "getMainHandler: '%2F' in the request is never treated as a path separator by the router — " +
+    'it stays a literal 3-character sequence inside whichever segment the URL parser already drew',
+  async () => {
+    const captured: { params?: unknown } = {}
+    Program.routes.defineRoute('rest', {
+      path: '/assets/:path*',
+      handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const response = await handler(
+      new Request('http://localhost/assets/foo%2Fbar.svg'),
+    )
+
+    assertEquals(await response.text(), 'ok')
+    assertEquals(captured.params, { path: 'foo%2Fbar.svg' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a trailing slash on the request normalizes the same way it already does for ' +
+    'any other route — no catch-all-specific handling needed',
+  async () => {
+    const captured: { params?: unknown } = {}
+    Program.routes.defineRoute('rest', {
+      path: '/assets/:path*',
+      handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const response = await handler(
+      new Request('http://localhost/assets/logo.svg/'),
+    )
+
+    assertEquals(await response.text(), 'ok')
+    assertEquals(captured.params, { path: 'logo.svg' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  "getMainHandler: '../' traversal attempts never reach route matching as a literal string at " +
+    "all — the WHATWG URL parser itself resolves '..' segments before `pathname` is even read, " +
+    'an even stronger guarantee than anything the router would need to add on its own',
+  async () => {
+    const captured: { params?: unknown } = {}
+    Program.routes.defineRoute('rest', {
+      path: '/assets/:path*',
+      handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    // `new URL(...).pathname` for this request is already `/etc/passwd` — `URL`'s own parser
+    // resolves `..` segments during parsing, so this never even reaches the `/assets` prefix.
+    const error = await handler(
+      new Request('http://localhost/assets/../../etc/passwd'),
+    ).catch((
+      e: unknown,
+    ) => e)
+
+    assertEquals((error as HttpError).status.code, 'NOT_FOUND')
+    assertEquals(captured.params, undefined) // the handler never ran at all
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a bare prefix with no trailing segment at all does not match a catch-all route',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/assets/:path*',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const error = await handler(new Request('http://localhost/assets')).catch((
+      e: unknown,
+    ) => e)
+
+    assertEquals((error as HttpError).status.code, 'NOT_FOUND')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: an invalid catch-all position (not the last segment) throws at REGISTRATION ' +
+    'time, never the first time a request happens to reach it',
+  () => {
+    let threw = false
+    try {
+      Program.routes.defineRoute('rest', {
+        path: '/:path*/foo',
+        handler: () => 'ok' as never,
+      })
+    } catch {
+      threw = true
+    }
+    assertEquals(threw, true)
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: backward compatibility — an ordinary route with no catch-all anywhere in ' +
+    'the whole route table behaves exactly as before this feature existed',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/users/:id',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const response = await handler(new Request('http://localhost/users/42'))
+    assertEquals(await response.text(), 'ok')
+
+    const notFound = await handler(new Request('http://localhost/nope')).catch((
+      e: unknown,
+    ) => e)
+    assertEquals((notFound as HttpError).status.code, 'NOT_FOUND')
+
+    Program.routes.resetContainer()
+  },
+)

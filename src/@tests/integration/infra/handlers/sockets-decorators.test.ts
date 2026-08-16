@@ -45,7 +45,9 @@ Deno.test('defineSocketDecorator: versionProtocol negotiates handshake by defaul
 
   defineSocketDecorator('defaultProtocol')(DefaultProtocolSocket as never)
 
-  const [guard] = Program.middlewares.getGuards({ Target: DefaultProtocolSocket as never })
+  const [guard] = Program.middlewares.getGuards({
+    Target: DefaultProtocolSocket as never,
+  })
   const [interceptor] = Program.middlewares.getInterceptors({
     Target: DefaultProtocolSocket as never,
   })
@@ -56,8 +58,14 @@ Deno.test('defineSocketDecorator: versionProtocol negotiates handshake by defaul
   )
   assertEquals(guardResult, {})
 
-  const response = await interceptor({ locals } as never, new Response(null, { status: 101 }))
-  assertEquals(response.headers.get(PROTOCOL_VERSION_HEADER), String(DEFAULT_PROTOCOL_VERSION))
+  const response = await interceptor(
+    { locals } as never,
+    new Response(null, { status: 101 }),
+  )
+  assertEquals(
+    response.headers.get(PROTOCOL_VERSION_HEADER),
+    String(DEFAULT_PROTOCOL_VERSION),
+  )
 })
 
 Deno.test('defineSocketDecorator: versionProtocol rejects an unsupported version', async () => {
@@ -65,14 +73,18 @@ Deno.test('defineSocketDecorator: versionProtocol rejects an unsupported version
 
   defineSocketDecorator('rejectingProtocol')(RejectingProtocolSocket as never)
 
-  const [guard] = Program.middlewares.getGuards({ Target: RejectingProtocolSocket as never })
+  const [guard] = Program.middlewares.getGuards({
+    Target: RejectingProtocolSocket as never,
+  })
 
   const headers = new Headers({ [PROTOCOL_VERSION_HEADER]: '999' })
   const guardResult = await guard(
     { req: { headers }, locals: {} } as GuardContext,
   )
 
-  if (!guardResult.response) throw new Error('expected the upgrade to be rejected')
+  if (!guardResult.response) {
+    throw new Error('expected the upgrade to be rejected')
+  }
   assertEquals(guardResult.response.status, 400)
 })
 
@@ -89,7 +101,9 @@ Deno.test(
       { kind: 'method' } as never,
     )
 
-    defineSocketDecorator('middlewareBackfilled')(MiddlewareBackfilledSocket as never)
+    defineSocketDecorator('middlewareBackfilled')(
+      MiddlewareBackfilledSocket as never,
+    )
 
     const guards = Program.middlewares.getGuards({
       Target: MiddlewareBackfilledSocket as never,

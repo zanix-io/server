@@ -40,8 +40,15 @@ Deno.test('resolveVersionProtocolOptions: undefined/true resolve to full default
 })
 
 Deno.test('resolveVersionProtocolOptions: an object overrides only what it sets', () => {
-  const resolved = resolveVersionProtocolOptions({ header: 'X-Custom', version: 3 })
-  assertEquals(resolved, { header: 'X-Custom', version: 3, supportedVersions: [3] })
+  const resolved = resolveVersionProtocolOptions({
+    header: 'X-Custom',
+    version: 3,
+  })
+  assertEquals(resolved, {
+    header: 'X-Custom',
+    version: 3,
+    supportedVersions: [3],
+  })
 })
 
 Deno.test('protocol version guard: no declared header resolves to the current version', () => {
@@ -50,7 +57,10 @@ Deno.test('protocol version guard: no declared header resolves to the current ve
   const result = guard(ctx)
 
   assertEquals(result, {})
-  assertEquals(ctx.locals[PROTOCOL_VERSION_LOCALS_KEY], DEFAULT_PROTOCOL_VERSION)
+  assertEquals(
+    ctx.locals[PROTOCOL_VERSION_LOCALS_KEY],
+    DEFAULT_PROTOCOL_VERSION,
+  )
 })
 
 Deno.test('protocol version guard: a supported declared version is resolved and stashed', () => {
@@ -59,7 +69,10 @@ Deno.test('protocol version guard: a supported declared version is resolved and 
   const result = guard(ctx)
 
   assertEquals(result, {})
-  assertEquals(ctx.locals[PROTOCOL_VERSION_LOCALS_KEY], DEFAULT_PROTOCOL_VERSION)
+  assertEquals(
+    ctx.locals[PROTOCOL_VERSION_LOCALS_KEY],
+    DEFAULT_PROTOCOL_VERSION,
+  )
 })
 
 Deno.test('protocol version guard: an unsupported declared version is rejected (400)', async () => {
@@ -104,19 +117,29 @@ Deno.test('protocol version guard: a custom header/supportedVersions config is h
 
 Deno.test('protocol version interceptor: falls back to configured version with no guard', () => {
   const interceptor = createProtocolVersionInterceptor(DEFAULT_RESOLVED)
-  const response = new Response('{}', { headers: { 'Content-Type': 'application/json' } })
+  const response = new Response('{}', {
+    headers: { 'Content-Type': 'application/json' },
+  })
   const result = interceptor(ctxWithLocals(), response) as Response
 
   assertStrictEquals(result, response)
-  assertEquals(result.headers.get(PROTOCOL_VERSION_HEADER), String(DEFAULT_PROTOCOL_VERSION))
+  assertEquals(
+    result.headers.get(PROTOCOL_VERSION_HEADER),
+    String(DEFAULT_PROTOCOL_VERSION),
+  )
 })
 
 Deno.test('protocol version interceptor: overwrites a pre-existing header value', () => {
   const interceptor = createProtocolVersionInterceptor(DEFAULT_RESOLVED)
-  const response = new Response('{}', { headers: { [PROTOCOL_VERSION_HEADER]: '0' } })
+  const response = new Response('{}', {
+    headers: { [PROTOCOL_VERSION_HEADER]: '0' },
+  })
   const result = interceptor(ctxWithLocals(), response) as Response
 
-  assertEquals(result.headers.get(PROTOCOL_VERSION_HEADER), String(DEFAULT_PROTOCOL_VERSION))
+  assertEquals(
+    result.headers.get(PROTOCOL_VERSION_HEADER),
+    String(DEFAULT_PROTOCOL_VERSION),
+  )
 })
 
 Deno.test('protocol version interceptor: stamps the version resolved by the guard', () => {

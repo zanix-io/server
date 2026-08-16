@@ -36,20 +36,22 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    * @param ttl Optional TTL (in seconds). If set, each entry expires after this duration.
    */
   constructor(
-    { ttl, maxOffsetSeconds = 9, minTTLForOffset = 5, ...opts }: ConnectorOptions & {
-      /** TTL (in seconds) */
-      ttl: number
-      /**
-       * Maximum random offset in seconds to add.
-       * Defaults to `9`
-       */
-      maxOffsetSeconds?: number
-      /**
-       * Minimum TTL in seconds required for the offset to be applied.
-       * Defaults to `5`
-       */
-      minTTLForOffset?: number
-    },
+    { ttl, maxOffsetSeconds = 9, minTTLForOffset = 5, ...opts }:
+      & ConnectorOptions
+      & {
+        /** TTL (in seconds) */
+        ttl: number
+        /**
+         * Maximum random offset in seconds to add.
+         * Defaults to `9`
+         */
+        maxOffsetSeconds?: number
+        /**
+         * Minimum TTL in seconds required for the offset to be applied.
+         * Defaults to `5`
+         */
+        minTTLForOffset?: number
+      },
   ) {
     super(opts)
 
@@ -122,7 +124,9 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    * @param key The key to look up in the cache.
    * @returns The cached value, or `undefined` if not found.
    */
-  public abstract get<O = V>(key: K): Async<O | undefined>['local' extends P ? 'sync' : 'async']
+  public abstract get<O = V>(
+    key: K,
+  ): Async<O | undefined>['local' extends P ? 'sync' : 'async']
 
   /**
    * Checks whether the cache contains a specific key.
@@ -130,7 +134,9 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    * @param key The key to check for.
    * @returns `true` if the key exists, otherwise `false`.
    */
-  public abstract has(key: K): Async<boolean>['local' extends P ? 'sync' : 'async']
+  public abstract has(
+    key: K,
+  ): Async<boolean>['local' extends P ? 'sync' : 'async']
 
   /**
    * Deletes an entry from the cache.
@@ -138,7 +144,9 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    * @param key The key to delete.
    * @returns `true` if the entry existed and was removed, otherwise `false`.
    */
-  public abstract delete(key: K): Async<boolean>['local' extends P ? 'sync' : 'async']
+  public abstract delete(
+    key: K,
+  ): Async<boolean>['local' extends P ? 'sync' : 'async']
 
   /**
    * Removes all entries from the cache.
@@ -164,5 +172,7 @@ export abstract class ZanixCacheConnector<K = any, V = any, P extends CoreCacheC
    *
    * @returns An array of values.
    */
-  public abstract values<O = V>(): Async<O[]>['local' extends P ? 'sync' : 'async']
+  public abstract values<O = V>(): Async<
+    O[]
+  >['local' extends P ? 'sync' : 'async']
 }

@@ -8,7 +8,10 @@ const MAX_IDENTIFIER_LENGTH = 64
  * non `[a-z0-9_]` characters collapsed to a single `_`, no leading/trailing `_`, capped at
  * {@link MAX_IDENTIFIER_LENGTH} characters.
  */
-export const sanitizeIdentifier = (value: string, maxLength = MAX_IDENTIFIER_LENGTH): string => {
+export const sanitizeIdentifier = (
+  value: string,
+  maxLength = MAX_IDENTIFIER_LENGTH,
+): string => {
   const id = value.toLowerCase()
     .replace(/[^a-z0-9_]+/g, '_')
     .replace(/^_+/g, '')

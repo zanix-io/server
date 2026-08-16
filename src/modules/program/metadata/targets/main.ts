@@ -121,7 +121,10 @@ export class TargetContainer extends BaseInstancesContainer {
     type: ModuleTypes,
     container: object = this,
   ): string[] {
-    return this.getData<string[]>(`${type}:startMode:${startMode}`, container) || []
+    return this.getData<string[]>(
+      `${type}:startMode:${startMode}`,
+      container,
+    ) || []
   }
 
   /**
@@ -143,7 +146,8 @@ export class TargetContainer extends BaseInstancesContainer {
     if (type !== 'resolver' || application === undefined) return targets
 
     return targets.filter((key) =>
-      this.getData<string>(`type:${type}:application:${key}`, container) === application
+      this.getData<string>(`type:${type}:application:${key}`, container) ===
+        application
     )
   }
 
@@ -180,20 +184,31 @@ export class TargetContainer extends BaseInstancesContainer {
   /**
    * Function to add a `property` or `symbol` to a specified target class
    */
-  public addProperty({ Target, propertyKey, type = 'handler' }: MetadataTargetSymbols) {
+  public addProperty(
+    { Target, propertyKey, type = 'handler' }: MetadataTargetSymbols,
+  ) {
     const properties = this.getProperties({ Target })
     const propertiesSet = new Set<string>(properties)
 
-    if (propertyKey && !propertiesSet.has(propertyKey)) propertiesSet.add(propertyKey)
+    if (propertyKey && !propertiesSet.has(propertyKey)) {
+      propertiesSet.add(propertyKey)
+    }
 
-    this.setData<string[]>(this.#properties[type], Array.from(propertiesSet), Target)
+    this.setData<string[]>(
+      this.#properties[type],
+      Array.from(propertiesSet),
+      Target,
+    )
   }
 
   /**
    * Retrieves all `properties` or `symbol` with a specific target class
    */
-  public getProperties({ Target, type = 'handler' }: MetadataTargetSymbols): string[] {
-    return this.getData<string[] | undefined>(this.#properties[type], Target) || []
+  public getProperties(
+    { Target, type = 'handler' }: MetadataTargetSymbols,
+  ): string[] {
+    return this.getData<string[] | undefined>(this.#properties[type], Target) ||
+      []
   }
 
   /**
@@ -212,14 +227,22 @@ export class TargetContainer extends BaseInstancesContainer {
    */
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
-    options?: { contextId?: string; verbose?: boolean; caller?: TargetBaseClass },
+    options?: {
+      contextId?: string
+      verbose?: boolean
+      caller?: TargetBaseClass
+    },
   ): T
   /**
    * Getting a connector instance, without creating a new one if it doesn't already exist.
    */
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,
-    options: { useExistingInstance?: true; verbose?: boolean; caller?: TargetBaseClass },
+    options: {
+      useExistingInstance?: true
+      verbose?: boolean
+      caller?: TargetBaseClass
+    },
   ): T | undefined
   public getConnector<T extends ZanixConnectorGeneric>(
     key: string,

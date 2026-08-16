@@ -56,10 +56,15 @@ export function defineMiddlewareDecorator<
   return function (target, context) {
     if (context?.kind === 'class') {
       const fn = type === 'guard' ? 'addGuard' : type === 'pipe' ? 'addPipe' : 'addInterceptor'
-      ProgramModule.middlewares[fn](middleware as never, { Target: target as ClassConstructor })
+      ProgramModule.middlewares[fn](middleware as never, {
+        Target: target as ClassConstructor,
+      })
     } else {
       const handler = target.name.toString()
-      ProgramModule.decorators.addDecoratorData<T>({ handler, mid: middleware } as never, type)
+      ProgramModule.decorators.addDecoratorData<T>(
+        { handler, mid: middleware } as never,
+        type,
+      )
     }
   }
 }
@@ -68,14 +73,22 @@ export function defineMiddlewareDecorator<
 export function applyMiddlewaresToTarget(Target: ClassConstructor) {
   const guardDecorators = ProgramModule.decorators.getDecoratorsData('guard')
   const pipeDecorators = ProgramModule.decorators.getDecoratorsData('pipe')
-  const interceptorDecorators = ProgramModule.decorators.getDecoratorsData('interceptor')
+  const interceptorDecorators = ProgramModule.decorators.getDecoratorsData(
+    'interceptor',
+  )
 
   guardDecorators.forEach((guard) => {
-    ProgramModule.middlewares.addGuard(guard.mid, { Target, propertyKey: guard.handler })
+    ProgramModule.middlewares.addGuard(guard.mid, {
+      Target,
+      propertyKey: guard.handler,
+    })
   })
 
   pipeDecorators.forEach((pipe) => {
-    ProgramModule.middlewares.addPipe(pipe.mid, { Target, propertyKey: pipe.handler })
+    ProgramModule.middlewares.addPipe(pipe.mid, {
+      Target,
+      propertyKey: pipe.handler,
+    })
   })
 
   interceptorDecorators.forEach((interceptor) => {
@@ -104,6 +117,11 @@ export function applyVersionProtocolToTarget(
   const resolved = resolveVersionProtocolOptions(versionProtocol)
   if (!resolved) return
 
-  ProgramModule.middlewares.addGuard(createProtocolVersionGuard(resolved), { Target })
-  ProgramModule.middlewares.addInterceptor(createProtocolVersionInterceptor(resolved), { Target })
+  ProgramModule.middlewares.addGuard(createProtocolVersionGuard(resolved), {
+    Target,
+  })
+  ProgramModule.middlewares.addInterceptor(
+    createProtocolVersionInterceptor(resolved),
+    { Target },
+  )
 }

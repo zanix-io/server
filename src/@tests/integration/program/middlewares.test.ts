@@ -87,9 +87,15 @@ Deno.test('MiddlewaresContainer: getTargetInterceptors returns combined results'
   const methodInterceptor: MiddlewareInterceptor = (_ctx, next: any) => next()
 
   container.addInterceptor(localInterceptor, { Target })
-  container.addInterceptor(methodInterceptor, { Target, propertyKey: 'handle' })
+  container.addInterceptor(methodInterceptor, {
+    Target,
+    propertyKey: 'handle',
+  })
 
-  const result = container.getTargetInterceptors({ Target, propertyKey: 'handle' })
+  const result = container.getTargetInterceptors({
+    Target,
+    propertyKey: 'handle',
+  })
   assertArrayIncludes(result, [localInterceptor, methodInterceptor])
 })
 

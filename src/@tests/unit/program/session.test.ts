@@ -98,8 +98,12 @@ Deno.test({
     // (a `setTimeout`-based race would let the shorter one exit before the longer one ever checks).
     let resolveARecorded: () => void = () => {}
     let resolveBRecorded: () => void = () => {}
-    const aRecorded = new Promise<void>((resolve) => (resolveARecorded = resolve))
-    const bRecorded = new Promise<void>((resolve) => (resolveBRecorded = resolve))
+    const aRecorded = new Promise<void>((
+      resolve,
+    ) => (resolveARecorded = resolve))
+    const bRecorded = new Promise<void>((
+      resolve,
+    ) => (resolveBRecorded = resolve))
 
     const sessionA = sessions.runSession(async () => {
       sessions.recordApplication('a1')
@@ -118,8 +122,14 @@ Deno.test({
     await Promise.all([sessionA, sessionB])
 
     assert(seenByA[0]?.has('b1'), "A must see B's Application as foreign")
-    assert(!seenByA[0]?.has('a1'), 'A must never see its OWN Application as foreign')
+    assert(
+      !seenByA[0]?.has('a1'),
+      'A must never see its OWN Application as foreign',
+    )
     assert(seenByB[0]?.has('a1'), "B must see A's Application as foreign")
-    assert(!seenByB[0]?.has('b1'), 'B must never see its OWN Application as foreign')
+    assert(
+      !seenByB[0]?.has('b1'),
+      'B must never see its OWN Application as foreign',
+    )
   },
 })

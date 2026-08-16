@@ -105,6 +105,15 @@ export type GenericHandlerOptions = {
    * ⚠️ Enabling this feature may increase overload by managing multiple contexts simultaneously,
    * especially if many data points are associated with each request, potentially adding more
    * processing overhead.
+   *
+   * ⚠️ This is the highest-concurrency consumer of `AsyncContext` in the whole codebase — one
+   * context per concurrent request, not just per composition-time call. `AsyncContext` is backed
+   * by Deno's `node:async_hooks` compatibility layer, not a Deno-native API (none exists yet) —
+   * see that class's own doc for what that implies (Deno explicitly endorses this specific API,
+   * but it is still actively hardening, with real correctness fixes as recent as 2026-06 and an
+   * issue open as of 2026-08 about context propagation across concurrent/interleaved async work).
+   * Enabling `enableALS` is safe and intended, not a workaround to avoid — just be aware this
+   * option's correctness rests on that same, still-maturing foundation.
    */
   enableALS?: boolean
   /** Interactor class injected and made available as `this.interactor`. */

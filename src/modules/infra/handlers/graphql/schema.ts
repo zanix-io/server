@@ -14,7 +14,10 @@ const fileConfig = readConfig()
  * that belong to the server instance being built (see `bootstrapServers`'s
  * `BootstrapServerOptions[type].application`). Buckets are created lazily, on first access.
  */
-export const gqlSchemaDefinitions: Record<string, { Query: string; Mutation: string }> = {}
+export const gqlSchemaDefinitions: Record<
+  string,
+  { Query: string; Mutation: string }
+> = {}
 
 const getBucket = (application: string) =>
   gqlSchemaDefinitions[application] ??= { Query: '', Mutation: '' }

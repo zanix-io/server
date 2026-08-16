@@ -30,7 +30,10 @@ export type CallerArguments<Type extends ClassConstructor = ClassConstructor> =
   >
 
 /** The union of members the framework may attach to a handler instance's prototype at runtime. */
-export type HandlerPrototype<Interactor extends ZanixInteractorGeneric, Extensions = never> =
+export type HandlerPrototype<
+  Interactor extends ZanixInteractorGeneric,
+  Extensions = never,
+> =
   | never
   | TargetBaseClass['_znx_props_']
   | TargetBaseClass['onDestroy']
@@ -86,7 +89,9 @@ export type ZanixInteractorGeneric = ZanixInteractor<any>
  */
 export type ZanixInteractorsGetter = {
   /** Retrieves an instance of the given Interactor class. */
-  get: <D extends ZanixInteractorGeneric>(Interactor: ZanixInteractorClass<D>) => D
+  get: <D extends ZanixInteractorGeneric>(
+    Interactor: ZanixInteractorClass<D>,
+  ) => D
 }
 
 /**
@@ -109,7 +114,8 @@ export interface ZanixConnectorsGetter<T extends CoreModules = object> {
   /** Retrieves the connector declared under `key` in `T`, precisely typed as `T[K]`. */
   get<K extends Extract<keyof T, string>>(
     key: K,
-  ): NonNullable<T[K]> extends ZanixConnectorGeneric ? NonNullable<T[K]> : ZanixConnectorGeneric
+  ): NonNullable<T[K]> extends ZanixConnectorGeneric ? NonNullable<T[K]>
+    : ZanixConnectorGeneric
   /** Retrieves an instance of the given Connector class. */
   get<D extends ZanixConnectorGeneric>(Connector: ZanixConnectorClass<D>): D
   /** Retrieves an instance by a string key not declared in `T`, loosely typed. */
@@ -124,7 +130,8 @@ export interface ZanixProvidersGetter<T extends CoreModules = object> {
   /** Retrieves the provider declared under `key` in `T`, precisely typed as `T[K]`. */
   get<K extends Extract<keyof T, string>>(
     key: K,
-  ): NonNullable<T[K]> extends ZanixProviderGeneric ? NonNullable<T[K]> : ZanixProviderGeneric
+  ): NonNullable<T[K]> extends ZanixProviderGeneric ? NonNullable<T[K]>
+    : ZanixProviderGeneric
   /** Retrieves an instance of the given Provider class. */
   get<D extends ZanixProviderGeneric>(Provider: ZanixProviderClass<D>): D
   /** Retrieves an instance by a string key not declared in `T`, loosely typed. */
@@ -188,7 +195,9 @@ export type ZanixConnectorClass<
  * @property {ZanixKVConnector} kvLocal - Optional connector for the local key-value store.
  * @property {ZanixSearchConnector} search - Optional connector for a search/indexing engine.
  */
-export type CoreModules<T extends ZanixConnector | ZanixProvider = ZanixConnector | ZanixProvider> =
+export type CoreModules<
+  T extends ZanixConnector | ZanixProvider = ZanixConnector | ZanixProvider,
+> =
   & {
     /** Optional provider for the worker part of the system. */
     worker?: ZanixWorkerProvider

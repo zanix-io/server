@@ -174,7 +174,8 @@ export abstract class CoreBaseClass<T extends CoreModules = object> extends Cont
    * @protected
    * @returns {T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider} The cache provider instance associated with the current context.
    */
-  protected get cache(): T['cache'] extends ZanixCacheProvider ? T['cache'] : ZanixCacheProvider {
+  protected get cache(): T['cache'] extends ZanixCacheProvider ? T['cache']
+    : ZanixCacheProvider {
     return this.providers.get('cache') as T['cache'] extends ZanixCacheProvider ? T['cache']
       : ZanixCacheProvider
   }

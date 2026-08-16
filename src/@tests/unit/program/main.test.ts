@@ -96,13 +96,21 @@ Deno.test(
     class AfterCleanupTarget extends TargetBaseClass {
       public handle() {}
     }
-    program.routes.setEndpoint({ Target: AfterCleanupTarget, propertyKey: 'handle' })
-    program.targets.addProperty({ Target: AfterCleanupTarget, propertyKey: 'handle' })
+    program.routes.setEndpoint({
+      Target: AfterCleanupTarget,
+      propertyKey: 'handle',
+    })
+    program.targets.addProperty({
+      Target: AfterCleanupTarget,
+      propertyKey: 'handle',
+    })
 
     program.routes.defineRoute('rest', AfterCleanupTarget)
 
     const routes = program.routes.getRoutes('rest')
-    assert(routes?.['/handle/GET'])
+    // Storage key is `${application}:${path}/${httpMethod}` — `application` defaults to
+    // `DEFAULT_APPLICATION` ('main') here, no `applicationOverride`/active `define()` scope.
+    assert(routes?.['main:/handle/GET'])
   },
 )
 
@@ -120,14 +128,25 @@ Deno.test(
     class BeforeCleanupTarget extends TargetBaseClass {
       public handle() {}
     }
-    program.routes.setEndpoint({ Target: BeforeCleanupTarget, propertyKey: 'handle' })
-    program.targets.addProperty({ Target: BeforeCleanupTarget, propertyKey: 'handle' })
+    program.routes.setEndpoint({
+      Target: BeforeCleanupTarget,
+      propertyKey: 'handle',
+    })
+    program.targets.addProperty({
+      Target: BeforeCleanupTarget,
+      propertyKey: 'handle',
+    })
     program.routes.defineRoute('rest', BeforeCleanupTarget)
 
     program.cleanupInitializationsMetadata('onBoot')
 
     const routes = program.routes.getRoutes('rest')
-    assert(routes?.['/handle/GET'], 'route registered before cleanup must still be gettable after')
+    // Storage key is `${application}:${path}/${httpMethod}` — see the sibling test above for the
+    // same note.
+    assert(
+      routes?.['main:/handle/GET'],
+      'route registered before cleanup must still be gettable after',
+    )
   },
 )
 
@@ -185,9 +204,18 @@ Deno.test({
   fn: async () => {
     const program = new ProgramClass()
 
-    const resetExceptRoutesStub = stub(program.routes, 'resetExceptApplications')
-    const resetExceptDiscoveryStub = stub(program.discovery, 'resetExceptApplications')
-    const resetResolversExceptStub = stub(program.targets, 'resetResolversExceptApplications')
+    const resetExceptRoutesStub = stub(
+      program.routes,
+      'resetExceptApplications',
+    )
+    const resetExceptDiscoveryStub = stub(
+      program.discovery,
+      'resetExceptApplications',
+    )
+    const resetResolversExceptStub = stub(
+      program.targets,
+      'resetResolversExceptApplications',
+    )
     const resetRoutesStub = stub(program.routes, 'resetContainer')
     const resetDiscoveryStub = stub(program.discovery, 'resetContainer')
 
@@ -211,7 +239,9 @@ Deno.test({
     // The exclude-scoped methods run, preserving the still-active OTHER session's Applications —
     // never the unconditional full-registry wipe.
     assertSpyCalls(resetExceptRoutesStub, 1)
-    assertEquals([...(resetExceptRoutesStub.calls[0].args[0] as Set<string>)], ['admin-hub'])
+    assertEquals([...(resetExceptRoutesStub.calls[0].args[0] as Set<string>)], [
+      'admin-hub',
+    ])
     assertSpyCalls(resetExceptDiscoveryStub, 1)
     assertSpyCalls(resetResolversExceptStub, 1)
     assertSpyCalls(resetRoutesStub, 0)
@@ -234,7 +264,10 @@ Deno.test({
   fn: async () => {
     const program = new ProgramClass()
 
-    const resetExceptRoutesStub = stub(program.routes, 'resetExceptApplications')
+    const resetExceptRoutesStub = stub(
+      program.routes,
+      'resetExceptApplications',
+    )
     const resetRoutesStub = stub(program.routes, 'resetContainer')
     const resetDiscoveryStub = stub(program.discovery, 'resetContainer')
 

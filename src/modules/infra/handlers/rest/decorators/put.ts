@@ -61,7 +61,9 @@ export function Put(
  * }
  * ```
  */
-export function Put(rto: HandlerDecoratorMethodOptions['rto']): ZanixMethodDecorator
+export function Put(
+  rto: HandlerDecoratorMethodOptions['rto'],
+): ZanixMethodDecorator
 export function Put(
   pathOrRTO?: HandlerDecoratorMethodOptions['pathOrRTO'],
   rto?: HandlerDecoratorMethodOptions['rto'],

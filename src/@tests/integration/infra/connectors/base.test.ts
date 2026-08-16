@@ -51,7 +51,11 @@ Deno.test('ZanixConnector: should wait initialization connection on setup modes'
   )
 
   assertAlmostEquals(Date.now() - time, 2000, 100)
-  assertAlmostEquals(attemps, conn['timeoutConnection'] / conn['retryInterval'], 2)
+  assertAlmostEquals(
+    attemps,
+    conn['timeoutConnection'] / conn['retryInterval'],
+    2,
+  )
 
   const waitTime = 300
 
@@ -67,7 +71,11 @@ Deno.test('ZanixConnector: should wait initialization connection on setup modes'
   const time2 = Date.now()
   await connectorModuleInitialization(conn2)
 
-  assertAlmostEquals(Date.now() - time2, attemps * waitTime + attemps * conn2['retryInterval'], 100)
+  assertAlmostEquals(
+    Date.now() - time2,
+    attemps * waitTime + attemps * conn2['retryInterval'],
+    100,
+  )
 
   TestConnector.prototype.isHealthy = originalIsHealthy
 })

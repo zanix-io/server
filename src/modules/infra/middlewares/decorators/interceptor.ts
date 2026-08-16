@@ -25,6 +25,8 @@ import { defineMiddlewareDecorator } from './assembly.ts'
  * ```
  * @returns {ZanixGenericDecorator} The method decorator that registers the interceptor for the target handler.
  */
-export function Interceptor(interceptor: MiddlewareInterceptor): ZanixGenericDecorator {
+export function Interceptor(
+  interceptor: MiddlewareInterceptor,
+): ZanixGenericDecorator {
   return defineMiddlewareDecorator('interceptor', interceptor)
 }

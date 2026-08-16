@@ -32,7 +32,10 @@ export abstract class BaseInstancesContainer extends BaseContainer {
    * (via `logAppError`) rather than throwing, since some apps may already — intentionally or not —
    * rely on this behavior.
    */
-  #warnIfSingletonResolvesScoped(caller: TargetBaseClass, Target: ClassConstructor): void {
+  #warnIfSingletonResolvesScoped(
+    caller: TargetBaseClass,
+    Target: ClassConstructor,
+  ): void {
     const callerProps = (caller as unknown as Record<string, unknown>)[ZANIX_PROPS] as
       | { lifetime?: string }
       | undefined
@@ -69,7 +72,10 @@ export abstract class BaseInstancesContainer extends BaseContainer {
   /**
    * Function to save target instance definition
    */
-  protected toBeInstantiated(baseKey: string, opts: MetadataInstances): { key: string } {
+  protected toBeInstantiated(
+    baseKey: string,
+    opts: MetadataInstances,
+  ): { key: string } {
     const { type, lifetime, startMode, dataProps, Target } = opts // default definitions
 
     // Defined as non-enumerable so it never leaks through JSON.stringify/spread/Object.keys
@@ -119,9 +125,14 @@ export abstract class BaseInstancesContainer extends BaseContainer {
       const isScoped = lifetime === 'SCOPED'
       const isSetupMode = startMode !== 'lazy'
 
-      if (caller && isScoped && Target) this.#warnIfSingletonResolvesScoped(caller, Target)
+      if (caller && isScoped && Target) {
+        this.#warnIfSingletonResolvesScoped(caller, Target)
+      }
 
-      const instanceKey = this.#getInstanceKey(key, isScoped && keyId || DEFAULT_CONTEXT_ID)
+      const instanceKey = this.#getInstanceKey(
+        key,
+        isScoped && keyId || DEFAULT_CONTEXT_ID,
+      )
 
       const currentInstance = this.getData<T>(instanceKey)
       if (currentInstance || useExistingInstance) return currentInstance
@@ -144,18 +155,22 @@ export abstract class BaseInstancesContainer extends BaseContainer {
 
       return instance
     } catch (e) {
-      throw new TargetError('This action cannot be completed at the moment.', startMode, {
-        code: 'INVALID_INSTANCE',
-        meta: {
-          key,
-          source: 'zanix',
-          classType: type,
-          message: 'An error ocurred on trying to instance the class',
-          targetName: Target ? `${Target.name}` : "'unknown': there is no metadata information",
+      throw new TargetError(
+        'This action cannot be completed at the moment.',
+        startMode,
+        {
+          code: 'INVALID_INSTANCE',
+          meta: {
+            key,
+            source: 'zanix',
+            classType: type,
+            message: 'An error ocurred on trying to instance the class',
+            targetName: Target ? `${Target.name}` : "'unknown': there is no metadata information",
+          },
+          shouldLog: verbose,
+          cause: e,
         },
-        shouldLog: verbose,
-        cause: e,
-      })
+      )
     }
   }
 
@@ -164,9 +179,11 @@ export abstract class BaseInstancesContainer extends BaseContainer {
    */
   private instanceFreeze<T extends TargetBaseClass>(instance: T) {
     if ('isReady' in instance) {
-      ;(instance as unknown as typeof ZanixConnector['prototype']).isReady.then(() => {
-        Object.freeze(instance)
-      })
+      ;(instance as unknown as typeof ZanixConnector['prototype']).isReady.then(
+        () => {
+          Object.freeze(instance)
+        },
+      )
     } else Object.freeze(instance)
   }
 

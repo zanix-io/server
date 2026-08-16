@@ -7,6 +7,233 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-08-15
+
+### Added
+
+- **Trailing catch-all route parameter (`:name*`)** — a named param suffixed with `*`, valid ONLY as
+  a route's own last segment (`Get('/assets/:path*')` captures `/assets/logo.svg`,
+  `/assets/icons/foo/bar.svg`, any depth). A catch-all anywhere but last (`/:path*/foo`) throws
+  `InternalError` at ROUTE REGISTRATION time (`RouteContainer.defineTargetRoutes`/`defineRoute`),
+  never the first time a request happens to reach it — same fail-fast posture this ecosystem's own
+  `validate()`/`normalize()` steps already take. General router capability, not built for any single
+  consumer — a static-file/passthrough route is a common need (e.g. `@zanix/space`'s own upcoming
+  `assetsDir[]` asset serving) beyond any one package.
+  - **Deterministic precedence, independent of registration order**: exact/static routes win, then
+    ordinary `:param` routes, then catch-all routes — always, regardless of which was registered
+    first. `routeProcessor` now files `:param`-normal and catch-all routes into two separate tables;
+    `getMainHandler` tries them in that fixed order. Example: with
+    `GET /files/readme`/`GET /files/:name`/`GET /files/:path*` all registered, `/files/readme`
+    resolves to the exact route, `/files/foo` to `:name`, `/files/foo/bar` to `:path*`.
+  - **Case-sensitivity, resolved at the router level, not left to each consumer**: every OTHER route
+    (exact or `:param`) still matches case-insensitively, completely unchanged. Only a catch-all's
+    OWN captured value preserves the request's original casing — `GET /assets/Logo.svg` on a route
+    `Get('/assets/:path*')` gives `ctx.payload.params.path === 'Logo.svg'`, not `'logo.svg'`.
+    Achieved by compiling every route regex with the `'d'` flag (adds `match.indices` — per-capture
+    `[start, end]` offsets — changes nothing about matching itself) and computing a case-preserved
+    mirror of the request path in parallel; those SAME offsets, found against the lowercased match,
+    slice the catch-all's own value out of that case-preserved mirror instead. No second match, no
+    change to any other param's own value.
+  - **No automatic `decodeURIComponent()`** — a catch-all's captured value is exactly the raw
+    pathname segment(s), still percent-encoded if the request was, same as any existing `:param`
+    already behaves. Decoding, if needed, is the consumer's own responsibility. `%2F` in a request
+    is never treated as a path separator by the router (the `URL` parser itself doesn't decode it
+    into `/` within `pathname`).
+  - A bare prefix with no trailing segment at all (`GET /assets` against `Get('/assets/:path*')`)
+    does not match — a catch-all requires at least one segment after it.
+  - **Real finding, not router behavior**: a request containing literal `../` segments never reaches
+    route matching as such at all — the WHATWG `URL` parser itself resolves `..` during parsing,
+    before `pathname` is ever read (confirmed empirically:
+    `new URL('http://x/assets/../../etc/passwd').pathname === '/etc/passwd'`). Any traversal safety
+    a consumer needs for a captured catch-all value still belongs entirely to that consumer (this
+    router makes no filesystem-access decisions of its own), but literal `..` smuggling through the
+    route string itself isn't a reachable attack surface here.
+  - 25 new tests (`utils/routes.test.ts`, `webserver/handler.test.ts`) covering syntax validation,
+    precedence (registration-order-independent), case preservation, multi-segment capture, encoding,
+    trailing slash, backward compatibility, and the `URL`-normalization finding above. One
+    pre-existing test updated (`pathToRegex`'s own exact-regex-equality assertion) for the new `'d'`
+    flag every compiled route regex now carries — matching semantics themselves are unaffected.
+
+- `RequestOptions.client` (`RestClient`) — an optional `Deno.HttpClient` every request issued
+  through that `RestClient` instance uses, passed straight through to `fetch()`'s own `client`
+  option. Not previously expressible: `RequestOptions` already extends `RequestInit`, but Deno's
+  `client` option isn't actually part of the `RequestInit` interface itself (it's layered onto
+  `fetch()`'s own overload) so it never carried through implicitly. Lets a `RestClient` (or a
+  consumer built on it, e.g. `@zanix/auth`'s `createServiceAuthClient`) present a client certificate
+  for mTLS, the same way `Deno.createHttpClient({ cert, key })` already lets a bare `fetch()` do.
+- **`server.health`** — `boolean | HealthOptions`, same shape `versionProtocol` already establishes
+  (`true`/omitted enables with defaults, an object overrides `path`/`readyPath`/ `checks`, `false`
+  disables). Registers `GET /health` (liveness, always a cheap `200`, never runs a check) and
+  `GET /ready` (readiness — every registered core connector's `isReady`/`isHealthy`, `200`/`503`)
+  automatically, on by default, on every port `bootstrapServers()` ends up hosting real content on —
+  `rest`, `graphql`, `socket`, or `ssr` alike, never the sole reason a listener starts. `ssr`'s own
+  unprefixed, catch-all (`''`-keyed) dispatch was verified empirically to coexist safely with
+  health's exact-match dispatch keys before including it — a real SSR page still resolves at its own
+  root path. Registered as raw, top-level, unprefixed dispatch-table entries (not through
+  `ProgramModule.routes`), so they stay reachable at the literal path regardless of whatever
+  `globalPrefix` the app's own routes use. A consumer's own `@Controller`/`@Get` at the same literal
+  path replaces the default entirely, no separate override flag — including for a genuinely
+  unprefixed/unanchored dispatch (`ssr` always, or `rest`/`socket`/`graphql` reached directly via
+  `WebServerManager.create()`), where the real route is only reachable through the multiplexer's own
+  `''`-catch-all handler: detected by checking `ProgramModule.routes` for this Application's own
+  route at the exact resolved path, gated to only that unprefixed case (a prefixed/anchored server's
+  real routes are never reachable at the bare path regardless of what's registered, so the same
+  lookup would risk a false-positive skip there). `checks` each receive a `HealthCheckContext`
+  (`providers`/`connectors` getters, the same no-`ctxId` global-resolution shorthand
+  `ProgramModule.providers`/`.connectors` already are) to reach any registered provider/connector,
+  not just the auto-discovered core ones. Each registered `/health`/`/ready` also logs a `Rest`/
+  `Graphql`/`Socket`/`Ssr sever route:` line, same format/level as a real `@Controller` route, so
+  it's visible in startup logs like everything else — easy to miss otherwise, since it never goes
+  through `ProgramModule.routes`.
+  - **Multiple Applications sharing one port — `/health` stays single, `/ready` aggregates by
+    Application**: liveness never varies per Application (always the same cheap `{status:'ok'}`), so
+    it's still first-claim-wins — only the first Application to reach a port registers it, no
+    collision, no duplicate registration. Readiness is different: `/ready`'s response is now
+    `{status, shared: {status, checks}, apps: {[application]: {status, checks}}}` — `shared` holds
+    the auto-discovered core-connector checks (process-wide infrastructure, not owned by any one
+    Application), `apps` breaks out each Application's own `HealthOptions.checks` by name. Every
+    Application sharing a port that opts into health now contributes its own `checks` entry — merged
+    into the response, never dropped — fixing the previous behavior where the first Application to
+    claim the port silently owned `/ready` for every other Application sharing it, and every other
+    Application's own `checks` were never even run. `WebServerManager`'s internal `#healthPorts` set
+    (liveness-only, first-claim-wins) is now paired with a per-port `#readinessChecksByPort`
+    accumulator that rebuilds the merged readiness handler on every `create()` call for that port.
+    **Breaking for anyone parsing `/ready`'s JSON body directly**: the previous flat
+    `{status, checks}` shape no longer exists — `checks` now lives under `shared.checks` (core
+    connectors) and `apps[applicationName].checks` (custom checks), never both flattened together.
+  - **Found running a real consumer app, fixed same cycle**: `bootstrapServers({ health: false })`
+    (no type named — "auto-discover everything, just skip health") used to silently discover NOTHING
+    at all. `hasExplicitServerConfig` (whether the caller named at least one type) was computed from
+    `Object.keys(server).length > 0` — `health`, a sibling field on the same object, counted as if
+    it were a named type, so every real type failed the "was I named" check. Now computed only
+    against the 4 real `WebServerTypes` keys.
+  - **Found via review, fixed same cycle**: for a genuinely unprefixed/unanchored dispatch, a
+    consumer's own real route at the exact literal `/health`/`/ready` path used to always lose to
+    the framework default — the override check only ever looked at the port's own dispatch table
+    (`box.current`), never at `ProgramModule.routes`, so it could never see a route that's only
+    reachable through the multiplexer's own `''`-catch-all handler in the first place. Fixed by also
+    checking the route registry for this Application's own route at the exact resolved path, gated
+    to only the unprefixed case (see above).
+- `dispatchWorkerTask(fn, options)`: dispatches a task to a worker thread via a one-time
+  `WorkerManager` instance or the app's persisted `'worker'` core-provider pool
+  (`ZanixWorkerProvider#executeGeneralTask`), selected via `options.mode: 'one-time' | 'persisted'`.
+  `'persisted'` falls back to `'one-time'` automatically when the `'worker'` provider can't be
+  resolved, so it's safe to request regardless of runtime. Accepts an optional `provider` resolver
+  (e.g. `() => this.worker`) so a caller with one already scoped avoids a second, unscoped global
+  lookup — deliberately a function, not a resolved value, so a `this.worker` that throws (no
+  `'worker'` provider registered) is caught by the same fallback, instead of throwing before
+  `dispatchWorkerTask` even runs. Free functions with no `this` omit it and get a global resolution
+  instead. See
+  [Dependency Injection: Dispatching background work](docs/DEPENDENCY-INJECTION.md#dispatching-background-work-dispatchworkertask).
+- `ZanixWorkerProvider`'s constructor gains an optional third argument, `permissions` — restricts
+  what EVERY worker in that provider's own pool may do (`net`/`read`/`write`/`env`/`run`/
+  `ffi`/`sys`), forwarded as-is to the underlying `WorkerManager`'s own new `permissions` option
+  (`@zanix/utils`). Fixed for the pool's entire lifetime; omit entirely (the default) for unchanged,
+  unrestricted behavior. See
+  [Dependency Injection: Restricting a ZanixWorkerProvider's own permissions](docs/DEPENDENCY-INJECTION.md#restricting-a-zanixworkerproviders-own-permissions).
+- `RouteContainer.removeRoutesForApplication(application)` /
+  `ProgramModule.unregisterApplicationRoutes(application)` — removes every route registered under
+  `application`, across every server type. Narrower than the pre-existing `resetExceptApplications`
+  (which needs the caller to enumerate every OTHER Application to `preserve`, silently wiping
+  anything it forgets): this only ever touches `application`'s own entries, so a caller that only
+  knows ONE app's own name (e.g. `@zanix/app`'s hot-uninstall) can call it safely. Metadata-only —
+  pair with `WebServerManager.unmount()` to also drop the live dispatch entry an already-bound
+  listener is still serving.
+- `WebServerManager.unmount(id)` — hot-unmounts one already-`create()`d server's own dispatch entry
+  from its port's `HandlerBox`, via the same atomic freeze-and-swap `create()` itself uses (an
+  in-flight request still sees either the fully-old or fully-new table, never a partial one). Unlike
+  `stop()`, never touches the real `Deno.serve()` listener — a port shared with OTHER
+  still-registered servers keeps accepting connections for them, unaffected; requests that used to
+  reach `id`'s own routes fall through to the port's own catch-all or a plain `NOT_FOUND`. Known
+  limitation: even when `id` was the last server on a shared port, this never closes the real socket
+  (would require re-attributing which OTHER server actually bound it) — use `stop()` on the port's
+  original owner for a full teardown.
+- **`ZanixSsrController`/`@SsrController`** — a fourth handler kind, for server-rendered (`'ssr'`)
+  routes. Shares `HandlerGenericClass<Interactor, HandlerContext>` with `ZanixController` (same
+  request/response contract); the only difference is which route table `@SsrController` registers
+  into. No dedicated SSR-only method decorator — `@Get`/`@Post`/`@Patch`/`@Put`/`@Delete`/`@Request`
+  are reused as-is, since they carry no server-type of their own. An unanchored `'ssr'` server gets
+  no default `globalPrefix` (a page's URL is its own address, not an API endpoint under a
+  namespace), and its `cors.allowedMethods` is fixed at `['GET', 'POST']` rather than
+  user-configurable like REST's. See [Handlers → SSR](docs/HANDLERS.md#ssr).
+- **`preHandler`** (`BootstrapServerOptions[type].preHandler` / `WebServerManager.create`'s own
+  `options.preHandler`) — tried on every request _before_ that server's normal dispatch (its route
+  table, or a fully custom `handler`); returning `null`/`undefined` falls through to normal dispatch
+  unchanged, a `Response` short-circuits it. For concerns that must intercept requests ahead of
+  route matching, on the exact same port/origin as the server's own routes — the reference case is a
+  dev-server layered on an SSR server serving build-tool assets before a page route is ever
+  considered, something no `guard`/`pipe` can do since those only run once a route has matched. See
+  [Handlers → Intercepting requests before dispatch](docs/HANDLERS.md#intercepting-requests-before-dispatch-prehandler).
+- **`ProgramModule.unregisterRoutes(Target, type?)`** — removes every route entry registered for a
+  specific decorated class reference. A route decorator registers its class exactly once (re-running
+  it against the same class collides); this is the escape hatch for tooling that reimports a
+  decorated module outside the normal boot cycle (a dev-server reloading a page file after a change)
+  so the fresh reimport can register cleanly. See
+  [Handlers → Hot-reloading a decorated route](docs/HANDLERS.md#hot-reloading-a-decorated-route).
+- `registerApplicationMount(application, prefix)` — registers an Application's mount prefix, the
+  piece `routeProcessor` inserts between `globalPrefix` and a route's own `controllerPrefix`/
+  `methodPath`. Exported publicly because its intended writer (a package building an
+  Application-composition layer, e.g. `@zanix/app`'s `AppContainer`) lives in a separate package
+  from `@zanix/server`. An Application that never calls this resolves to no mount prefix, preserving
+  existing behavior exactly. See
+  [Applications → Mount prefix registration](docs/APPLICATIONS.md#mount-prefix-registration-registerapplicationmount).
+- `connectorModuleInitialization(connector)` — the connector `autoInitialize` wait-for-health
+  (timeout/retry) routine `targetInitializations` already runs internally for every registered
+  connector, now exported so it can be re-run on demand outside the normal boot flow (e.g. after
+  manually reconnecting a connector).
+- `gzipStreamingResponse(response)` (`utils/gzip.ts`) — gzip-compresses a `Response` by piping its
+  body directly through `CompressionStream`, without ever buffering it into memory first (unlike
+  `gzipResponseFromResponse`). `bootstrapServers` now uses this internally for every `ssr` response
+  (see `### Fixed` below); exported publicly for the same reason its buffered siblings are —
+  advanced cases building a streaming response outside the normal request flow. See
+  [Utilities → Response compression](docs/UTILITIES.md#response-compression).
+
+### Fixed
+
+- **A second guard returning `Set-Cookie` silently clobbered an earlier guard's own `Set-Cookie` on
+  the same request.** `mainGuard` (`modules/infra/middlewares/defaults/main.middlewares.ts`)
+  accumulated every guard's returned `headers` with a plain object spread
+  (`{ ...baseHeaders, ...headers }`) — correct for every header EXCEPT `Set-Cookie`: two guards on
+  the same route each returning their own cookie (a realistic case, e.g. `@zanix/space`'s
+  `populationGuard` and its new `langGuard` companion both running via `defineMiddleware([...])`)
+  collapsed to only the LAST guard's cookie, the first one never reaching the client at all. Fixed
+  by accumulating into a real `Headers` instance: `Set-Cookie` now accumulates via `.append()` (it's
+  spec-excluded from header-list combining, so multiple values survive as separate entries all the
+  way to the final `Response` — verified empirically with `Response.headers.getSetCookie()`), while
+  every OTHER header keeps the exact pre-existing override behavior via `.set()` — a page-level
+  `@Guard(cspGuard(...))` still fully overrides an app-wide `defineMiddleware([cspGuard(...)])`
+  policy for that page, unchanged (this distinction matters: an earlier version of this fix naively
+  `.append()`-ed every header, which would have comma-joined two CSP policies into one broken value
+  instead of the intended override — caught by `define-middleware.test.tsx`, now additionally
+  covered by a dedicated unit test). `mainInterceptor`'s and `routerInterceptor`'s `options.headers`
+  are now typed `Headers` instead of `Record<string, string>` to carry this through;
+  `GuardResponse.headers` (what an individual guard returns) is unchanged, still a plain
+  `Record<string, string>` — only the cross-guard accumulation step changed.
+- **Gzip silently defeated `ssr` streaming responses.** `routerInterceptor` applied the same
+  byte-length-aware compressor (`gzipResponseFromResponse`) to every server type, including `ssr` —
+  that compressor's `response.clone().arrayBuffer()` drains the ENTIRE body into memory before
+  compressing, which for a genuinely streamed SSR render (`renderToReadableStream`) meant the whole
+  page had to finish rendering before a single byte reached the client, for any request carrying
+  `Accept-Encoding: gzip` (i.e. virtually every real browser, by default). Fixed by adding a
+  streaming-safe compressor, `gzipStreamingResponse` (`utils/gzip.ts`), that pipes the response body
+  directly through `CompressionStream` without buffering; `routerInterceptor` now picks it whenever
+  `type === 'ssr'`, and keeps the existing buffered compressor for every other type unchanged (their
+  bodies are already fully materialized in memory by this point, so buffering costs nothing there
+  and keeps the `threshold` check a streamed body can't have). No public API changed —
+  `server.gzip`/`GzipOptions` behave identically; only the internal compression strategy for `ssr`
+  changed.
+- **A route param's own NAME was silently lowercased**, not just matched case-insensitively — a
+  `:serviceId`-shaped param only ever produced the key `serviceid` in `ctx.payload.params`, so an
+  RTO/handler declaring the camelCase property `serviceId` always read `undefined` back. Root cause:
+  `RouteContainer.defineTargetRoutes`/`defineRoute` (`program/metadata/routes.ts`) ran the
+  registered path through `cleanRoute` WITHOUT `keepCase`, destroying the param name's casing before
+  `routeProcessor` (`webserver/helpers/routes.ts`) ever extracted it. Fixed at both layers: the
+  stored route `path` is now case-preserved (`cleanRoute(path, true)`), while the case-INsensitive
+  collision-detection key and the case-INsensitive request-path matching are both still derived via
+  an explicit `.toLowerCase()`/the existing lowercased `cleanRoute` call — no change to either of
+  those. Only known previous workaround (now unnecessary, but harmless either way): declaring a
+  route param in snake_case/all-lowercase instead of camelCase.
+
 ## [3.1.2] - 2026-08-04
 
 - Fixed CoreSlot verbose logging behavior.
@@ -52,7 +279,7 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   before they were ever bound to a server. A package composing its own multi-call
   `bootstrapServers()` sequence (its own `start()`) should wrap the whole thing in one outer
   `ProgramModule.runBootSession(...)` call so every nested `bootstrapServers()` call shares that
-  session instead of forking its own — see `docs/HANDLERS.md#boot-sessions`.
+  session instead of forking its own — see `docs/APPLICATIONS.md#boot-sessions`.
 - **`resolveApplicationServerId(application, type)`/`resolvePreviousApplicationServerId(application, type)`**
   — a generic Application-scoped stable-id resolver, deriving its env var name from the Application
   itself (`` `${APPLICATION}_SERVER_ID}` ``/`` `${APPLICATION}_SERVER_ID_PREVIOUS}` ``, e.g.
@@ -94,7 +321,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   the ownership axis. `ProgramModule.defineApplication(name, setup)` runs `setup` with `name` as the
   ambient Application every `@Controller`/`@Resolver`/`@Socket` registered inside it belongs to
   (default: `'main'`, when no scope is active) — never a decorator option, resolved automatically
-  from context. See [Handlers → Applications](docs/HANDLERS.md#applications).
+  from context. See [Applications](docs/APPLICATIONS.md#applications).
 - **`BootstrapServerOptions[type].application`** — which Application a given server mounts; only
   capabilities registered under that exact Application are served. Purely an ownership/composition
   boundary — carries no URL-anchoring or exposure meaning of its own (a non-default Application like
@@ -103,7 +330,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   own id doubles as an obscuring URL prefix (a random UUID by default, rotating on every restart)
   instead of a plain `globalPrefix`-based one. Defaults to `false`. This is what `isInternal` used
   to imply automatically for any non-default scope; it's now an explicit, separate decision — see
-  [Handlers → Anchored servers](docs/HANDLERS.md#anchored-servers). `globalPrefix` alongside
+  [Applications → Anchored servers](docs/APPLICATIONS.md#anchored-servers). `globalPrefix` alongside
   `anchored: true` is additive (`{id}/{globalPrefix}/...`), not a replacement, same as before.
 - **`bootstrapServers` auto-discovers an anchored server's generated id.** When a server type is
   `anchored` and no explicit `id` was given, the random id `webServerManager.create()` picks isn't
@@ -112,7 +339,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   become `_`), e.g. `application: 'billing'`'s `rest` server → `BILLING_REST_SERVER_ID`, the
   built-in `'admin'` Application's own `graphql` server → `ADMIN_GRAPHQL_SERVER_ID`. Skipped
   entirely when the id was explicit (nothing to discover). See
-  [Handlers → Anchored servers § Discovering an auto-generated id](docs/HANDLERS.md#anchored-servers).
+  [Applications → Anchored servers § Discovering an auto-generated id](docs/APPLICATIONS.md#anchored-servers).
 - **`Runtime`/`compileRuntime`** (`modules/webserver/runtime.ts`) — the one place
   Application/anchoring resolves into a concrete server activation (id validation/normalization,
   multiplexer dispatch key, route-table prefix), entirely before `WebServerManager.create` runs.
@@ -146,7 +373,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   protected. Negotiates its own protocol version via `DISCOVERY_PROTOCOL_HEADER`
   (`X-Znx-Discovery-Protocol`), independent of `/admin/*`'s own protocol so the two can evolve
   separately. `stream()`/pagination for unbounded resources is specified but not built this round —
-  see [Handlers → Discovery](docs/HANDLERS.md#discovery).
+  see [Applications → Discovery](docs/APPLICATIONS.md#discovery).
 - **`registerCoreProviderSlot(key, BaseTarget, options?)` /
   `registerCoreConnectorSlot(key,
   BaseTarget, options?)`** (new exports) — the mechanism a package

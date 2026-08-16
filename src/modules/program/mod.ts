@@ -30,7 +30,7 @@ export class InternalProgram {
 
   /**
    * Application container resolving which Application (composition boundary — see
-   * `docs/HANDLERS.md`) a capability being registered right now belongs to.
+   * `docs/APPLICATIONS.md`) a capability being registered right now belongs to.
    * @type {ApplicationContainer}
    */
   public applications: ApplicationContainer = new ApplicationContainer()
@@ -73,7 +73,7 @@ export class InternalProgram {
   public registry: RegistryContainer = new RegistryContainer()
 
   /**
-   * Registry of `DiscoveryProvider`s (see `docs/HANDLERS.md`'s "Discovery" section) — read-only
+   * Registry of `DiscoveryProvider`s (see `docs/APPLICATIONS.md`'s "Discovery" section) — read-only
    * `/.well-known/zanix/{resourceType}` snapshots, one bucket per Application.
    * @type {DiscoveryContainer}
    */
@@ -119,7 +119,8 @@ export class InternalProgram {
         // else is swept, exactly like the original unscoped full wipe. Empty whenever no other
         // session is genuinely concurrent right now (the common case, including every call within
         // one single-session multi-call sequence), so this reduces to that original full wipe then.
-        const foreignApplications = this.sessions.getForeignActiveApplications()
+        const foreignApplications = this.sessions
+          .getForeignActiveApplications()
         if (foreignApplications.size) {
           this.targets.resetResolversExceptApplications(foreignApplications)
           this.routes.resetExceptApplications(foreignApplications)
@@ -153,7 +154,10 @@ export class InternalProgram {
       'startMode:onSetup',
       'startMode:onBoot',
     ]
-    this.targets.resetContainer([HANDLER_METADATA_PROPERTY_KEY, ...alreadyStartedTargets])
+    this.targets.resetContainer([
+      HANDLER_METADATA_PROPERTY_KEY,
+      ...alreadyStartedTargets,
+    ])
   }
 }
 
@@ -161,7 +165,9 @@ export class InternalProgram {
  * A frozen singleton instance of the `InternalProgram`.
  * @type {Readonly<InternalProgram>}
  */
-const ProgramModule: Readonly<InternalProgram> = Object.freeze(new InternalProgram()) as Readonly<
+const ProgramModule: Readonly<InternalProgram> = Object.freeze(
+  new InternalProgram(),
+) as Readonly<
   InternalProgram
 >
 export default ProgramModule

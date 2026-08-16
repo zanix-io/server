@@ -328,6 +328,129 @@ by `protected etagIdentityHeaders` (default: the resolved `AUTH_HEADERS.user`/`A
 header values) — so two different callers hitting the same URL with different credentials never
 share a cached value; override it in a subclass to scope by additional/different headers.
 
+### Presenting a client certificate (mTLS)
+
+Pass a `Deno.HttpClient` via the constructor's `client` option to have every request from that
+instance issued through it — e.g. one built with `Deno.createHttpClient({ cert, key })` to present a
+client certificate:
+
+```ts
+const client = Deno.createHttpClient({ cert: myCert, key: myKey })
+
+class SecureClient extends RestClient {}
+
+const secureClient = new SecureClient({
+  baseUrl: 'https://secure.internal',
+  client,
+})
+```
+
+This is passed straight through to `fetch()`'s own `client` option — not part of the standard
+`RequestInit` shape, so `RestClient`'s options type declares it explicitly rather than relying on
+the spread to carry it implicitly.
+
+The cache itself is stored via the `'cache:local'` core connector slot when a package that owns it
+(e.g. `@zanix/datamaster`) is registered, or an in-process `Map` otherwise — nothing to configure,
+and no observable difference in behavior either way. If nothing is registered under that slot, this
+falls back to the `Map` transparently; once a connector _is_ resolved, though, it's used as-is — a
+`'cache:local'` connector whose own `get`/`set` throws will fail the request, same as any other
+connector misbehaving inside a method it owns.
+
+### Restricting a `ZanixWorkerProvider`'s own permissions
+
+`ZanixWorkerProvider`'s constructor takes an optional third argument, `permissions`, forwarded as-is
+to the `WorkerManager` pool it builds internally — restricts what EVERY worker in THAT provider's
+own pool may do (`net`/`read`/`write`/`env`/`run`/`ffi`/`sys`), independent of the host process's
+own (broader) permission set. Since every task still needs `read`/`net` to import its own module
+(see below), a useful restricted profile usually keeps `read` open and narrows the rest:
+
+```ts
+@Provider()
+class SandboxedWorkerProvider extends ZanixWorkerProvider {
+  constructor(contextId?: string) {
+    super(contextId, 3, { net: false, write: false, env: false, run: false }) // `read` stays implicit-open
+  }
+  // ...
+}
+```
+
+Fixed for the pool's entire lifetime — a subclass needing DIFFERENT permission profiles for
+different tasks needs a SEPARATE `ZanixWorkerProvider` (and thus a separate DI slot/subclass) per
+profile, never one shared pool. Omit entirely (the default) for unchanged, unrestricted behavior —
+every existing subclass keeps working exactly as before this option existed.
+
+**Requires Deno's still-unstable `worker-options` feature** (`"unstable": ["worker-options"]` in
+`deno.jsonc`/`deno.json`, or `--unstable-worker-options`), and — since an object `permissions` value
+replaces the _entire_ permission set rather than inheriting unlisted categories — the task's own
+module needs `read` (or `net`, for a remote `metaUrl`) no matter what the task itself does, or every
+task in that pool fails before it ever runs. See `@zanix/utils`' own `/workers` subpath
+documentation for the full `permissions` shape and its honest limitation (access restriction only —
+not a CPU/ memory quota).
+
+### Dispatching background work: `dispatchWorkerTask`
+
+`ZanixWorkerProvider.executeGeneralTask` (above) only helps once you already have a `'worker'`
+provider instance resolved — which needs either a named getter (`this.worker`, only available from
+inside a `ZanixProvider`/`ZanixConnector`/`ZanixInteractor`) or a manual DI lookup.
+`dispatchWorkerTask` is a free function wrapping that same dispatch, usable from anywhere —
+including a plain factory function with no `this` at all:
+
+```ts
+import { dispatchWorkerTask } from 'jsr:@zanix/server@[version]'
+
+function myTask(payload: string) {
+  return payload.toUpperCase()
+}
+
+const invoke = dispatchWorkerTask(myTask, {
+  mode: 'persisted', // or 'one-time'
+  metaUrl: import.meta.url,
+  callback: ({ response, error }) => {
+    if (error) console.error(error)
+    else console.log(response)
+  },
+})
+
+invoke('hello')
+```
+
+Two dispatch strategies, selected via `mode`:
+
+- **`'one-time'`**: spins up a fresh, throwaway `WorkerManager` instance per call and closes it once
+  the task finishes — no DI resolution, works identically inside or outside a booted application.
+- **`'persisted'`**: reuses the app's `'worker'` core-provider pool
+  (`ZanixWorkerProvider#executeGeneralTask`) instead of paying worker startup cost on every call.
+  Falls back to `'one-time'` behavior automatically — silently, regardless of `verbose` — when that
+  provider can't be resolved (e.g. outside a booted Zanix Core application, or no `'worker'` slot
+  implementation registered), so it's always safe to request regardless of runtime.
+
+Calling from inside a class that already has `this.worker` available (correctly scoped to that
+instance's own `contextId`)? Pass `provider: () => this.worker` instead of letting
+`dispatchWorkerTask` do a second, unscoped global lookup — **as a function, not the resolved value
+itself**: `this.worker` throws synchronously when no `'worker'` provider is registered, so passing
+`this.worker` directly would throw while building this options object, before `dispatchWorkerTask`
+ever runs, escaping the very fallback that's supposed to catch exactly that case:
+
+```ts
+@Provider()
+class MyProvider extends ZanixWorkerProvider {
+  send(payload: string) {
+    return dispatchWorkerTask(myTask, {
+      mode: 'persisted',
+      metaUrl: import.meta.url,
+      provider: () => this.worker,
+    })(payload)
+  }
+}
+```
+
+`verbose` (forwarded to whichever underlying dispatch runs) controls only the `WorkerManager` task's
+own error logging — set it `false` when `callback` already reports failures itself, to avoid
+double-logging. It's unrelated to, and never affects, `'persisted'`'s silent fallback to
+`'one-time'`. `dispatchWorkerTask` returns a bound `invoke` function rather than a `Promise` — wrap
+it in `new Promise((resolve) => { ... options.callback = () => resolve() ... })` yourself when the
+caller needs to await completion.
+
 ## Accessing instances outside any class (`ProgramModule`)
 
 The getters above (`this.cache`, `this.providers.get(...)`, etc.) only work from within a provider,
@@ -339,8 +462,12 @@ exposes the same accessors directly:
 import { ProgramModule } from 'jsr:@zanix/server@[version]'
 
 const provider = ProgramModule.getProviders().get(NotificationsProvider)
-const connector = ProgramModule.getConnectors('some-context-id').get(DatabaseConnector)
-const interactor = ProgramModule.getInteractors('some-context-id').get(UsersInteractor)
+const connector = ProgramModule.getConnectors('some-context-id').get(
+  DatabaseConnector,
+)
+const interactor = ProgramModule.getInteractors('some-context-id').get(
+  UsersInteractor,
+)
 
 // Shorthand for the common case: no context needed (SINGLETON providers/connectors ignore
 // ctxId anyway, which covers everything except SCOPED/TRANSIENT lookups)

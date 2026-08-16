@@ -6,6 +6,9 @@ import { resetRestClientEtagCache, RestClient } from 'modules/infra/connectors/c
 import ProgramModule from 'modules/program/mod.ts'
 import PublicProgramModule from 'modules/program/public.ts'
 import { getTargetKey } from 'utils/targets.ts'
+import { Connector } from 'connectors/decorators/base.ts'
+import { registerCoreConnectorSlot } from 'connectors/core/all.ts'
+import { ZanixCacheConnector } from 'connectors/core/cache.ts'
 
 globalThis.fetch = () => {
   throw new Error('fetch not mocked')
@@ -61,7 +64,9 @@ Deno.test('POST includes JSON body and default headers', async () => {
   globalThis.fetch = mockFetch as unknown as typeof fetch
 
   const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
-  const result = await client.http.post('/users', { body: JSON.stringify({ name: 'Alice' }) })
+  const result = await client.http.post('/users', {
+    body: JSON.stringify({ name: 'Alice' }),
+  })
 
   assertEquals(result, { id: 1 })
   assertSpyCalls(mockFetch, 1)
@@ -223,7 +228,10 @@ Deno.test('GET with a fresh ETag on a 304-eligible request updates the cached va
     return Promise.resolve(
       new Response(JSON.stringify({ id: requestCount }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json', 'ETag': `"v${requestCount}"` },
+        headers: {
+          'Content-Type': 'application/json',
+          'ETag': `"v${requestCount}"`,
+        },
       }),
     )
   })
@@ -258,6 +266,96 @@ Deno.test(
     await client.http.get('/etag-users/3', { etag: false })
 
     assertSpyCalls(mockFetch, 2)
+  },
+)
+
+Deno.test(
+  "GET's ETag cache is served by the 'cache:local' core connector slot when one is registered, " +
+    'instead of the module-level Map fallback',
+  async () => {
+    resetRestClientEtagCache()
+
+    class TestEtagCacheConnector extends ZanixCacheConnector<string, unknown> {
+      #store = new Map<string, unknown>()
+      public getClient<T>() {
+        return this.#store as T
+      }
+      public override set(key: string, value: unknown) {
+        this.#store.set(key, value)
+      }
+      public override get<T>(key: string) {
+        return this.#store.get(key) as T
+      }
+      public override has(key: string) {
+        return this.#store.has(key)
+      }
+      public override delete(key: string) {
+        return this.#store.delete(key)
+      }
+      public override clear() {
+        this.#store.clear()
+      }
+      public override size() {
+        return this.#store.size
+      }
+      public override keys() {
+        return [...this.#store.keys()]
+      }
+      public override values<T>() {
+        return [...this.#store.values()] as T[]
+      }
+      protected override initialize() {}
+      protected override close() {}
+      public override isHealthy() {
+        return true
+      }
+    }
+
+    // Same shape as `@zanix/datamaster`'s real registration — `@zanix/server` itself never
+    // self-registers this slot (see `connectors/core/mod.ts`).
+    registerCoreConnectorSlot('cache:local', ZanixCacheConnector)
+    Connector('cache:local')(TestEtagCacheConnector as never)
+
+    const getSpy = spy(TestEtagCacheConnector.prototype, 'get')
+    const setSpy = spy(TestEtagCacheConnector.prototype, 'set')
+
+    try {
+      let requestCount = 0
+      const mockFetch = spy((_url: string, opts: any) => {
+        requestCount++
+        if (requestCount === 1) {
+          assertEquals(opts.headers['If-None-Match'], undefined)
+          return Promise.resolve(
+            new Response(JSON.stringify({ id: 'cache-slot' }), {
+              status: 200,
+              headers: {
+                'Content-Type': 'application/json',
+                'ETag': 'W/"slot-1"',
+              },
+            }),
+          )
+        }
+        assertEquals(opts.headers['If-None-Match'], 'W/"slot-1"')
+        return Promise.resolve(new Response(null, { status: 304 }))
+      })
+      globalThis.fetch = mockFetch as unknown as typeof fetch
+
+      const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+      const first = await client.http.get('/etag-users/cache-slot')
+      const second = await client.http.get('/etag-users/cache-slot')
+
+      assertEquals(first, { id: 'cache-slot' })
+      assertEquals(second, { id: 'cache-slot' })
+      assertSpyCalls(mockFetch, 2)
+      // The second request's conditional lookup and the first response's ETag write both went
+      // through the registered connector — not the module-level `etagCache` Map — proving `#http()`
+      // actually prefers it once the `'cache:local'` slot resolves to a real instance.
+      assert(getSpy.calls.length >= 1)
+      assertSpyCalls(setSpy, 1)
+    } finally {
+      getSpy.restore()
+      setSpy.restore()
+    }
   },
 )
 
@@ -353,16 +451,24 @@ Deno.test(
 Deno.test(
   'RestClient: a subclass that never overrides the constructor resolves via ProgramModule.connectors.get(Class), same as the base ZanixConnector',
   () => {
-    ProgramModule.targets.defineTarget(getTargetKey(NoConstructorOverrideClient), {
-      Target: NoConstructorOverrideClient,
-      type: 'connector',
-      lifetime: 'SINGLETON',
-    })
+    ProgramModule.targets.defineTarget(
+      getTargetKey(NoConstructorOverrideClient),
+      {
+        Target: NoConstructorOverrideClient,
+        type: 'connector',
+        lifetime: 'SINGLETON',
+      },
+    )
 
-    const resolved = PublicProgramModule.connectors.get(NoConstructorOverrideClient)
+    const resolved = PublicProgramModule.connectors.get(
+      NoConstructorOverrideClient,
+    )
 
     assert(resolved instanceof NoConstructorOverrideClient)
-    assertStrictEquals(PublicProgramModule.connectors.get(NoConstructorOverrideClient), resolved)
+    assertStrictEquals(
+      PublicProgramModule.connectors.get(NoConstructorOverrideClient),
+      resolved,
+    )
   },
 )
 

@@ -5,14 +5,24 @@ import { HttpError } from '@zanix/errors'
 import { ZanixConnector } from '../base.ts'
 import { AUTH_HEADERS, JSON_CONTENT_HEADER } from 'utils/constants.ts'
 import { cleanRoute } from '@zanix/helpers'
+import { getConnectors } from '../../../program/public.ts'
+import type { ZanixCacheConnector } from './cache.ts'
 
 interface EtagCacheEntry {
   etag: string
   value: unknown
 }
 
+/** Whatever actually stores `ETag` entries for a given call — either the resolved `'cache:local'`
+ * core connector or the module-level `Map` fallback; both already have this exact shape. */
+interface EtagCacheStore {
+  get(key: string): EtagCacheEntry | undefined
+  set(key: string, value: EtagCacheEntry): void
+}
+
 /**
- * Conditional-request (`ETag`) cache for every `RestClient` instance in this process, keyed by the
+ * Fallback conditional-request (`ETag`) cache, used only when the `'cache:local'` core connector
+ * slot isn't registered (see {@link RestClient}'s own `#resolveEtagCache`) — keyed by the
  * final resolved request URL **plus** a fingerprint of any identity/credential header present (see
  * `IDENTITY_HEADERS`, computed by {@link identityKey}) — a shared, HTTP-cache-shaped scope (by URL,
  * not by which client instance made the call) rather than a per-instance one, since a `RestClient`
@@ -36,7 +46,10 @@ export function resetRestClientEtagCache(): void {
 }
 
 /** Builds the `ETag` cache key's identity suffix from any `identityHeaders` present. */
-function identityKey(headers: HeadersInit | undefined, identityHeaders: string[]): string {
+function identityKey(
+  headers: HeadersInit | undefined,
+  identityHeaders: string[],
+): string {
   const resolved = new Headers(headers)
   return identityHeaders.map((name) => resolved.get(name) ?? '').join('\0')
 }
@@ -55,7 +68,9 @@ function identityKey(headers: HeadersInit | undefined, identityHeaders: string[]
  * - Conditional `GET` caching: a response's `ETag` header (if any) is remembered and sent back as
  *   `If-None-Match` on the next `GET` to that same URL; a `304` response then reuses the
  *   previously cached value instead of a fresh body. Opt out per client or per call via the
- *   `etag: false` option — see {@link RequestOptions.etag}.
+ *   `etag: false` option — see {@link RequestOptions.etag}. Stored via the `'cache:local'` core
+ *   connector slot when a package that owns it (e.g. `@zanix/datamaster`) is registered, or an
+ *   in-process `Map` otherwise — either way, this is transparent, nothing to configure.
  *
  * @abstract
  * @extends ZanixConnector
@@ -141,6 +156,27 @@ export class RestClient extends ZanixConnector {
     return method === 'GET' && options.etag !== false
   }
 
+  /**
+   * Resolves where the `ETag` cache lives for this call — `undefined` when `useEtag` is `false`, so
+   * callers never need a second `useEtag` check of their own. Otherwise: the `'cache:local'` core
+   * connector slot, if a package that owns it (e.g. `@zanix/datamaster`) is registered; the
+   * module-level `etagCache` `Map` when nothing is registered, so `RestClient` keeps working
+   * standalone. Re-resolved on every call (never cached on `this`) since the slot's registration —
+   * or a test's own stand-in for it — can change between calls, same reasoning as
+   * `dispatchWorkerTask`'s own per-call resolution of the `'worker'` core provider slot.
+   */
+  #resolveEtagCache(useEtag: boolean): EtagCacheStore | undefined {
+    if (!useEtag) return undefined
+
+    try {
+      return getConnectors(this.contextId, false).get<
+        ZanixCacheConnector<string, EtagCacheEntry>
+      >('cache:local') ?? etagCache
+    } catch {
+      return etagCache
+    }
+  }
+
   #post = <T>(endpoint: string, options?: RestFullOptions) =>
     this.#http<T>('POST', endpoint, options)
 
@@ -190,8 +226,9 @@ export class RestClient extends ZanixConnector {
 
     const url = `${protocol}:/${cleanRoute(restOfUrl, true)}`
     const cacheKey = `${url} ${identityKey(options.headers, this.etagIdentityHeaders)}`
+    const etagCacheStore = this.#resolveEtagCache(useEtag)
 
-    const cached = useEtag ? etagCache.get(cacheKey) : undefined
+    const cached = etagCacheStore?.get(cacheKey)
     if (cached) {
       options.headers = { ...options.headers, 'If-None-Match': cached.etag }
     }
@@ -207,7 +244,9 @@ export class RestClient extends ZanixConnector {
 
       if (!response.ok) {
         const text = await response.text()
-        throw new Error(`[HTTP ${response.status}] ${response.statusText}\n${text}`)
+        throw new Error(
+          `[HTTP ${response.status}] ${response.statusText}\n${text}`,
+        )
       }
 
       if (method === 'HEAD') {
@@ -227,7 +266,7 @@ export class RestClient extends ZanixConnector {
         : text
 
       const etag = response.headers.get('ETag')
-      if (useEtag && etag) etagCache.set(cacheKey, { etag, value })
+      if (etag) etagCacheStore?.set(cacheKey, { etag, value })
 
       return value as T
     } catch (e) {

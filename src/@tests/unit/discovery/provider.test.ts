@@ -7,7 +7,9 @@ import { compileDiscoveryContract, DISCOVERY_PROTOCOL_VERSION } from 'modules/di
 
 console.error = () => {}
 
-const noopProvider: DiscoveryProvider<unknown> = { snapshot: () => Promise.resolve([]) }
+const noopProvider: DiscoveryProvider<unknown> = {
+  snapshot: () => Promise.resolve([]),
+}
 
 Deno.test('DiscoveryContainer: define/getProviders round-trips a registration', () => {
   const container = new DiscoveryContainer()
@@ -26,8 +28,12 @@ Deno.test('DiscoveryContainer: scopes registrations per Application', () => {
   container.define('main', 'templates', { provider: noopProvider, guards: [] })
   container.define('admin', 'triggers', { provider: noopProvider, guards: [] })
 
-  assertEquals(container.getProviders('main').map(([type]) => type), ['templates'])
-  assertEquals(container.getProviders('admin').map(([type]) => type), ['triggers'])
+  assertEquals(container.getProviders('main').map(([type]) => type), [
+    'templates',
+  ])
+  assertEquals(container.getProviders('admin').map(([type]) => type), [
+    'triggers',
+  ])
 })
 
 Deno.test(
@@ -42,10 +48,17 @@ Deno.test(
   'DiscoveryContainer: throws on a duplicate (application, resourceType) registration',
   () => {
     const container = new DiscoveryContainer()
-    container.define('main', 'templates', { provider: noopProvider, guards: [] })
+    container.define('main', 'templates', {
+      provider: noopProvider,
+      guards: [],
+    })
 
     assertThrows(
-      () => container.define('main', 'templates', { provider: noopProvider, guards: [] }),
+      () =>
+        container.define('main', 'templates', {
+          provider: noopProvider,
+          guards: [],
+        }),
       InternalError,
       'already defined',
     )
@@ -56,10 +69,16 @@ Deno.test(
   'DiscoveryContainer: the same resourceType is allowed under two different Applications',
   () => {
     const container = new DiscoveryContainer()
-    container.define('main', 'templates', { provider: noopProvider, guards: [] })
+    container.define('main', 'templates', {
+      provider: noopProvider,
+      guards: [],
+    })
 
     // Should not throw — different Application, same resourceType string.
-    container.define('admin', 'templates', { provider: noopProvider, guards: [] })
+    container.define('admin', 'templates', {
+      provider: noopProvider,
+      guards: [],
+    })
 
     assertEquals(container.getProviders('main').length, 1)
     assertEquals(container.getProviders('admin').length, 1)
@@ -71,7 +90,10 @@ Deno.test('compileDiscoveryContract: pure — identical input produces identical
   const second = compileDiscoveryContract('templates')
 
   assertEquals(first, second)
-  assertEquals(first, { resourceType: 'templates', protocolVersion: DISCOVERY_PROTOCOL_VERSION })
+  assertEquals(first, {
+    resourceType: 'templates',
+    protocolVersion: DISCOVERY_PROTOCOL_VERSION,
+  })
 })
 
 Deno.test('compileDiscoveryContract: resourceType is carried through unchanged', () => {

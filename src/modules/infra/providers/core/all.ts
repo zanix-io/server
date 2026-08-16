@@ -85,7 +85,9 @@ export function registerCoreProviderSlot(
  * owning `/core` module ran). Used to compose the explicit "missing core slot" error in
  * `modules/program/public.ts` instead of a generic "provider not found".
  */
-export function getCoreProviderSlot(key: CoreProviders): CoreProviderSlot | undefined {
+export function getCoreProviderSlot(
+  key: CoreProviders,
+): CoreProviderSlot | undefined {
   const slot = ProviderCoreModules[key]
   return slot?.registered ? slot : undefined
 }
@@ -113,7 +115,9 @@ export function aliasCoreProviderTarget(targetKey: string, key: string): void {
 }
 
 /** Resolves a class's target key back to its core slot string key, if it was decorated as one. */
-export function resolveCoreProviderTargetAlias(targetKey: string): string | undefined {
+export function resolveCoreProviderTargetAlias(
+  targetKey: string,
+): string | undefined {
   return targetKeyToCoreProviderKey[targetKey]
 }
 

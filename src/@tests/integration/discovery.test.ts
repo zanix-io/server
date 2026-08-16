@@ -3,7 +3,9 @@ import type { DiscoveryProvider } from 'typings/discovery.ts'
 import { assertEquals } from '@std/assert'
 import ProgramModule from 'modules/program/mod.ts'
 
-const provider: DiscoveryProvider<unknown> = { snapshot: () => Promise.resolve([]) }
+const provider: DiscoveryProvider<unknown> = {
+  snapshot: () => Promise.resolve([]),
+}
 
 Deno.test(
   'defineDiscovery: genuinely concurrent defineApplication scopes attribute correctly, regardless of interleaving',
@@ -29,11 +31,17 @@ Deno.test(
       }),
     ])
 
-    assertEquals(ProgramModule.discovery.getProviders('concurrent-a').map(([type]) => type), [
-      'shared-resource-name',
-    ])
-    assertEquals(ProgramModule.discovery.getProviders('concurrent-b').map(([type]) => type), [
-      'shared-resource-name',
-    ])
+    assertEquals(
+      ProgramModule.discovery.getProviders('concurrent-a').map(([type]) => type),
+      [
+        'shared-resource-name',
+      ],
+    )
+    assertEquals(
+      ProgramModule.discovery.getProviders('concurrent-b').map(([type]) => type),
+      [
+        'shared-resource-name',
+      ],
+    )
   },
 )

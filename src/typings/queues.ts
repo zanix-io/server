@@ -111,7 +111,10 @@ export type BackoffOptions = {
  * @property {number} [delay] Delay in milliseconds after which the task should run.
  *   Mutually exclusive with `date`
  */
-export type ScheduleOptions = { date: Date; delay?: number } | { date?: Date; delay: number }
+export type ScheduleOptions = { date: Date; delay?: number } | {
+  date?: Date
+  delay: number
+}
 
 /** Handler message type */
 export type MessageQueue = string | Record<string, unknown> | null

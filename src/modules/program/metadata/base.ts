@@ -16,7 +16,9 @@ export abstract class BaseContainer {
    * @private
    */
   private registerMetadataContainer(container: object) {
-    const metadata = new Set(Reflect.get(this.constructor, this.#metadata) || [])
+    const metadata = new Set(
+      Reflect.get(this.constructor, this.#metadata) || [],
+    )
     if (!metadata.has(container)) metadata.add(container)
     Reflect.set(this.constructor, this.#metadata, Array.from(metadata))
   }
@@ -39,7 +41,11 @@ export abstract class BaseContainer {
    * @param container Optional container object (defaults to `this`).
    * @protected
    */
-  protected setData<T extends MetadataObjects>(key: string, data?: T, container: object = this) {
+  protected setData<T extends MetadataObjects>(
+    key: string,
+    data?: T,
+    container: object = this,
+  ) {
     this.registerMetadataContainer(container)
     Reflect.set(container, this.key(key, 'data'), data || key)
   }
@@ -66,7 +72,11 @@ export abstract class BaseContainer {
    * @param container Optional container object (defaults to `this`).
    * @protected
    */
-  protected setTarget<T extends ClassConstructor>(key: string, data?: T, container: object = this) {
+  protected setTarget<T extends ClassConstructor>(
+    key: string,
+    data?: T,
+    container: object = this,
+  ) {
     this.registerMetadataContainer(container)
     Reflect.set(container, this.key(key, 'target'), data || key)
   }
@@ -78,7 +88,10 @@ export abstract class BaseContainer {
    * @returns The stored class constructor.
    * @protected
    */
-  protected getTarget<T extends ClassConstructor>(key: string, container: object = this): T {
+  protected getTarget<T extends ClassConstructor>(
+    key: string,
+    container: object = this,
+  ): T {
     this.registerMetadataContainer(container)
     return Reflect.get(container, this.key(key, 'target')) as T
   }
@@ -91,7 +104,11 @@ export abstract class BaseContainer {
    * @returns True if key exists; otherwise false.
    * @protected
    */
-  protected has(key: string, type: MetadataTypes, container: object = this): boolean {
+  protected has(
+    key: string,
+    type: MetadataTypes,
+    container: object = this,
+  ): boolean {
     this.registerMetadataContainer(container)
     return !!Reflect.has(container, this.key(key, type))
   }
@@ -140,7 +157,8 @@ export abstract class BaseContainer {
     keys: string | string[] = [''],
     props: MetadataTypes[] = ['data', 'target'],
   ) {
-    const metadata: object[] = Reflect.get(this.constructor, this.#metadata) || []
+    const metadata: object[] = Reflect.get(this.constructor, this.#metadata) ||
+      []
 
     if (typeof keys === 'string') keys = [keys]
 

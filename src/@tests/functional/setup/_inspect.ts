@@ -11,7 +11,9 @@ const id1 = webServerManager.create('rest', {
 const id2 = webServerManager.create('socket', {
   server: { port: 9222, globalPrefix: 'sock', cors: { origins: ['*'] } },
 })
-const id3 = webServerManager.create('graphql', { server: { port: 9333, globalPrefix: '/gql//' } })
+const id3 = webServerManager.create('graphql', {
+  server: { port: 9333, globalPrefix: '/gql//' },
+})
 
 for await (const mode of ['onSetup', 'onBoot'] as const) {
   await targetInitializations(mode)

@@ -17,7 +17,10 @@ Deno.test('shouldNotLogError - unknown error', async () => {
 Deno.test('shouldNotLogError - known error without status', async () => {
   const knownError = new InternalError('BAD_GATEWAY', { shouldLog: false })
   const result = await shouldNotLogError(knownError)
-  assert(result, 'It should return true because critic error already are logged')
+  assert(
+    result,
+    'It should return true because critic error already are logged',
+  )
 })
 
 // Test: shouldNotLogError with a known error with status 500
@@ -39,7 +42,10 @@ Deno.test('shouldNotLogError - known error with no valid status error', async ()
   const errorStatus = getStatusError(knownError)
   assert(errorStatus === 200)
 
-  assert(result, 'It should return true because the status error is not considering an error')
+  assert(
+    result,
+    'It should return true because the status error is not considering an error',
+  )
 })
 
 // Test: shouldNotLogError with a known error already logged
@@ -57,12 +63,17 @@ Deno.test('shouldNotLogError - known error with status and less than 50 errors',
   assert(errorStatus >= 400 && errorStatus < 500)
 
   const result = await shouldNotLogError(knownError)
-  assert(result, 'It should return true because the error count has not reached the limit')
+  assert(
+    result,
+    'It should return true because the error count has not reached the limit',
+  )
 })
 
 // Test: shouldNotLogError with a known error and 50 errors within the window
 Deno.test('shouldNotLogError - known error with 50 errors within the window', async () => {
-  const knownError = new HttpError('FORBIDDEN', { meta: { data: 'my meta data' } })
+  const knownError = new HttpError('FORBIDDEN', {
+    meta: { data: 'my meta data' },
+  })
 
   const errorStatus = getStatusError(knownError) || 0
   assert(errorStatus >= 400 && errorStatus < 500)
@@ -85,12 +96,19 @@ Deno.test('shouldNotLogError - known error with 50 errors within the window', as
 
   // The window was reset by the threshold hit, so the next occurrence starts fresh
   const newResult = await shouldNotLogError(knownError)
-  assert(newResult, 'It should return true because the error counter has been reset')
+  assert(
+    newResult,
+    'It should return true because the error counter has been reset',
+  )
 })
 
 // Test: shouldNotLogError with a known error without a pre-existing `meta` object
 Deno.test('shouldNotLogError - 50 errors and no existing meta', async () => {
-  const knownError: { status: { value: number }; _logged: boolean; meta?: unknown } = {
+  const knownError: {
+    status: { value: number }
+    _logged: boolean
+    meta?: unknown
+  } = {
     status: { value: 404 },
     _logged: false,
   }
@@ -128,5 +146,8 @@ Deno.test('shouldNotLogError - resets the window once it expires', async () => {
 
   const result = await shouldNotLogError(knownError)
 
-  assert(result, 'It should return true because the window expired and restarted')
+  assert(
+    result,
+    'It should return true because the window expired and restarted',
+  )
 })

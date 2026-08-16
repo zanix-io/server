@@ -55,7 +55,11 @@ export type GenericTargets = 'custom'
  * - `'redis'`: Represents the Redis caching system.
  * - `GenericTargets`: Allows the inclusion of other generic cache connectors.
  */
-export type CoreCacheConnectors = 'local' | 'memcached' | 'redis' | GenericTargets
+export type CoreCacheConnectors =
+  | 'local'
+  | 'memcached'
+  | 'redis'
+  | GenericTargets
 
 /** Maps each `CoreCacheConnectors` value to the concrete client type it resolves to. */
 export type CoreCacheTypes<K> = {
@@ -116,7 +120,12 @@ export type KnownCoreConnectors =
 export type CoreProviders = KnownCoreProviders | (string & {})
 
 /** The provider slot keys `@zanix/server` itself pre-seeds — see {@link KnownCoreConnectors}. */
-export type KnownCoreProviders = 'cache' | 'asyncmq' | 'worker' | 'auth' | 'notifications'
+export type KnownCoreProviders =
+  | 'cache'
+  | 'asyncmq'
+  | 'worker'
+  | 'auth'
+  | 'notifications'
 /** Any valid connector type: a core connector, or a `GenericTargets` (`'custom'`) one. */
 export type ConnectorTypes = CoreConnectors | GenericTargets
 /** Any valid provider type: a core provider, or a `GenericTargets` (`'custom'`) one. */

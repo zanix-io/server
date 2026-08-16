@@ -61,7 +61,9 @@ export function Post(
  * }
  * ```
  */
-export function Post(rto: HandlerDecoratorMethodOptions['rto']): ZanixMethodDecorator
+export function Post(
+  rto: HandlerDecoratorMethodOptions['rto'],
+): ZanixMethodDecorator
 export function Post(
   pathOrRTO?: HandlerDecoratorMethodOptions['pathOrRTO'],
   rto?: HandlerDecoratorMethodOptions['rto'],

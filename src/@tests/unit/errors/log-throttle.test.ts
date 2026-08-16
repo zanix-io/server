@@ -44,7 +44,10 @@ Deno.test('shouldNotLogError - delegates to a custom ErrorLogThrottleStore', asy
 
     const result = await shouldNotLogError(knownError)
 
-    assert(result, 'It should return true because the custom store starts a fresh count')
+    assert(
+      result,
+      'It should return true because the custom store starts a fresh count',
+    )
     assertEquals(calls, [{ method: 'increment', status: errorStatus }])
   } finally {
     setErrorLogThrottleStore(defaultErrorLogThrottleStore)
@@ -66,10 +69,17 @@ Deno.test({
       }
 
       const result = await shouldNotLogError(knownError)
-      assertFalse(result, 'It should return false once the custom store reaches 50')
+      assertFalse(
+        result,
+        'It should return false once the custom store reaches 50',
+      )
 
       const resetCalls = calls.filter((c) => c.method === 'reset')
-      assertEquals(resetCalls.length, 1, 'the store should be reset exactly once, on threshold hit')
+      assertEquals(
+        resetCalls.length,
+        1,
+        'the store should be reset exactly once, on threshold hit',
+      )
     } finally {
       setErrorLogThrottleStore(defaultErrorLogThrottleStore)
     }
@@ -87,7 +97,10 @@ Deno.test({
     const knownError = new HttpError('UNAUTHORIZED')
     const result = await shouldNotLogError(knownError)
 
-    assert(result, 'It should behave like a fresh window against the restored default store')
+    assert(
+      result,
+      'It should behave like a fresh window against the restored default store',
+    )
   },
 })
 
@@ -106,7 +119,10 @@ Deno.test({
       assert(await shouldNotLogError(knownError), 'occurrence 2/3')
 
       const result = await shouldNotLogError(knownError)
-      assertFalse(result, 'It should return false once the custom threshold (3) is reached')
+      assertFalse(
+        result,
+        'It should return false once the custom threshold (3) is reached',
+      )
       assertEquals(
         knownError.meta?.reason,
         'Error rate exceeded: 3 errors within 1000ms',
@@ -133,7 +149,10 @@ Deno.test({
       assert(await shouldNotLogError(knownError), 'occurrence 1/2')
       const result = await shouldNotLogError(knownError)
 
-      assertFalse(result, 'It should return false once the custom threshold (2) is reached')
+      assertFalse(
+        result,
+        'It should return false once the custom threshold (2) is reached',
+      )
       assertEquals(
         knownError.meta?.reason,
         'Error rate exceeded: 2 errors within 500ms',
@@ -159,7 +178,10 @@ Deno.test({
       const knownError = new HttpError('CONFLICT')
       await shouldNotLogError(knownError)
 
-      assertEquals(calls, [{ method: 'increment', status: knownError.status.value }])
+      assertEquals(calls, [{
+        method: 'increment',
+        status: knownError.status.value,
+      }])
     } finally {
       setErrorLogThrottleStore(defaultErrorLogThrottleStore)
     }
@@ -176,7 +198,11 @@ Deno.test('shouldNotLogError - never consults the store for server errors by def
     const result = await shouldNotLogError(knownError)
 
     assertFalse(result, 'server errors are always logged by default')
-    assertEquals(calls, [], 'the store must never be consulted for a 5xx status by default')
+    assertEquals(
+      calls,
+      [],
+      'the store must never be consulted for a 5xx status by default',
+    )
   } finally {
     setErrorLogThrottleStore(defaultErrorLogThrottleStore)
   }
@@ -193,10 +219,16 @@ Deno.test({
     try {
       const knownError = new HttpError('BAD_GATEWAY') // 502, normally always logged unsuppressed
 
-      assert(await shouldNotLogError(knownError), 'occurrence 1/2 stays suppressed')
+      assert(
+        await shouldNotLogError(knownError),
+        'occurrence 1/2 stays suppressed',
+      )
 
       const result = await shouldNotLogError(knownError)
-      assertFalse(result, 'threshold reached, even for a 5xx status once maxStatus is raised')
+      assertFalse(
+        result,
+        'threshold reached, even for a 5xx status once maxStatus is raised',
+      )
       assert(
         calls.some((c) => c.method === 'increment'),
         'the store was consulted for a 5xx status',
@@ -223,8 +255,15 @@ Deno.test({
       const second = await shouldNotLogError(knownError)
 
       assertFalse(first, 'excluded statuses are always logged')
-      assertFalse(second, 'excluded statuses are always logged, every single time')
-      assertEquals(calls, [], 'the store must never be consulted for an excluded status')
+      assertFalse(
+        second,
+        'excluded statuses are always logged, every single time',
+      )
+      assertEquals(
+        calls,
+        [],
+        'the store must never be consulted for an excluded status',
+      )
     } finally {
       setErrorLogThrottleStore(defaultErrorLogThrottleStore)
       setErrorLogThrottleConfig(DEFAULT_ERROR_LOG_THROTTLE_CONFIG)
@@ -238,7 +277,11 @@ Deno.test({
   fn: async () => {
     const { store } = createRecordingStore()
     setErrorLogThrottleStore(store)
-    new ErrorLogThrottle({ excludeStatuses: [401], threshold: 2, windowMs: 1000 })
+    new ErrorLogThrottle({
+      excludeStatuses: [401],
+      threshold: 2,
+      windowMs: 1000,
+    })
 
     try {
       const knownError = new HttpError('FORBIDDEN') // 403, not in the excluded list
@@ -246,7 +289,10 @@ Deno.test({
       assert(await shouldNotLogError(knownError), 'occurrence 1/2')
       const result = await shouldNotLogError(knownError)
 
-      assertFalse(result, 'non-excluded statuses are still throttled by the threshold')
+      assertFalse(
+        result,
+        'non-excluded statuses are still throttled by the threshold',
+      )
     } finally {
       setErrorLogThrottleStore(defaultErrorLogThrottleStore)
       setErrorLogThrottleConfig(DEFAULT_ERROR_LOG_THROTTLE_CONFIG)

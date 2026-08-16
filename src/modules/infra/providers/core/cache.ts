@@ -26,9 +26,12 @@ export abstract class ZanixCacheProvider<T extends CoreModules = object> extends
    * **Note**: Use `this` to access the instance instead.
    */
   protected override get cache(): never {
-    throw new InternalError('Direct access to `cache` is not allowed. Use `this` instead.', {
-      meta: { source: 'zanix', provider: this.constructor.name },
-    })
+    throw new InternalError(
+      'Direct access to `cache` is not allowed. Use `this` instead.',
+      {
+        meta: { source: 'zanix', provider: this.constructor.name },
+      },
+    )
   }
 
   /**
@@ -46,7 +49,10 @@ export abstract class ZanixCacheProvider<T extends CoreModules = object> extends
     verbose: boolean = false,
   ): ZanixCacheConnectorGeneric<P> {
     const cacheId = `cache:${cache}` as const
-    return this.getProviderConnector(ConnectorCoreModules[cacheId].key as CoreConnectors, verbose)
+    return this.getProviderConnector(
+      ConnectorCoreModules[cacheId].key as CoreConnectors,
+      verbose,
+    )
   }
 
   /**
@@ -87,7 +93,7 @@ export abstract class ZanixCacheProvider<T extends CoreModules = object> extends
    * The specific caching strategy, TTL handling, and error behavior are left to the implementation.
    * This definition only outlines the expected purpose and general flow.
    */
-  public getCachedOrFetch<V, K = string>(
+  public getCachedOrFetch<V, K extends string = string>(
     _provider: Exclude<CoreCacheConnectors, 'local'>,
     _key: K,
     _options: CacheProviderSetOptions<V> = {},
@@ -110,7 +116,7 @@ export abstract class ZanixCacheProvider<T extends CoreModules = object> extends
    * are managed — depends entirely on the implementation.
    * This definition serves only as a conceptual guideline.
    */
-  public getCachedOrRevalidate<V, K = string>(
+  public getCachedOrRevalidate<V, K extends string = string>(
     _provider: Exclude<CoreCacheConnectors, 'local'>,
     _key: K,
     _options: {

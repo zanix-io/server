@@ -66,5 +66,8 @@ export abstract class ZanixKVConnector<V = any> extends ZanixConnector {
    * @param fn - Function to execute once the lock is acquired.
    * @returns A promise resolving with the result of the function.
    */
-  public abstract withLock<T>(key: string, _fn: () => T | Promise<T>): Promise<T>
+  public abstract withLock<T>(
+    key: string,
+    _fn: () => T | Promise<T>,
+  ): Promise<T>
 }

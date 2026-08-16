@@ -170,7 +170,10 @@ Deno.test('Verifying resolver gql Hello2, Hello4 and 5 query', async () => {
     }),
   })
   const response4 = await query4.json()
-  assertEquals(query4.headers.get('global-header'), 'global interceptor header')
+  assertEquals(
+    query4.headers.get('global-header'),
+    'global interceptor header',
+  )
 
   assertEquals(response4, {
     data: { welcomeHello4: 'Hello 4 ' },
@@ -190,7 +193,10 @@ Deno.test('Verifying resolver gql Hello2, Hello4 and 5 query', async () => {
     }),
   })
   const response5 = await query5.json()
-  assertEquals(query5.headers.get('global-header'), 'global interceptor header')
+  assertEquals(
+    query5.headers.get('global-header'),
+    'global interceptor header',
+  )
 
   assertEquals(response5, { data: { welcomeHello5: 'Hello 5' } })
 })
@@ -222,64 +228,72 @@ Deno.test('Validate schema on gql server', async () => {
   const data = await res.json()
 
   // Custom types
-  assert(data.data.__schema.types.some((item: any) =>
-    JSON.stringify(item) === JSON.stringify({
-      'name': 'Unknown',
-      'kind': 'SCALAR',
-      'description': 'The `Unknown` type is a custom type for generic returning values.',
-      'fields': null,
-    })
-  ))
+  assert(
+    data.data.__schema.types.some((item: any) =>
+      JSON.stringify(item) === JSON.stringify({
+        'name': 'Unknown',
+        'kind': 'SCALAR',
+        'description': 'The `Unknown` type is a custom type for generic returning values.',
+        'fields': null,
+      })
+    ),
+  )
 
   // Defined types
-  assert(data.data.__schema.types.some((item: any) =>
-    JSON.stringify(item) === JSON.stringify({
-      'name': 'InputData',
-      'kind': 'INPUT_OBJECT',
-      'description': 'Input Data comment',
-      'fields': null,
-    })
-  ))
+  assert(
+    data.data.__schema.types.some((item: any) =>
+      JSON.stringify(item) === JSON.stringify({
+        'name': 'InputData',
+        'kind': 'INPUT_OBJECT',
+        'description': 'Input Data comment',
+        'fields': null,
+      })
+    ),
+  )
 
   // Queries
-  assert(data.data.__schema.types.some((item: any) =>
-    JSON.stringify(item) === JSON.stringify({
-      'name': 'Query',
-      'kind': 'OBJECT',
-      'description':
-        "Queries in '@zanix/server' GraphQL schema serve as operations for retrieving data from the server.\nThey facilitate read operations, allowing clients to request specific information without altering the server's state.\nQueries enable access to structured data defined within '@zanix/server' and are instrumental in fetching relevant information for client applications.",
-      'fields': [
-        {
-          'name': 'hello3',
-        },
-        {
-          'name': 'hello',
-        },
-        {
-          'name': 'welcomeHello2',
-        },
-        {
-          'name': 'welcomeHello4',
-        },
-        {
-          'name': 'welcomeHello5',
-        },
-      ],
-    })
-  ))
+  assert(
+    data.data.__schema.types.some((item: any) =>
+      JSON.stringify(item) === JSON.stringify({
+        'name': 'Query',
+        'kind': 'OBJECT',
+        'description':
+          "Queries in '@zanix/server' GraphQL schema serve as operations for retrieving data from the server.\nThey facilitate read operations, allowing clients to request specific information without altering the server's state.\nQueries enable access to structured data defined within '@zanix/server' and are instrumental in fetching relevant information for client applications.",
+        'fields': [
+          {
+            'name': 'hello3',
+          },
+          {
+            'name': 'hello',
+          },
+          {
+            'name': 'welcomeHello2',
+          },
+          {
+            'name': 'welcomeHello4',
+          },
+          {
+            'name': 'welcomeHello5',
+          },
+        ],
+      })
+    ),
+  )
 
   // Defaul Mutation
-  assert(data.data.__schema.types.some((item: any) =>
-    JSON.stringify(item) === JSON.stringify({
-      'name': 'Mutation',
-      'kind': 'OBJECT',
-      'description':
-        "Mutations in '@zanix/server' GraphQL schema represent operations for modifying data on the server.\nThey empower clients to perform write operations, enabling the creation, updating, or deletion of data within '@zanix/server'.\nMutations are pivotal in altering the server's state, ensuring clients can modify the underlying data as necessary.",
-      'fields': [
-        {
-          'name': '_zanixMutation',
-        },
-      ],
-    })
-  ))
+  assert(
+    data.data.__schema.types.some((item: any) =>
+      JSON.stringify(item) === JSON.stringify({
+        'name': 'Mutation',
+        'kind': 'OBJECT',
+        'description':
+          "Mutations in '@zanix/server' GraphQL schema represent operations for modifying data on the server.\nThey empower clients to perform write operations, enabling the creation, updating, or deletion of data within '@zanix/server'.\nMutations are pivotal in altering the server's state, ensuring clients can modify the underlying data as necessary.",
+        'fields': [
+          {
+            'name': '_zanixMutation',
+          },
+        ],
+      })
+    ),
+  )
 })

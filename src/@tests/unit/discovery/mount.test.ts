@@ -35,7 +35,9 @@ Deno.test(
   'compileHttpRuntime: caller-supplied guards are forwarded, protocol guard appended last',
   () => {
     const callerGuard: MiddlewareGuard = () => ({})
-    const runtime = compileHttpRuntime(compileDiscoveryContract('templates'), [callerGuard])
+    const runtime = compileHttpRuntime(compileDiscoveryContract('templates'), [
+      callerGuard,
+    ])
 
     assertEquals(runtime.guards.length, 2)
     assertEquals(runtime.guards[0], callerGuard)
@@ -71,13 +73,22 @@ Deno.test(
     assertEquals(response.resourceType, 'templates')
     assertEquals(response.items, [{ name: 'welcome' }])
     assert(typeof response.generatedAt === 'string')
-    assertEquals(Object.keys(response).sort(), ['generatedAt', 'items', 'resourceType'])
+    assertEquals(Object.keys(response).sort(), [
+      'generatedAt',
+      'items',
+      'resourceType',
+    ])
   },
 )
 
 Deno.test('buildDiscoveryHandler: works with a provider that has no version()', async () => {
-  const provider: DiscoveryProvider<string> = { snapshot: () => Promise.resolve(['a', 'b']) }
-  const handler = buildDiscoveryHandler(compileDiscoveryContract('templates'), provider)
+  const provider: DiscoveryProvider<string> = {
+    snapshot: () => Promise.resolve(['a', 'b']),
+  }
+  const handler = buildDiscoveryHandler(
+    compileDiscoveryContract('templates'),
+    provider,
+  )
 
   const response = await handler({} as never) as Record<string, unknown>
   assertEquals(response.items, ['a', 'b'])

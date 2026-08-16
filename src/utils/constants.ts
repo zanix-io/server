@@ -143,4 +143,10 @@ export const ZANIX_SERVER_MODULES = [
   '.defs.ts', // this should be the last dependency
 ]
 
-export const HTTPMETHODS_WITHOUT_BODY = new Set(['GET', 'DELETE', 'HEAD', 'CONNECT', 'OPTIONS'])
+export const HTTPMETHODS_WITHOUT_BODY = new Set([
+  'GET',
+  'DELETE',
+  'HEAD',
+  'CONNECT',
+  'OPTIONS',
+])

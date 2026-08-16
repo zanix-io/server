@@ -24,9 +24,12 @@ export abstract class ZanixAsyncMQProvider<T extends CoreModules = object>
    * **Note**: Use `this` to access the instance instead.
    */
   protected override get asyncmq(): never {
-    throw new InternalError('Direct access to `asyncmq` is not allowed. Use `this` instead.', {
-      meta: { source: 'zanix', provider: this.constructor.name },
-    })
+    throw new InternalError(
+      'Direct access to `asyncmq` is not allowed. Use `this` instead.',
+      {
+        meta: { source: 'zanix', provider: this.constructor.name },
+      },
+    )
   }
 
   /**

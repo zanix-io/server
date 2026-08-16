@@ -179,7 +179,7 @@ groups the main exports by category — each links to a guide with full usage ex
 | WebSocket Handlers            | `Socket`, `ZanixWebSocket`                                                                                                                                            | [Handlers](./docs/HANDLERS.md)                                           |
 | Interactors                   | `Interactor`, `ZanixInteractor`                                                                                                                                       | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md)                   |
 | Connectors                    | `Connector`, `ZanixDatabaseConnector`, `ZanixAsyncmqConnector`, `ZanixCacheConnector`, `ZanixKVConnector`, `RestClient`, `GraphQLClient`, `registerCoreConnectorSlot` | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md)                   |
-| Providers                     | `Provider`, `ZanixProvider`, `ZanixCacheProvider`, `ZanixWorkerProvider`, `ZanixAsyncMQProvider`, `registerCoreProviderSlot`                                          | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md)                   |
+| Providers                     | `Provider`, `ZanixProvider`, `ZanixCacheProvider`, `ZanixWorkerProvider`, `dispatchWorkerTask`, `ZanixAsyncMQProvider`, `registerCoreProviderSlot`                    | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md)                   |
 | Middlewares                   | `Guard`, `Pipe`, `Interceptor`, `RequestValidation`, `registerGlobalGuard`, `registerGlobalPipe`, `registerGlobalInterceptor`                                         | [Middlewares](./docs/MIDDLEWARES.md)                                     |
 | Error Handling                | `httpErrorResponse`, `attachGlobalErrorHandlers`, `ErrorLogThrottle`                                                                                                  | [Error Handling](./docs/ERRORS.md)                                       |
 | Constants                     | `GRAPHQL_PORT`, `SOCKET_PORT`, `JSON_CONTENT_HEADER`, and more                                                                                                        | [Configuration](./docs/CONFIGURATION.md)                                 |
@@ -218,6 +218,43 @@ This starts a REST server exposing `GET /api/hello`. For manual control over ind
 without controllers — see
 [Getting Started: manual server control](./docs/GETTING-STARTED.md#advanced-manual-server-control).
 
+### Health & Readiness
+
+`GET /health` (liveness, always a cheap `200`) and `GET /ready` (readiness) are registered
+automatically, on by default, on every port that ends up hosting real content — `rest`, `graphql`,
+`socket`, or `ssr` alike, never the sole reason a listener starts:
+
+```typescript
+await bootstrapServers({
+  rest: { application: 'shop', globalPrefix: '/api' },
+  health: {
+    checks: {
+      redis: async () => (await redisConnector.ping()) === 'PONG',
+    },
+  },
+})
+// GET /health -> 200 { status: 'ok' }
+// GET /ready  -> 200/503 {
+//   status,
+//   shared: { status, checks: { ...coreConnectors } },
+//   apps: { shop: { status, checks: { redis } } },
+// }
+```
+
+`/ready`'s body always separates two dimensions: `shared` (every auto-discovered core connector's
+`isReady`/`isHealthy` — process-wide infrastructure, not owned by any one Application) and `apps`
+(each Application's own `health.checks`, keyed by Application name). When two or more Applications
+share a port, `/health` stays a single, first-claim-wins default (it never varies per Application),
+but `/ready` aggregates every sharing Application's own `checks` under its own `apps` entry — no
+Application's checks are ever silently dropped in favor of another's.
+
+`health: false` disables both; an object overrides `path`/`readyPath` or adds `checks` (merged into
+the auto-discovered ones, each receiving a `providers`/`connectors` getter to reach any registered
+target). Writing your own `@Controller`/`@Get('/health')` at the same path replaces the default
+entirely, no separate flag needed. See [`BootstrapServerOptions.health`](./mod.ts)'s own doc for the
+full shape, and [`docs/APPLICATIONS.md`](./docs/APPLICATIONS.md) for how this plays with multiple
+servers/Applications sharing one port.
+
 ### Special Environment Variables
 
 Zanix Server reads a handful of environment variables to configure SSL and per-server-type ports —
@@ -226,8 +263,10 @@ see the [Configuration](./docs/CONFIGURATION.md#environment-variables) guide for
 ## Documentation
 
 - [Getting Started](./docs/GETTING-STARTED.md) — build and run your first server end to end.
-- [Handlers](./docs/HANDLERS.md) — REST controllers, GraphQL resolvers, WebSocket handlers, and
-  request validation.
+- [Handlers](./docs/HANDLERS.md) — REST controllers, GraphQL resolvers, WebSocket handlers, SSR
+  controllers, and request validation.
+- [Applications](./docs/APPLICATIONS.md) — Application composition, anchored servers, shared ports,
+  boot sessions, and Discovery.
 - [Middlewares](./docs/MIDDLEWARES.md) — guards, pipes, interceptors, and global middleware
   registration.
 - [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) — connectors, providers, interactors, and

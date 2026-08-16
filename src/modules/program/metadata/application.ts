@@ -14,20 +14,28 @@ export const DEFAULT_APPLICATION = 'main'
  * server's own compiled dispatch table) ever calls back into this container; it exists purely to
  * resolve the *composition-time* question of "which Application is currently being assembled,"
  * including across genuinely concurrent composition batches (e.g. two `Promise.all`-parallel
- * `define` calls) — which is exactly why this is backed by `AsyncContext`
- * (`AsyncLocalStorage`-based) rather than a plain mutable variable: a flat variable would be
- * overwritten by whichever concurrent batch runs last, silently misattributing the other's
- * capabilities.
+ * `define` calls, or two independent top-level sequences like `Zanix.start()` and
+ * `ZanixAdminHub.start()` running with no `await` between them) — which is exactly why this is
+ * backed by `AsyncContext` (`AsyncLocalStorage`-based) rather than a plain mutable variable: a flat
+ * variable would be overwritten by whichever concurrent batch runs last, silently misattributing
+ * the other's capabilities. See `AsyncContext`'s own doc for what backing this with Deno's
+ * `node:async_hooks` compatibility layer (rather than a Deno-native API, since none exists yet)
+ * actually implies for this exact "genuinely concurrent" scenario.
  */
 export class ApplicationContainer {
-  #context: AsyncContext = new AsyncContext({ name: 'zanix-application-context' })
+  #context: AsyncContext = new AsyncContext({
+    name: 'zanix-application-context',
+  })
 
   /**
    * Runs `setup` with `name` as the ambient Application for the duration of its (possibly
    * asynchronous) execution. Safe to nest/interleave with other `define` calls running
    * concurrently — each keeps its own ambient id, regardless of call order.
    */
-  public async define(name: string, setup: () => void | Promise<void>): Promise<void> {
+  public async define(
+    name: string,
+    setup: () => void | Promise<void>,
+  ): Promise<void> {
     await this.#context.runWith(name, async () => {
       await setup()
     })

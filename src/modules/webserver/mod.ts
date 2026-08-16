@@ -1,11 +1,12 @@
-import type { BootstrapServerOptions, ServerID } from 'typings/server.ts'
+import type { BootstrapServerOptions, ServerID, WebServerTypes } from 'typings/server.ts'
 
 import { closeAllConnections, targetInitializations } from 'utils/targets.ts'
-import { GRAPHQL_PORT, SOCKET_PORT } from 'utils/constants.ts'
+import { GRAPHQL_PORT, SOCKET_PORT, STATIC_PORT } from 'utils/constants.ts'
 import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { WebServerManager } from './manager.ts'
 import { compileRuntime } from './runtime.ts'
+import { type ResolvedHealthOptions, resolveHealthOptions } from './health.ts'
 import { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
 import { compileDiscoveryContract } from 'modules/discovery/provider.ts'
 import {
@@ -61,29 +62,55 @@ self.addEventListener('unload', async () => {
  *
  * @type {WebServerManager}
  */
-export const webServerManager: Readonly<WebServerManager> = Object.freeze(new WebServerManager())
+export const webServerManager: Readonly<WebServerManager> = Object.freeze(
+  new WebServerManager(),
+)
 
-const hasRoutesForScope = (type: 'rest' | 'socket', application: string): boolean => {
+const hasRoutesForScope = (
+  type: 'rest' | 'socket' | 'ssr',
+  application: string,
+): boolean => {
   const routes = ProgramModule.routes.getRoutes(type)
   if (!routes) return false
   return Object.values(routes).some((route) => route.application === application)
 }
 
 /**
+ * Resolves a server type's `globalPrefix`: an explicitly `configured` value always wins; otherwise
+ * an anchored server (`explicitId` given) gets no default at all — its own id is already its prefix
+ * (see `compileRuntime`'s `routeHandlerPrefix`) — and an unanchored one falls back to `fallback`
+ * (e.g. `'api'` for REST). Omitting `fallback` (as `'ssr'` does) means an unanchored server has no
+ * default prefix either — used when routes must resolve at the site's real root paths instead of
+ * under a fixed first path segment.
+ */
+export const resolveGlobalPrefix = (
+  explicitId: ServerID | undefined,
+  configured: string | undefined,
+  fallback?: string,
+): string | undefined => configured || (explicitId ? undefined : fallback)
+
+/**
  * Starts one or more server instances based on the provided configuration.
  *
- * This asynchronous function initializes servers of various types (`'graphql'`, `'rest'`, `'socket'`)
- * according to the configuration defined in the `server` object. It returns a list of IDs for the
- * servers that were successfully created and started.
+ * This asynchronous function initializes servers of various types (`'graphql'`, `'rest'`, `'socket'`,
+ * `'ssr'`) according to the configuration defined in the `server` object. It returns a list of IDs
+ * for the servers that were successfully created and started.
+ *
+ * **Whether an omitted type can still auto-start depends on whether `server` names ANY type at
+ * all.** Call it with no argument (or `{}`) and every type with something registered to serve
+ * (routes, resolvers, or a Discovery provider) starts — convenient auto-discovery for a simple
+ * boot. Name even one type explicitly (e.g. `{ ssr: { port: 3000 } }`) and ONLY the named types
+ * are ever considered, no matter what else happens to be registered elsewhere in the process —
+ * this is what lets a caller narrow to exactly what it wants once it starts being explicit at all.
  *
  * @param {BootstrapServerOptions} [server={}] - A configuration object where each key
- * represents a server type (`'graphql'`, `'rest'`, or `'socket'`), and each value contains specific
- * options for that server, including its own optional `application`, `id`, `previousId`, and
+ * represents a server type (`'graphql'`, `'rest'`, `'socket'`, or `'ssr'`), and each value contains
+ * specific options for that server, including its own optional `application`, `id`, `previousId`, and
  * `onCreate` properties.
  *
  * `application` is set **per server type** (e.g. `server.rest.application`), not globally: it
  * decides which Application's routes/resolvers this server mounts — a `@Controller`/`@Socket`/
- * `@Resolver` registered under a given Application (see `ApplicationContainer`) is only served by a
+ * `@Resolver`/`@SsrController` registered under a given Application (see `ApplicationContainer`) is only served by a
  * server bootstrapped for that same Application (defaulting to the default Application, `'main'`,
  * when omitted on both sides); a capability never leaks onto a server built for a different
  * Application. `application` is purely an ownership/composition boundary — it carries no
@@ -95,7 +122,7 @@ const hasRoutesForScope = (type: 'rest' | 'socket', application: string): boolea
  * `BootstrapServerOptions[type].id`'s own doc. **A server is anchored if and only if an explicit
  * `id` is given — there is no auto-generated/random anchored id.** This is a routing/obscurity
  * boundary only, not an automatic authentication/authorization/network boundary — see
- * `docs/HANDLERS.md`'s "Applications" section for what it does and doesn't protect against.
+ * `docs/APPLICATIONS.md`'s "Applications" section for what it does and doesn't protect against.
  * `previousId` keeps that old id's prefix reachable alongside the current one, for a manual
  * rotation window — see `BootstrapServerOptions[type].previousId`. `onCreate`, when provided, is
  * invoked with the server `id` once that server is created.
@@ -140,52 +167,164 @@ const bootstrapServersImpl = async (
 ): Promise<ServerID[]> => {
   const servers: ServerID[] = []
 
-  const restApplication = server.rest?.application ?? DEFAULT_APPLICATION
-  const socketApplication = server.socket?.application ?? DEFAULT_APPLICATION
-  const graphqlApplication = server.graphql?.application ?? DEFAULT_APPLICATION
+  const applicationOf = (type: WebServerTypes) => server[type]?.application ?? DEFAULT_APPLICATION
+  const applications = {
+    rest: applicationOf('rest'),
+    socket: applicationOf('socket'),
+    graphql: applicationOf('graphql'),
+    ssr: applicationOf('ssr'),
+  }
 
-  // Discovery providers count as "something to serve" too — a business service that registers
-  // ONLY a `defineDiscovery(...)` for this Application (no `@Controller` of its own) still needs
-  // its REST server to actually start; without this, `hasRoutesForScope` alone would see nothing
-  // yet (discovery routes aren't mounted into the route table until the loop below runs) and skip
-  // the whole branch.
-  const serveRest = hasRoutesForScope('rest', restApplication) ||
-    ProgramModule.discovery.getProviders(restApplication).length > 0
-  const serveSocket = hasRoutesForScope('socket', socketApplication)
-  const serveGraphql = ProgramModule.targets.getTargetsByType('resolver', graphqlApplication).length
+  // Resolved once per call — the SAME resolved config is threaded into every type this call ends
+  // up serving (see `bootstrapServerType`'s own `health` param below, including `ssr`'s — see that
+  // type's own call for why its `''`-catch-all dispatch is safe too), since the underlying
+  // readiness data (core connectors) is process-wide, not per-type — see `WebServerManager.create`'s
+  // own health doc for exactly where/how it gets registered.
+  const health = resolveHealthOptions(server.health)
 
-  if (!(serveRest || serveSocket || serveGraphql)) {
+  // Each type below is served when BOTH hold: (1) `shouldServeType(type)` allows considering this
+  // type at all, and (2) that type actually has something to serve (routes/resolvers, or — REST
+  // only — a Discovery provider; see its own note below). Read the two as one combined condition,
+  // not two independent claims — a Discovery-only registration does NOT force REST to start on
+  // its own if the caller named at least one OTHER type and `rest` isn't one of the named ones
+  // (see the second case below): condition (1) still gates condition (2).
+  //
+  // (1) `shouldServeType`: whether the CALLER named at least one type at all. Two real, different
+  // callers rely on two different behaviors here, confirmed by running the full ecosystem test
+  // suite (`@zanix/server`/`@zanix/app`/`@zanix/core`), not assumed:
+  // - Omitted entirely (`bootstrapServers()`/`bootstrapServers(undefined)`, `server` defaults to
+  //   `{}`) — auto-discovery, unchanged from before: whatever has routes/resolvers/discovery
+  //   providers for its resolved Application gets served. This is `@zanix/core`'s own top-level
+  //   `bootstrapServers(options.server)` call when a `Zanix.bootstrap()` caller never passes
+  //   `server` at all — "I decorated some handlers, just start whatever I registered."
+  // - At least one type named (`{ ssr: {...} }`, even just one key) — ONLY the named types are
+  //   even considered; an unnamed type never auto-starts no matter how many routes/resolvers (or,
+  //   for REST, Discovery providers — see (2) below) it has for its Application. This is
+  //   `@zanix/app`'s `bootstrapAppServer`, the one real, shared entry point every named-app
+  //   composition in the ecosystem funnels through — it builds this object key-by-key from
+  //   exactly what the caller declared, relying on an undeclared type never starting. Without
+  //   this second case, ANY route/resolver registered for an Application anywhere in the process
+  //   — even one having nothing to do with THIS `bootstrapServers()` call, e.g. a decorator's
+  //   import-time side effect from an unrelated module — would silently start an extra,
+  //   unrequested server on that type's bare default port/prefix once the caller narrows to even
+  //   one other type. Regression this fixes: `serve.socket` used to turn `true` from a
+  //   `@Socket`-decorated class registered under the default Application, even when a caller's
+  //   `server` object explicitly narrowed to `{ ssr }` only.
+  //
+  // (2) Discovery providers count as "something to serve" too, for REST specifically — a business
+  // service that registers ONLY a `defineDiscovery(...)` for this Application (no `@Controller`
+  // of its own) still needs its REST server to start, GIVEN (1) already allows REST to be
+  // considered: without this OR clause, `hasRoutesForScope` alone would see nothing yet
+  // (discovery routes aren't mounted into the route table until `registerDiscoveryRoutes` runs)
+  // and skip the whole branch even when (1) says REST should be checked.
+  // "Named at all" is checked against `applications`'s own keys (exactly the 4 `WebServerTypes`),
+  // NOT `Object.keys(server)` directly — `server` can also carry sibling, non-type fields
+  // (`health`) that must never count as "the caller named a type." Regression this fixes:
+  // `bootstrapServers({ health: false })` (no type named at all, meaning "auto-discover
+  // everything, just skip health") used to silently disable auto-discovery entirely —
+  // `Object.keys(server)` saw `'health'` as if it were a named type, so this came back `true` for
+  // every type even though none of `rest`/`graphql`/`socket`/`ssr` were actually named.
+  const shouldServeType = (type: keyof typeof server) =>
+    type in server ||
+    Object.keys(applications).every((other) => !(other in server))
+
+  const serve = {
+    rest: shouldServeType('rest') &&
+      (hasRoutesForScope('rest', applications.rest) ||
+        ProgramModule.discovery.getProviders(applications.rest).length > 0),
+    socket: shouldServeType('socket') &&
+      hasRoutesForScope('socket', applications.socket),
+    graphql: shouldServeType('graphql') &&
+      ProgramModule.targets.getTargetsByType('resolver', applications.graphql)
+          .length > 0,
+    ssr: shouldServeType('ssr') && hasRoutesForScope('ssr', applications.ssr),
+  }
+
+  if (!Object.values(serve).some(Boolean)) {
     return servers
   }
 
   await targetInitializations('onSetup')
 
-  // REST initialization
-  if (serveRest) {
+  // Every server type below shares this exact shape: resolve its `globalPrefix`/`Runtime`, then
+  // create+notify+track it — only the default prefix/port and (REST-only) a pre-create step differ.
+  const bootstrapServerType = <T extends WebServerTypes>({
+    type,
+    application,
+    options,
+    defaultPrefix,
+    defaultPort,
+    beforeCreate,
+    health,
+  }: {
+    type: T
+    application: string
+    options: BootstrapServerOptions[T]
+    /** Unanchored default (skipped when anchored) — see `resolveGlobalPrefix`. Omitted for `'ssr'`. */
+    defaultPrefix?: string
+    /** Falls back to `WebServerManager.create`'s own default (8000) when omitted, as REST does. */
+    defaultPort?: number
+    /** REST-only: registers Discovery routes before `Runtime` resolution reads the route table. */
+    beforeCreate?: () => void
+    /** Forwarded as-is to `WebServerManager.create` — see this function's own `health` const above. */
+    health?: ResolvedHealthOptions
+  }) => {
     const {
       onCreate,
-      application: _restApplication,
+      application: _application,
       id: explicitId,
       previousId,
+      port,
+      preHandler,
       ...opts
-    } = {
-      ...server.rest,
-    } as Required<typeof server>['rest']
-    // The `'api'` fallback is an unanchored convention only — an anchored server (explicit `id`)
-    // with no explicit `globalPrefix` must see an empty one (not `'api'`), or it would always gain
-    // an unwanted `{id}/api/...` segment instead of the unchanged bare `{id}/...` path. An explicit
-    // `globalPrefix` (anchored or not) is always respected either way.
-    const globalPrefix = opts.globalPrefix || (explicitId ? undefined : 'api')
+    } = { ...options } as Required<BootstrapServerOptions>[T]
 
-    // Discovery routes are lazily registered here, at Runtime-activation time, the same way
-    // `getMainHandler` registers GraphQL's own single POST route outside any decorator (see its
-    // own comment) — `defineRoute`'s `applicationOverride` 3rd argument is the same escape hatch.
-    // Must happen before `routeProcessor` (inside `webServerManager.create` below) reads the route
-    // table, since that read is one-time — a route added after has no effect on this server.
+    // An anchored server (explicit `id`) with no explicit `globalPrefix` must see no default at
+    // all — its own id is already its prefix — or it would always gain an unwanted
+    // `{id}/{defaultPrefix}/...` segment instead of the unchanged bare `{id}/...` path. An explicit
+    // `globalPrefix` (anchored or not) is always respected either way.
+    const globalPrefix = resolveGlobalPrefix(
+      explicitId,
+      opts.globalPrefix,
+      defaultPrefix,
+    )
+
+    beforeCreate?.()
+
+    // Runtime resolution happens here, once, before `WebServerManager.create` is ever called —
+    // `create` itself only ever consumes the already-compiled `Runtime`, never derives id-anchoring
+    // behavior on its own.
+    const runtime = compileRuntime(type, {
+      application,
+      globalPrefix,
+      explicitId,
+      previousId,
+    })
+    const id = webServerManager.create(
+      type,
+      {
+        preHandler,
+        server: { ...opts, globalPrefix, port: port || defaultPort },
+      },
+      runtime,
+      health,
+    )
+    onCreate?.(id)
+    servers.push(id)
+  }
+
+  // Discovery routes are lazily registered here, at Runtime-activation time, the same way
+  // `getMainHandler` registers GraphQL's own single POST route outside any decorator (see its own
+  // comment) — `defineRoute`'s `applicationOverride` 3rd argument is the same escape hatch. Must
+  // happen before `routeProcessor` (inside `webServerManager.create` above) reads the route table,
+  // since that read is one-time — a route added after has no effect on this server. Discovery is
+  // REST-only, so this is only ever passed as REST's own `beforeCreate`.
+  const registerDiscoveryRoutes = (application: string) => {
     for (
-      const [resourceType, { provider, guards }] of ProgramModule.discovery.getProviders(
-        restApplication,
-      )
+      const [resourceType, { provider, guards }] of ProgramModule.discovery
+        .getProviders(
+          application,
+        )
     ) {
       const contract = compileDiscoveryContract(resourceType)
       const httpRuntime = compileDiscoveryHttpRuntime(contract, guards)
@@ -194,71 +333,60 @@ const bootstrapServersImpl = async (
         handler: buildDiscoveryHandler(contract, provider),
         guards: httpRuntime.guards,
         interceptors: httpRuntime.interceptors,
-      }, restApplication)
+      }, application)
     }
-
-    // Runtime resolution happens here, once, before `WebServerManager.create` is ever called —
-    // `create` itself only ever consumes the already-compiled `Runtime`, never derives id-anchoring
-    // behavior on its own.
-    const runtime = compileRuntime('rest', {
-      application: restApplication,
-      globalPrefix,
-      explicitId,
-      previousId,
-    })
-    const id = webServerManager.create('rest', { server: { ...opts, globalPrefix } }, runtime)
-    onCreate?.(id)
-    servers.push(id)
   }
 
-  // SOCKETS initialization
-  if (serveSocket) {
-    const {
-      onCreate,
-      application: _socketApplication,
-      id: explicitId,
-      previousId,
-      port,
-      ...opts
-    } = { ...server.socket } as Required<typeof server>['socket']
-    // See the REST branch above for why the type-based default is skipped when anchored.
-    const globalPrefix = opts.globalPrefix || (explicitId ? undefined : 'socket')
-    const runtime = compileRuntime('socket', {
-      application: socketApplication,
-      globalPrefix,
-      explicitId,
-      previousId,
+  if (serve.rest) {
+    bootstrapServerType({
+      type: 'rest',
+      application: applications.rest,
+      options: server.rest,
+      defaultPrefix: 'api',
+      beforeCreate: () => registerDiscoveryRoutes(applications.rest),
+      health,
     })
-    const id = webServerManager.create('socket', {
-      server: { ...opts, globalPrefix, port: port || SOCKET_PORT },
-    }, runtime)
-    onCreate?.(id)
-    servers.push(id)
   }
 
-  // GQL initialization
-  if (serveGraphql) {
-    const {
-      onCreate,
-      application: _graphqlApplication,
-      id: explicitId,
-      previousId,
-      port,
-      ...opts
-    } = { ...server.graphql } as Required<typeof server>['graphql']
-    // See the REST branch above for why the type-based default is skipped when anchored.
-    const globalPrefix = opts.globalPrefix || (explicitId ? undefined : 'graphql')
-    const runtime = compileRuntime('graphql', {
-      application: graphqlApplication,
-      globalPrefix,
-      explicitId,
-      previousId,
+  if (serve.socket) {
+    bootstrapServerType({
+      type: 'socket',
+      application: applications.socket,
+      options: server.socket,
+      defaultPrefix: 'socket',
+      defaultPort: SOCKET_PORT,
+      health,
     })
-    const id = webServerManager.create('graphql', {
-      server: { ...opts, globalPrefix, port: port || GRAPHQL_PORT },
-    }, runtime)
-    onCreate?.(id)
-    servers.push(id)
+  }
+
+  if (serve.graphql) {
+    bootstrapServerType({
+      type: 'graphql',
+      application: applications.graphql,
+      options: server.graphql,
+      defaultPrefix: 'graphql',
+      defaultPort: GRAPHQL_PORT,
+      health,
+    })
+  }
+
+  if (serve.ssr) {
+    // No `defaultPrefix`: SSR pages must resolve at the site's real root paths (e.g. `/products/1`,
+    // not `/ssr/products/1`), so an unanchored SSR server has no default prefix at all — its own
+    // dispatch key is the multiplexer's `''` catch-all (see `multiplexer`'s own doc). Verified
+    // empirically (a real SSR page at `/products/:id` alongside `health: true`, on one port) that
+    // health's own `'health'`/`'ready'` dispatch keys coexist safely with that catch-all — an exact
+    // match always wins over `''` at the multiplexer, identical to how an unprefixed/unanchored
+    // REST server (also dispatching via `''`) already behaves. Same known, narrow limitation as
+    // every other type: an SSR page whose OWN literal path is `/health`/`/ready` gets shadowed by
+    // the framework default (`health: false` if that's ever a real conflict).
+    bootstrapServerType({
+      type: 'ssr',
+      application: applications.ssr,
+      options: server.ssr,
+      defaultPort: STATIC_PORT,
+      health,
+    })
   }
 
   await targetInitializations('onBoot')

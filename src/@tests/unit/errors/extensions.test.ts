@@ -50,7 +50,10 @@ Deno.test('getExtendedErrorResponse should generate a unique UUID when no id exi
 })
 
 Deno.test('getExtendedErrorResponse should create new object to override it', () => {
-  const error = Object.freeze({ message: 'Test error', meta: { source: 'my-app' } })
+  const error = Object.freeze({
+    message: 'Test error',
+    meta: { source: 'my-app' },
+  })
 
   const response = getExtendedErrorResponse(error)
 

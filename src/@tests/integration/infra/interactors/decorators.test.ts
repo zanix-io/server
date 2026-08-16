@@ -21,7 +21,9 @@ const mockDefineTarget = {
 }
 
 // Inject into global (mocking actual imports)
-Program.targets.defineTarget = mockDefineTarget.defineTarget.bind(mockDefineTarget)
+Program.targets.defineTarget = mockDefineTarget.defineTarget.bind(
+  mockDefineTarget,
+)
 
 Deno.test('should register a valid interactor', () => {
   // Mock Program.targets.defineTarget
@@ -47,7 +49,10 @@ Deno.test('should register an interactor with explicit options (lifetime/startMo
 
   class MyOptionsInteractor extends ZanixInteractor {}
 
-  const Decorator = defineInteractorDecorator({ lifetime: 'SINGLETON', startMode: 'onBoot' })
+  const Decorator = defineInteractorDecorator({
+    lifetime: 'SINGLETON',
+    startMode: 'onBoot',
+  })
   Decorator(MyOptionsInteractor)
 
   assertSpyCalls(defineTargetSpy, 1)

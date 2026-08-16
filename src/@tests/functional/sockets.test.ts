@@ -93,7 +93,11 @@ Deno.test('should return error message on data validation', async () => {
       status: { code: 'BAD_REQUEST', value: 400 },
       cause: {
         message: 'Request validation error',
-        properties: { 'email': [{ 'constraints': ["'email' must be a valid email address."] }] },
+        properties: {
+          'email': [{
+            'constraints': ["'email' must be a valid email address."],
+          }],
+        },
         target: 'C',
       },
     },

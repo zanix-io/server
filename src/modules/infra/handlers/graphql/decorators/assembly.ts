@@ -61,12 +61,17 @@ export function defineResolverDecorator(
     applyMiddlewaresToTarget(Target)
     applyVersionProtocolToTarget(Target, versionProtocol)
 
-    const methodDecorators = ProgramModule.decorators.getDecoratorsData('resolver')
+    const methodDecorators = ProgramModule.decorators.getDecoratorsData(
+      'resolver',
+    )
 
     methodDecorators.forEach((decorator) => {
       const { name, handler, input, output, request, description } = decorator
       const resolverName = prefix ? prefix + capitalize(name) : name.toLowerCase()
-      const schemaBucket = gqlSchemaDefinitions[application] ??= { Query: '', Mutation: '' }
+      const schemaBucket = gqlSchemaDefinitions[application] ??= {
+        Query: '',
+        Mutation: '',
+      }
 
       schemaBucket[request] += `\n"""${description}"""\n${resolverName}${
         buildGqlInput(input)
@@ -90,7 +95,10 @@ export function defineResolverDecorator(
         const { context } = request
 
         // Only execute Target guards that could not be executed due to a single GQL route
-        const { headers, response: guardResponse } = await mainGuard(context, guards)
+        const { headers, response: guardResponse } = await mainGuard(
+          context,
+          guards,
+        )
         if (guardResponse) {
           request.response = guardResponse
           return plainResponseInterceptor(context, guardResponse)
@@ -157,7 +165,11 @@ export function defineResolverRequestDecorator(
 ): ZanixMethodDecorator {
   return function (method) {
     const name = options.name || method.name.toString()
-    const { input, output = scalarTypes.unknown.name, description = `${name} ${request}` } = options
+    const {
+      input,
+      output = scalarTypes.unknown.name,
+      description = `${name} ${request}`,
+    } = options
     ProgramModule.decorators.addDecoratorData({
       name,
       handler: method,

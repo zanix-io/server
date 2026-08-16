@@ -38,7 +38,10 @@ Deno.test('routeProcessor should return default adapted routes', () => {
   assertExists(relativePaths[fullPath].regex)
   assertEquals(relativePaths[fullPath].params, ['param'])
   assertEquals(relativePaths[fullPath].httpMethod, 'GET') // Default method
-  assertEquals(relativePaths[fullPath].interceptors[0]({} as never, {} as never), 'resp' as never)
+  assertEquals(
+    relativePaths[fullPath].interceptors[0]({} as never, {} as never),
+    'resp' as never,
+  )
   assert(relativePaths[fullPath].pipes.length === 0)
   assertEquals(relativePaths[fullPath].guards.length, 1)
   assertEquals(
@@ -56,6 +59,31 @@ Deno.test('routeProcessor should return default adapted routes', () => {
     'Not routes defined for Rest sever',
   )
 })
+
+Deno.test(
+  'routeProcessor preserves a camelCase route param NAME, even though the rest of the path ' +
+    'still matches case-insensitively',
+  () => {
+    Program.routes.resetContainer()
+
+    const path = '/route-camel/:serviceId/:model'
+    Program.routes.defineRoute('rest', {
+      path,
+      handler: () => '' as never,
+    })
+
+    // The storage key is still the LOWERCASED path (unchanged, matching-related behavior) — only
+    // the extracted param NAMES (below) keep their original casing now.
+    const fullPath = path.toLowerCase() + '/GET'
+    const { relativePaths } = routeProcessor('rest')
+
+    // Regression: `cleanRoute` lowercases the WHOLE path it's given, including `:paramName`
+    // placeholder text — before this fix, this came back as `['serviceid', 'model']`, silently
+    // breaking `ctx.payload.params.serviceId` (it would only ever resolve under the lowercased
+    // key `serviceid`).
+    assertEquals(relativePaths[fullPath].params, ['serviceId', 'model'])
+  },
+)
 
 Deno.test('routeProcessor should return adapted routes for external definitions', () => {
   Program.middlewares.addGlobalPipe(() => 'this is global' as never, ['rest']) // Global pipe
@@ -75,14 +103,23 @@ Deno.test('routeProcessor should return adapted routes for external definitions'
   Program.middlewares.addPipe(() => {}, { Target, propertyKey: 'Fa' }) // new specific for the property
 
   Program.routes.setEndpoint({ Target, endpoint: 'prefix' })
-  Program.routes.setEndpoint({ Target, propertyKey: 'Fa', endpoint: path, httpMethod: 'DELETE' })
+  Program.routes.setEndpoint({
+    Target,
+    propertyKey: 'Fa',
+    endpoint: path,
+    httpMethod: 'DELETE',
+  })
   Program.targets.addProperty({ Target, propertyKey: 'Fa' })
   Program.routes.setEndpoint({ Target, propertyKey: 'Fb' }) // set property name endpoint
   Program.targets.addProperty({ Target, propertyKey: 'Fb' })
 
   Program.routes.defineRoute('rest', Target)
 
-  Program.targets.defineTarget(Target.name, { type: 'controller', Target, lifetime: 'TRANSIENT' })
+  Program.targets.defineTarget(Target.name, {
+    type: 'controller',
+    Target,
+    lifetime: 'TRANSIENT',
+  })
 
   const { absolutePaths, relativePaths } = routeProcessor('rest')
 
@@ -95,13 +132,19 @@ Deno.test('routeProcessor should return adapted routes for external definitions'
   assert(relativePaths[fullPath].interceptors.length === 0)
   assertEquals(relativePaths[fullPath].httpMethod, 'DELETE')
   assertEquals(relativePaths[fullPath].pipes.length, 4)
-  assertEquals(relativePaths[fullPath].pipes[0]({ id: 2 } as never), 'this is global' as never)
+  assertEquals(
+    relativePaths[fullPath].pipes[0]({ id: 2 } as never),
+    'this is global' as never,
+  )
   assertEquals(absolutePaths['/prefix/fb/GET'].pipes.length, 3) // One global, two for the target
   assertEquals(
     absolutePaths['/prefix/fb/GET'].pipes[0]({ id: 2 } as never),
     'this is global' as never,
   )
-  assertEquals(relativePaths[fullPath].pipes[1]({ id: 2 } as never), 2 as never)
+  assertEquals(
+    relativePaths[fullPath].pipes[1]({ id: 2 } as never),
+    2 as never,
+  )
   assertEquals(relativePaths[fullPath].pipes[2]({ id: 2 } as never), undefined)
 })
 
@@ -117,7 +160,10 @@ Deno.test('routeProcessor: application filters which routes are included per App
     handler: () => '' as never,
   }, 'admin')
 
-  const { absolutePaths: publicPaths } = routeProcessor('rest', DEFAULT_APPLICATION)
+  const { absolutePaths: publicPaths } = routeProcessor(
+    'rest',
+    DEFAULT_APPLICATION,
+  )
   assertExists(publicPaths['/public-only/GET'])
   assertEquals(publicPaths['/internal-only/GET'], undefined)
 
@@ -148,6 +194,102 @@ Deno.test('routeProcessor: relative regex matches nothing with zero relative rou
   assertFalse(routePaths.relative.test(''))
 })
 
+Deno.test('routes.removeRoutesForTarget: deregisters a Target so it can be re-registered', () => {
+  Program.routes.resetContainer()
+
+  const path = 'hot-reload-page'
+  class PageV1 extends TargetBaseClass {
+    public handleGet() {}
+  }
+
+  Program.routes.setEndpoint({
+    Target: PageV1,
+    propertyKey: 'handleGet',
+    endpoint: path,
+  })
+  Program.targets.addProperty({ Target: PageV1, propertyKey: 'handleGet' })
+  Program.targets.defineTarget(PageV1.name, {
+    type: 'controller',
+    Target: PageV1,
+    lifetime: 'TRANSIENT',
+  })
+  Program.routes.defineRoute('ssr', PageV1)
+
+  // Re-registering the SAME Target, without removing first, collides exactly like two unrelated
+  // classes would — this is the failure mode `removeRoutesForTarget` exists to avoid on hot-reload.
+  assertThrows(
+    () => Program.routes.defineRoute('ssr', PageV1),
+    InternalError,
+    'Route path "ssr=>/hot-reload-page" is already defined in "PageV1"',
+  )
+
+  const removed = Program.routes.removeRoutesForTarget(PageV1)
+  assertEquals(removed, 1)
+
+  // No longer collides once deregistered — simulates re-importing the same page as a fresh module
+  // instance (a new class object in real hot-reload, the same class here since only the
+  // deregistration mechanics are under test).
+  Program.routes.defineRoute('ssr', PageV1)
+
+  const { absolutePaths } = routeProcessor('ssr')
+  assertExists(absolutePaths['/hot-reload-page/GET'])
+
+  // Removing an already-empty Target is a safe no-op, not an error
+  Program.routes.removeRoutesForTarget(PageV1)
+  const removedAgain = Program.routes.removeRoutesForTarget(PageV1)
+  assertEquals(removedAgain, 0)
+})
+
+Deno.test('routes.removeRoutesForTarget: a `type` scopes removal, other types untouched', () => {
+  Program.routes.resetContainer()
+
+  class MultiTypeTarget extends TargetBaseClass {
+    public handleGet() {}
+  }
+
+  Program.routes.setEndpoint({
+    Target: MultiTypeTarget,
+    propertyKey: 'handleGet',
+    endpoint: 'multi-type',
+  })
+  Program.targets.addProperty({
+    Target: MultiTypeTarget,
+    propertyKey: 'handleGet',
+  })
+  Program.targets.defineTarget(MultiTypeTarget.name, {
+    type: 'controller',
+    Target: MultiTypeTarget,
+    lifetime: 'TRANSIENT',
+  })
+  Program.routes.defineRoute('rest', MultiTypeTarget)
+  Program.routes.defineRoute('ssr', MultiTypeTarget)
+
+  const removed = Program.routes.removeRoutesForTarget(MultiTypeTarget, 'rest')
+  assertEquals(removed, 1)
+
+  assertThrows(
+    () => routeProcessor('rest'),
+    InternalError,
+    'Not routes defined for Rest sever',
+  )
+  assertExists(routeProcessor('ssr').absolutePaths['/multi-type/GET'])
+})
+
+Deno.test('routes.removeRoutesForTarget: never matches the raw path/handler form', () => {
+  Program.routes.resetContainer()
+
+  class UnrelatedTarget extends TargetBaseClass {}
+
+  Program.routes.defineRoute('rest', {
+    path: '/raw-escape-hatch',
+    handler: () => '' as never,
+  })
+
+  const removed = Program.routes.removeRoutesForTarget(UnrelatedTarget)
+  assertEquals(removed, 0)
+  assertExists(routeProcessor('rest').absolutePaths['/raw-escape-hatch/GET'])
+})
+
 Deno.test('routeProcessor should throw because of douplicate routes', () => {
   const path = 'route-2'
   class Target extends TargetBaseClass {}
@@ -156,7 +298,11 @@ Deno.test('routeProcessor should throw because of douplicate routes', () => {
   Program.routes.setEndpoint({ Target, endpoint: 'prefix' })
   Program.routes.setEndpoint({ Target, propertyKey: 'Fa', endpoint: path })
   Program.targets.addProperty({ Target, propertyKey: 'Fa' })
-  Program.routes.setEndpoint({ Target: Target2, propertyKey: 'Fb', endpoint: path })
+  Program.routes.setEndpoint({
+    Target: Target2,
+    propertyKey: 'Fb',
+    endpoint: path,
+  })
   Program.targets.addProperty({ Target: Target2, propertyKey: 'Fb' })
 
   Program.routes.defineRoute('rest', Target)
@@ -166,7 +312,11 @@ Deno.test('routeProcessor should throw because of douplicate routes', () => {
 
   Program.routes.setEndpoint({ Target, propertyKey: 'Fa', endpoint: path })
   Program.targets.addProperty({ Target, propertyKey: 'Fa' })
-  Program.routes.setEndpoint({ Target: Target2, propertyKey: 'Fb', endpoint: path })
+  Program.routes.setEndpoint({
+    Target: Target2,
+    propertyKey: 'Fb',
+    endpoint: path,
+  })
   Program.targets.addProperty({ Target: Target2, propertyKey: 'Fb' })
 
   Program.routes.defineRoute('rest', Target)
@@ -176,4 +326,39 @@ Deno.test('routeProcessor should throw because of douplicate routes', () => {
     InternalError,
     'Route path "rest=>/route-2" is already defined in "Target"',
   )
+})
+
+Deno.test('routeProcessor should apply global prefix', () => {
+  Program.routes.resetContainer()
+
+  Program.routes.defineRoute('rest', {
+    path: '/users',
+    handler: () => '' as never,
+  })
+
+  const { absolutePaths } = routeProcessor(
+    'rest',
+    DEFAULT_APPLICATION,
+    'api',
+  )
+
+  assertExists(absolutePaths['/api/users/GET'])
+})
+
+Deno.test('routeProcessor should not duplicate global prefix when route matches it', () => {
+  Program.routes.resetContainer()
+
+  Program.routes.defineRoute('rest', {
+    path: '/api',
+    handler: () => '' as never,
+  })
+
+  const { absolutePaths } = routeProcessor(
+    'rest',
+    DEFAULT_APPLICATION,
+    'api',
+  )
+
+  assertExists(absolutePaths['/api/GET'])
+  assertEquals(absolutePaths['/api/api/GET'], undefined)
 })

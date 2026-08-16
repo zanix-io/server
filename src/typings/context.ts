@@ -138,8 +138,9 @@ export interface ScopedContext extends BaseContext {
  * @interface HandlerContext
  * @extends BaseContext
  */
-export interface HandlerContext<P extends Partial<GenericPayload> = GenericPayload>
-  extends BaseContext {
+export interface HandlerContext<
+  P extends Partial<GenericPayload> = GenericPayload,
+> extends BaseContext {
   /** The HTTP request object that contains details about the incoming request. */
   req: Request
   /**

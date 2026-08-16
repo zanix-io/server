@@ -29,7 +29,9 @@ export function getGqlTypes(dir = '.') {
 
   // Adding scalar types
   for (const scalar of scalars) {
-    parts.push(`"""${scalar.definition.description}"""\nscalar ${scalar.name}\n`)
+    parts.push(
+      `"""${scalar.definition.description}"""\nscalar ${scalar.name}\n`,
+    )
   }
 
   collectFiles(dir, ['.gql', '.graphql'], (_, content) => {

@@ -12,8 +12,9 @@ import { HandlerBaseClass } from '../base.ts'
  * @template Interactor - The generic type representing the type of interactors used in the resolver.
  *                        By default, it is set to `never` meaning no interactor is provided unless specified.
  */
-export abstract class ZanixResolver<Interactor extends ZanixInteractorGeneric = never>
-  extends HandlerBaseClass<Interactor, GQLPrototype | HandlerContext> {
+export abstract class ZanixResolver<
+  Interactor extends ZanixInteractorGeneric = never,
+> extends HandlerBaseClass<Interactor, GQLPrototype | HandlerContext> {
   /** Creates the resolver instance, scoped to the current request's context. */
   constructor(protected context: HandlerContext) {
     super(context.id)

@@ -26,7 +26,9 @@ Deno.test('Start module should init some servers', async () => {
   )
 
   assert(servers.length === 3)
-  for (const server of servers) assert(webServerManager.info(server as never).addr)
+  for (const server of servers) {
+    assert(webServerManager.info(server as never).addr)
+  }
 
   await webServerManager.stop(servers)
 })

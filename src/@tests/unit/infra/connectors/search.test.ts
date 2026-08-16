@@ -5,7 +5,10 @@ import { ZanixSearchConnector } from 'modules/infra/connectors/core/search.ts'
 class MySearchConnector extends ZanixSearchConnector {
   public indexed: Array<{ doc: Record<string, unknown>; index?: string }> = []
 
-  public override index(doc: Record<string, unknown>, opts?: { index?: string }): Promise<void> {
+  public override index(
+    doc: Record<string, unknown>,
+    opts?: { index?: string },
+  ): Promise<void> {
     this.indexed.push({ doc, index: opts?.index })
     return Promise.resolve()
   }

@@ -70,7 +70,9 @@ export function registerCoreConnectorSlot(
  * Looks up a registered core connector slot by key — `undefined` if `key` was never registered.
  * See `getCoreProviderSlot` (`providers/core/all.ts`) for the full rationale.
  */
-export function getCoreConnectorSlot(key: CoreConnectors): CoreConnectorSlot | undefined {
+export function getCoreConnectorSlot(
+  key: CoreConnectors,
+): CoreConnectorSlot | undefined {
   const slot = ConnectorCoreModules[key]
   return slot?.registered ? slot : undefined
 }
@@ -88,7 +90,9 @@ export function aliasCoreConnectorTarget(targetKey: string, key: string): void {
 }
 
 /** Resolves a class's target key back to its core slot string key, if it was decorated as one. */
-export function resolveCoreConnectorTargetAlias(targetKey: string): string | undefined {
+export function resolveCoreConnectorTargetAlias(
+  targetKey: string,
+): string | undefined {
   return targetKeyToCoreConnectorKey[targetKey]
 }
 

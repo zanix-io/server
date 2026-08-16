@@ -7,6 +7,38 @@ import { AsyncLocalStorage, type AsyncLocalStorageOptions } from 'async_hooks'
  * This class provides a method to retrieve the context ID and an `runWith` method
  * to execute a callback within a specific context.
  *
+ * ### Not a Deno-native API — a real, tracked dependency on Deno's Node compatibility layer
+ *
+ * `AsyncLocalStorage` here comes from `node:async_hooks` (this package's `async_hooks` import
+ * specifier maps to it), not from anything under `Deno.*`. There is currently no Deno-native
+ * alternative: the language-level successor, the TC39 `AsyncContext` proposal
+ * (https://github.com/tc39/proposal-async-context), is at Stage 2 as of writing — no engine,
+ * including Deno's own V8, ships it. `node:async_hooks`'s `AsyncLocalStorage` is the only
+ * production-viable async-context-propagation primitive Deno currently offers.
+ *
+ * Deno's own docs (https://docs.deno.com/api/node/async_hooks/) single this API out as "fully
+ * implemented" with "significant optimizations" — while explicitly calling the REST of
+ * `async_hooks` (`AsyncResource`, `createHook`, `executionAsyncId`, ...) "non-functional stubs"
+ * and discouraging their use entirely. So this specific choice is the one Deno itself endorses.
+ *
+ * That said, it is not yet as battle-hardened as Node's decade-old implementation: Deno's own
+ * issue tracker has recent, real correctness bugs specifically about context propagation across
+ * concurrent/interleaved async work — e.g. `denoland/deno#35154` (context lost across `node:net`
+ * callbacks, fixed by `#35237`, merged 2026-06-15) and `denoland/deno#36464` (context preserved
+ * incorrectly after an exited scope, opened 2026-08-06, still in progress at the time this was
+ * written). Anything in this codebase relying on this class for genuinely concurrent/interleaved
+ * async chains — not just simple, non-overlapping request handling — is exercising exactly the
+ * class of scenario those issues are about. See `ApplicationContainer`'s and
+ * `BootSessionContainer`'s own docs for where this matters most, and
+ * `GenericHandlerOptions.enableALS`'s doc for the highest-concurrency consumer (one context per
+ * concurrent request).
+ *
+ * Scoping semantics (unaffected by the above, just to be explicit): a context set via `runWith`
+ * lives only for that call's own async continuation (its callback, plus everything it directly or
+ * indirectly awaits/schedules) — never the whole process, and never "only during startup". It
+ * disappears once that continuation fully settles, and never leaks into an unrelated, independent
+ * `runWith` call, even one running concurrently.
+ *
  * @template BaseContext The base type for the context.
  */
 // deno-lint-ignore no-explicit-any

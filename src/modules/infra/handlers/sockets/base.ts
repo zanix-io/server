@@ -45,8 +45,12 @@ import logger from '@zanix/logger'
  * }
  * ```
  */
-export abstract class ZanixWebSocket<Interactor extends ZanixInteractorGeneric = never>
-  extends HandlerGenericClass<Interactor, SocketPrototype | HandlerContext | RegistryContainer> {
+export abstract class ZanixWebSocket<
+  Interactor extends ZanixInteractorGeneric = never,
+> extends HandlerGenericClass<
+  Interactor,
+  SocketPrototype | HandlerContext | RegistryContainer
+> {
   #context: HandlerContext
 
   /** Creates the WebSocket handler instance, wiring the internal `onmessage` reply logic. */
@@ -76,11 +80,16 @@ export abstract class ZanixWebSocket<Interactor extends ZanixInteractorGeneric =
   #socket!: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>
 
   /** The underlying WebSocket connection, excluding the default event handlers. */
-  protected get socket(): Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'> {
+  protected get socket(): Omit<
+    WebSocket,
+    'onclose' | 'onerror' | 'onopen' | 'onmessage'
+  > {
     return this.#socket
   }
 
-  protected set socket(value: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>) {
+  protected set socket(
+    value: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>,
+  ) {
     this.#socket = value
   }
 

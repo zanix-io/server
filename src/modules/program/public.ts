@@ -3,7 +3,9 @@ import type { RegistryContainer } from './metadata/registry.ts'
 import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 import type { DiscoveryProvider } from 'typings/discovery.ts'
 import type { MiddlewareGuard } from 'typings/middlewares.ts'
+import type { WebServerTypes } from 'typings/server.ts'
 import type {
+  ClassConstructor,
   CoreModules,
   ZanixConnectorClass,
   ZanixConnectorsGetter,
@@ -46,7 +48,12 @@ function missingCoreSlotError(
     : `Missing core ${kind} slot "${key}". No provider was registered for this slot.${hint}`
 
   return new InternalError(message, {
-    meta: { source: 'zanix', slot: key, kind, sourcePackage: slot?.sourcePackage },
+    meta: {
+      source: 'zanix',
+      slot: key,
+      kind,
+      sourcePackage: slot?.sourcePackage,
+    },
     cause,
     shouldLog: !!verbose,
   })
@@ -62,7 +69,8 @@ function missingCoreSlotError(
  */
 function isUnresolvedTargetError(e: unknown): boolean {
   const meta = (e as { meta?: { targetName?: string } })?.meta
-  return typeof meta?.targetName === 'string' && meta.targetName.includes('unknown')
+  return typeof meta?.targetName === 'string' &&
+    meta.targetName.includes('unknown')
 }
 
 /**
@@ -140,15 +148,25 @@ export class Program {
         // common case) has no alias and resolves under its own class-derived key, unchanged.
         const targetKey = getTargetKey(Provider)
         const key = resolveCoreProviderTargetAlias(targetKey) ?? targetKey
-        return ProgramModule.targets.getProvider(key, { contextId: ctxId, verbose, caller })
+        return ProgramModule.targets.getProvider(key, {
+          contextId: ctxId,
+          verbose,
+          caller,
+        })
       }
 
       const key = Provider
       const slot = getCoreProviderSlot(key)
-      if (!slot) throw missingCoreSlotError('provider', key, undefined, verbose)
+      if (!slot) {
+        throw missingCoreSlotError('provider', key, undefined, verbose)
+      }
 
       try {
-        return ProgramModule.targets.getProvider(key, { contextId: ctxId, verbose, caller })
+        return ProgramModule.targets.getProvider(key, {
+          contextId: ctxId,
+          verbose,
+          caller,
+        })
       } catch (e) {
         if (isUnresolvedTargetError(e)) {
           throw missingCoreSlotError('provider', key, slot, verbose, e)
@@ -194,15 +212,25 @@ export class Program {
         // See the matching branch in `getProviders` above — same reasoning, connector side.
         const targetKey = getTargetKey(Connector)
         const key = resolveCoreConnectorTargetAlias(targetKey) ?? targetKey
-        return ProgramModule.targets.getConnector(key, { contextId: ctxId, verbose, caller })
+        return ProgramModule.targets.getConnector(key, {
+          contextId: ctxId,
+          verbose,
+          caller,
+        })
       }
 
       const key = Connector
       const slot = getCoreConnectorSlot(key)
-      if (!slot) throw missingCoreSlotError('connector', key, undefined, verbose)
+      if (!slot) {
+        throw missingCoreSlotError('connector', key, undefined, verbose)
+      }
 
       try {
-        return ProgramModule.targets.getConnector(key, { contextId: ctxId, verbose, caller })
+        return ProgramModule.targets.getConnector(key, {
+          contextId: ctxId,
+          verbose,
+          caller,
+        })
       } catch (e) {
         if (isUnresolvedTargetError(e)) {
           throw missingCoreSlotError('connector', key, slot, verbose, e)
@@ -305,7 +333,7 @@ export class Program {
   }
 
   /**
-   * Runs `setup` with `name` as the Application (see `docs/HANDLERS.md`'s "Applications" section)
+   * Runs `setup` with `name` as the Application (see `docs/APPLICATIONS.md`'s "Applications" section)
    * that every route/resolver/socket registered inside it (via `@Controller`/`@Resolver`/`@Socket`)
    * belongs to — composition-time only, resolved once per capability at the instant it registers
    * and persisted onto its own metadata as an ordinary field; never consulted again once a server
@@ -321,14 +349,17 @@ export class Program {
    *   createTriggersAdminController()
    * })
    */
-  public defineApplication(name: string, setup: () => void | Promise<void>): Promise<void> {
+  public defineApplication(
+    name: string,
+    setup: () => void | Promise<void>,
+  ): Promise<void> {
     return ProgramModule.applications.define(name, setup)
   }
 
   /**
    * Registers `provider` as the read-only source of truth for `resourceType`, exposed under
    * `/.well-known/zanix/{resourceType}` once a REST server for the current Application activates
-   * (see `docs/HANDLERS.md`'s "Discovery" section). Attributed to whichever `defineApplication(...)`
+   * (see `docs/APPLICATIONS.md`'s "Discovery" section). Attributed to whichever `defineApplication(...)`
    * scope is active the instant this call runs, the same way `RouteContainer.defineRoute` resolves
    * a route's Application — call it inside the same scope as the routes/controllers it accompanies.
    *
@@ -363,6 +394,53 @@ export class Program {
       provider,
       guards: options.guards ?? [],
     })
+  }
+
+  /**
+   * Removes every route previously registered for `Target` — across every server type, or only
+   * `type` if given. `Target` is the exact class reference a route decorator
+   * (`@Controller`/`@SsrController`/`@Resolver`/`@Socket`) ran against; routes registered through
+   * the raw `{path, handler}` object form are never matched, since there's no class identity to
+   * compare against.
+   *
+   * This exists for lazy re-registration flows that run OUTSIDE the ordinary boot cycle — the
+   * motivating case is a dev-server that reimports a decorated class as a fresh module instance
+   * after a file change: re-running its route decorator would otherwise collide with the
+   * still-registered previous instance ("Route path ... is already defined"). Call this first,
+   * against the OLD class reference, before reimporting.
+   *
+   * Not part of ordinary application composition — a route decorator already registers its own
+   * class once, correctly, the first time; this is only for undoing that registration on purpose.
+   *
+   * @returns The number of route entries removed (`0` if `Target` had none registered).
+   *
+   * @example
+   * const removed = ProgramModule.unregisterRoutes(PreviousPageModule.default)
+   * const fresh = await import(`${pageFile}?t=${Date.now()}`)
+   */
+  public unregisterRoutes(
+    Target: ClassConstructor,
+    type?: WebServerTypes,
+  ): number {
+    return ProgramModule.routes.removeRoutesForTarget(Target, type)
+  }
+
+  /**
+   * Removes every route registered under `application` — across every server type. Unlike
+   * `unregisterRoutes` (keyed by decorated class), this is keyed by Application name, for
+   * hot-uninstalling one Zanix App's whole route surface while every other Application (host or
+   * sibling app) keeps serving unaffected — see `RouteContainer.removeRoutesForApplication`'s own
+   * doc for why this is safer to call than `resetExceptApplications` when the caller only knows
+   * ONE Application's own name.
+   *
+   * This only updates route metadata — an already-bound `Deno.serve()` listener keeps dispatching
+   * to its own compiled route table until `WebServerManager.unmount()` also drops that
+   * Application's live dispatch entry.
+   *
+   * @returns The number of route entries removed (`0` if `application` had none registered).
+   */
+  public unregisterApplicationRoutes(application: string): number {
+    return ProgramModule.routes.removeRoutesForApplication(application)
   }
 
   /**

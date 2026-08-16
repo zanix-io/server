@@ -78,7 +78,9 @@ export const corsGuard = (
   const methodMap: Record<WebServerTypes, HttpMethod[]> = {
     graphql: ['GET', 'POST'],
     socket: ['GET'],
-    ssr: ['GET'],
+    // A page's own `GET` (render) and `POST` (form action) are both real, first-class routes —
+    // never just GET-only static rendering.
+    ssr: ['GET', 'POST'],
     rest: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   }
 

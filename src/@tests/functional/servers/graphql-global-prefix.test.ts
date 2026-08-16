@@ -25,19 +25,27 @@ Deno.test(
       const addr = webServerManager.info(id).addr
       assert(addr, 'internal GraphQL server should be listening')
 
-      const combinedRes = await fetch(`http://${addr.hostname}:${addr.port}/${id}/ops`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: '{ globalprefixprobe }' }),
+      const combinedRes = await fetch(
+        `http://${addr.hostname}:${addr.port}/${id}/ops`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: '{ globalprefixprobe }' }),
+        },
+      )
+      assertEquals(await combinedRes.json(), {
+        data: { globalprefixprobe: 'probe response' },
       })
-      assertEquals(await combinedRes.json(), { data: { globalprefixprobe: 'probe response' } })
 
       // The bare {id} path (no globalPrefix segment) no longer matches once globalPrefix is set.
-      const bareRes = await fetch(`http://${addr.hostname}:${addr.port}/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: '{ globalprefixprobe }' }),
-      })
+      const bareRes = await fetch(
+        `http://${addr.hostname}:${addr.port}/${id}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: '{ globalprefixprobe }' }),
+        },
+      )
       assertEquals(bareRes.status, 404)
       await bareRes.body?.cancel()
     } finally {

@@ -37,8 +37,13 @@ Deno.test('TargetContainer: defineTarget stores target class and options', () =>
 
   container.defineTarget('serviceA', opts as never)
   assert(container.getTargetsByType('connector').includes('serviceA'))
-  assertEquals(container['getInstance']('serviceA', 'connector'), new TestClass())
-  assertEquals(container.getConnector('serviceA')[ZANIX_PROPS].data, { foo: 'bar' })
+  assertEquals(
+    container['getInstance']('serviceA', 'connector'),
+    new TestClass(),
+  )
+  assertEquals(container.getConnector('serviceA')[ZANIX_PROPS].data, {
+    foo: 'bar',
+  })
 })
 
 Deno.test('TargetContainer: getTargetsByType filters resolvers by application', () => {
@@ -62,8 +67,12 @@ Deno.test('TargetContainer: getTargetsByType filters resolvers by application', 
     'internalResolver',
     'publicResolver',
   ])
-  assertEquals(container.getTargetsByType('resolver', 'main'), ['publicResolver'])
-  assertEquals(container.getTargetsByType('resolver', 'admin'), ['internalResolver'])
+  assertEquals(container.getTargetsByType('resolver', 'main'), [
+    'publicResolver',
+  ])
+  assertEquals(container.getTargetsByType('resolver', 'admin'), [
+    'internalResolver',
+  ])
 })
 
 Deno.test(
@@ -82,11 +91,16 @@ Deno.test(
 
     assertEquals(Object.keys(TestClass.prototype).includes(ZANIX_PROPS), false)
     assertEquals(
-      Object.prototype.propertyIsEnumerable.call(TestClass.prototype, ZANIX_PROPS),
+      Object.prototype.propertyIsEnumerable.call(
+        TestClass.prototype,
+        ZANIX_PROPS,
+      ),
       false,
     )
     // Direct access still works: only enumeration is affected, not readability.
-    assertEquals((TestClass.prototype as any)[ZANIX_PROPS].data, { foo: 'bar' })
+    assertEquals((TestClass.prototype as any)[ZANIX_PROPS].data, {
+      foo: 'bar',
+    })
   },
 )
 
@@ -186,7 +200,9 @@ Deno.test({
       lifetime: 'SCOPED',
     })
 
-    const instance = container.getConnector('scopedConn', { contextId: 'ctx-1' })
+    const instance = container.getConnector('scopedConn', {
+      contextId: 'ctx-1',
+    })
     assert(instance)
 
     await container.resetScopedInstances('ctx-1')
@@ -218,14 +234,23 @@ Deno.test(
 
     // Two different request contexts, same (caller class, target class) pair — simulates the
     // same SINGLETON handling many requests, each resolving the same SCOPED connector.
-    container.getConnector('warnScopedConn', { contextId: 'ctx-1', caller: singletonCaller })
-    container.getConnector('warnScopedConn', { contextId: 'ctx-2', caller: singletonCaller })
+    container.getConnector('warnScopedConn', {
+      contextId: 'ctx-1',
+      caller: singletonCaller,
+    })
+    container.getConnector('warnScopedConn', {
+      contextId: 'ctx-2',
+      caller: singletonCaller,
+    })
     await flushMicrotasks()
 
     assertEquals(logSpy.calls.length, 1)
     assertStringIncludes(logSpy.calls[0].args[0] as string, 'SINGLETON')
     assertStringIncludes(logSpy.calls[0].args[0] as string, 'SCOPED')
-    assertStringIncludes(logSpy.calls[0].args[0] as string, 'FakeSingletonCaller')
+    assertStringIncludes(
+      logSpy.calls[0].args[0] as string,
+      'FakeSingletonCaller',
+    )
     assertStringIncludes(logSpy.calls[0].args[0] as string, 'ScopedTarget')
 
     logSpy.restore()
@@ -264,9 +289,15 @@ Deno.test(
     const logSpy = spy(logger, 'error')
 
     // SCOPED caller resolving a SINGLETON target: no leak risk.
-    container.getConnector('warnSingletonConn', { contextId: 'ctx-1', caller: scopedCaller })
+    container.getConnector('warnSingletonConn', {
+      contextId: 'ctx-1',
+      caller: scopedCaller,
+    })
     // SCOPED caller resolving a SCOPED target: both get a real per-request context.
-    container.getConnector('warnScopedConn2', { contextId: 'ctx-1', caller: scopedCaller })
+    container.getConnector('warnScopedConn2', {
+      contextId: 'ctx-1',
+      caller: scopedCaller,
+    })
     // No `caller` passed at all: nothing to compare against.
     container.getConnector('warnScopedConn2', { contextId: 'ctx-2' })
     await flushMicrotasks()
@@ -278,7 +309,10 @@ Deno.test(
     // Sanity check the SINGLETON+SCOPED combination *would* have warned with this same setup,
     // proving the previous assertions weren't just silently misconfigured.
     const logSpy2 = spy(logger, 'error')
-    container.getConnector('warnScopedConn2', { contextId: 'ctx-3', caller: singletonCaller })
+    container.getConnector('warnScopedConn2', {
+      contextId: 'ctx-3',
+      caller: singletonCaller,
+    })
     await flushMicrotasks()
     assertEquals(logSpy2.calls.length, 1)
     logSpy2.restore()

@@ -67,7 +67,10 @@ Deno.test({
     self.onerror({ error: { toString: () => 'stringified error' } })
 
     await flushMicrotasks()
-    assertStringIncludes(logSpy.calls[0].args[0] as string, 'stringified error')
+    assertStringIncludes(
+      logSpy.calls[0].args[0] as string,
+      'stringified error',
+    )
     logSpy.restore()
   },
 })
@@ -93,7 +96,10 @@ Deno.test('attachGlobalErrorHandlers: onerror tolerates a missing preventDefault
   self.onerror({ error: { message: 'no preventDefault here' } })
 
   await flushMicrotasks()
-  assertStringIncludes(logSpy.calls[0].args[0] as string, 'no preventDefault here')
+  assertStringIncludes(
+    logSpy.calls[0].args[0] as string,
+    'no preventDefault here',
+  )
   logSpy.restore()
 })
 
@@ -111,7 +117,10 @@ Deno.test({
 
     const loggedError = logSpy.calls[0].args[1] as { message: string }
     assertEquals(loggedError.message, 'rejected as string')
-    assertStringIncludes(logSpy.calls[0].args[0] as string, 'rejected as string')
+    assertStringIncludes(
+      logSpy.calls[0].args[0] as string,
+      'rejected as string',
+    )
     logSpy.restore()
   },
 })
@@ -149,7 +158,10 @@ Deno.test({
       promise: Promise.reject(new Error('err message fallback')),
     })
 
-    assertStringIncludes(logSpy.calls[0].args[0] as string, 'err message fallback')
+    assertStringIncludes(
+      logSpy.calls[0].args[0] as string,
+      'err message fallback',
+    )
     logSpy.restore()
   },
 })
@@ -167,7 +179,10 @@ Deno.test({
       promise: Promise.reject({ toString: () => 'err toString fallback' }),
     })
 
-    assertStringIncludes(logSpy.calls[0].args[0] as string, 'err toString fallback')
+    assertStringIncludes(
+      logSpy.calls[0].args[0] as string,
+      'err toString fallback',
+    )
     logSpy.restore()
   },
 })

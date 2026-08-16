@@ -20,11 +20,16 @@ export const onErrorListener =
     return httpErrorResponse(error)
   }
 
-export const onListen =
-  (currentListenHandler: ServerOptions['onListen'], protocol: string, serverName: string) =>
-  (addr: Deno.NetAddr) => {
-    logger.success(`${serverName} server is running at ${protocol}://${addr.hostname}:${addr.port}`)
-    try {
-      currentListenHandler?.(addr)
-    } catch { /** ignore */ }
-  }
+export const onListen = (
+  currentListenHandler: ServerOptions['onListen'],
+  protocol: string,
+  serverName: string,
+) =>
+(addr: Deno.NetAddr) => {
+  logger.success(
+    `${serverName} server is running at ${protocol}://${addr.hostname}:${addr.port}`,
+  )
+  try {
+    currentListenHandler?.(addr)
+  } catch { /** ignore */ }
+}

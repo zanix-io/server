@@ -7,8 +7,12 @@ console.error = () => {}
 Deno.test('WebServerManager.delete: removes multiple servers when given an array of ids', () => {
   const manager = new WebServerManager()
 
-  const id1 = manager.create('rest', { handler: (() => new Response('ok')) as never })
-  const id2 = manager.create('rest', { handler: (() => new Response('ok')) as never })
+  const id1 = manager.create('rest', {
+    handler: (() => new Response('ok')) as never,
+  })
+  const id2 = manager.create('rest', {
+    handler: (() => new Response('ok')) as never,
+  })
 
   const result = manager.delete([id1, id2])
 
@@ -20,7 +24,9 @@ Deno.test('WebServerManager.delete: removes multiple servers when given an array
 Deno.test('WebServerManager.create: reuses the existing server when called with a known id', () => {
   const manager = new WebServerManager()
 
-  const id = manager.create('rest', { handler: (() => new Response('ok')) as never })
+  const id = manager.create('rest', {
+    handler: (() => new Response('ok')) as never,
+  })
   const sameId = manager.create(
     'socket',
     { handler: (() => new Response('ok')) as never },
@@ -36,7 +42,9 @@ Deno.test('WebServerManager.create: an anchored serverID is normalized (case/sla
   const manager = new WebServerManager()
 
   const runtime = compileRuntime('rest', { explicitId: 'Custom-Billing' })
-  const id = manager.create('rest', { handler: (() => new Response('ok')) as never }, runtime)
+  const id = manager.create('rest', {
+    handler: (() => new Response('ok')) as never,
+  }, runtime)
 
   assertEquals(id, 'custom-billing')
 })
@@ -80,7 +88,11 @@ Deno.test(
     // instead of the real one — `defineSchema` consumes its Query/Mutation accumulator once built
     // — so this is rejected outright rather than silently shipping a broken previous-prefix.
     assertThrows(
-      () => compileRuntime('graphql', { explicitId: 'billing', previousId: 'old-billing' }),
+      () =>
+        compileRuntime('graphql', {
+          explicitId: 'billing',
+          previousId: 'old-billing',
+        }),
       Error,
       "isn't supported for a graphql server",
     )

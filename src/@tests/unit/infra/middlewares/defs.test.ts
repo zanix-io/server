@@ -27,7 +27,10 @@ Deno.test('registerGlobalPipe should register global pipe with interactors', () 
   pipeFn(ctx)
 
   // Ensure the middleware was called with interactors
-  assertEquals(typeof targetMiddleware.calls[0].args[0].interactors.get, 'function')
+  assertEquals(
+    typeof targetMiddleware.calls[0].args[0].interactors.get,
+    'function',
+  )
   assertEquals(serverArg, server)
 })
 
@@ -52,7 +55,10 @@ Deno.test('registerGlobalInterceptor should register interceptor with interactor
   const result = await interceptorFn(ctx, response)
 
   assertEquals(result, response)
-  assertEquals(typeof targetInterceptor.calls[0].args[0].interactors.get, 'function')
+  assertEquals(
+    typeof targetInterceptor.calls[0].args[0].interactors.get,
+    'function',
+  )
   assertEquals(targetInterceptor.calls[0].args[1], response)
   assertEquals(serverArg, server)
 })

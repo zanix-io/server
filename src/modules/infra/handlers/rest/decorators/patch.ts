@@ -61,7 +61,9 @@ export function Patch(
  * }
  * ```
  */
-export function Patch(rto: HandlerDecoratorMethodOptions['rto']): ZanixMethodDecorator
+export function Patch(
+  rto: HandlerDecoratorMethodOptions['rto'],
+): ZanixMethodDecorator
 export function Patch(
   pathOrRTO?: HandlerDecoratorMethodOptions['pathOrRTO'],
   rto?: HandlerDecoratorMethodOptions['rto'],

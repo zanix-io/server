@@ -24,7 +24,9 @@ export class DecoratorsContainer extends BaseContainer {
   /**
    * get decorator data
    */
-  public getDecoratorsData<T extends DecoratorTypes>(type: T): DecoratorsData<T>[] {
+  public getDecoratorsData<T extends DecoratorTypes>(
+    type: T,
+  ): DecoratorsData<T>[] {
     type R = DecoratorsData<T>
     const key = this.#key(type)
     return this.getData<R[]>(key, this) || []

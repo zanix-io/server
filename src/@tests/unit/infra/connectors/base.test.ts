@@ -53,7 +53,10 @@ class OtherConnector extends TestConnector {
 Deno.test('ZanixConnector: should avoid autoconnect', async () => {
   TestConnector.prototype[ZANIX_PROPS] = {
     ...TestConnector.prototype[ZANIX_PROPS],
-    data: { autoInitialize: false, ...TestConnector.prototype[ZANIX_PROPS]?.data },
+    data: {
+      autoInitialize: false,
+      ...TestConnector.prototype[ZANIX_PROPS]?.data,
+    },
   }
 
   const conn = new TestConnector()
@@ -69,7 +72,10 @@ Deno.test(
   async () => {
     TestConnector.prototype[ZANIX_PROPS] = {
       ...TestConnector.prototype[ZANIX_PROPS],
-      data: { autoInitialize: false, ...TestConnector.prototype[ZANIX_PROPS]?.data },
+      data: {
+        autoInitialize: false,
+        ...TestConnector.prototype[ZANIX_PROPS]?.data,
+      },
     }
 
     delete TestConnector.prototype[ZANIX_PROPS]?.data?.autoInitialize
@@ -111,7 +117,9 @@ Deno.test('ZanixConnector: should have correct timeout and retries values', asyn
   assertEquals(conn2['timeoutConnection'], 10000)
   assertEquals(conn2['retryInterval'], 500)
 
-  const conn3 = new TestConnector({ autoInitialize: { timeoutConnection: 500, retryInterval: 30 } })
+  const conn3 = new TestConnector({
+    autoInitialize: { timeoutConnection: 500, retryInterval: 30 },
+  })
   await conn3.isReady
   assertEquals(conn3['timeoutConnection'], 500)
   assertEquals(conn3['retryInterval'], 30)

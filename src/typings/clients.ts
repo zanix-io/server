@@ -12,19 +12,30 @@ import type { ConnectorOptions } from './targets.ts'
  *
  * @property {string} [baseUrl] - Optional base URL to prepend to request paths.
  */
-export type RequestOptions = Omit<RequestInit, 'method' | 'body'> & ConnectorOptions & {
-  /**
-   * Optional base URL to prepend to request paths.
-   */
-  baseUrl?: string
-  /**
-   * Whether `GET` requests participate in `RestClient`'s conditional-request (`ETag`/
-   * `If-None-Match`) cache. Defaults to `true`. Set to `false` to opt this client out entirely —
-   * e.g. for an endpoint that never sends `ETag`, or one where a `304` shouldn't ever short-circuit
-   * a fresh read. Has no effect on non-`GET` methods, which never participate regardless.
-   */
-  etag?: boolean
-}
+export type RequestOptions =
+  & Omit<RequestInit, 'method' | 'body'>
+  & ConnectorOptions
+  & {
+    /**
+     * Optional base URL to prepend to request paths.
+     */
+    baseUrl?: string
+    /**
+     * Whether `GET` requests participate in `RestClient`'s conditional-request (`ETag`/
+     * `If-None-Match`) cache. Defaults to `true`. Set to `false` to opt this client out entirely —
+     * e.g. for an endpoint that never sends `ETag`, or one where a `304` shouldn't ever short-circuit
+     * a fresh read. Has no effect on non-`GET` methods, which never participate regardless.
+     */
+    etag?: boolean
+    /**
+     * A custom `Deno.HttpClient` every request from this `RestClient` instance is issued through —
+     * e.g. one built via `Deno.createHttpClient({ cert, key })` to present a client certificate on
+     * every call (mTLS). Passed straight through to `fetch()`'s own `client` option; not part of the
+     * standard `RequestInit` shape `Omit<RequestInit, ...>` above already captures, so it's named
+     * here explicitly.
+     */
+    client?: Deno.HttpClient
+  }
 
 /**
  * Represents configuration options for RESTful HTTP requests.

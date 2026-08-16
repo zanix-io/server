@@ -21,8 +21,22 @@ Deno.test("Start module should init the 'admin'-Application, anchored servers", 
   await bootstrapServers(
     {
       rest: { onCreate, application, id: 'internal-rest-anchor', port: 1234 },
-      graphql: { onCreate, application, id: 'internal-graphql-anchor', port: 1235 },
-      socket: { onCreate, application, id: 'internal-socket-anchor', port: 1236 },
+      graphql: {
+        onCreate,
+        application,
+        id: 'internal-graphql-anchor',
+        port: 1235,
+      },
+      socket: {
+        onCreate,
+        application,
+        id: 'internal-socket-anchor',
+        port: 1236,
+      },
+      // Unrelated to this test's own concern (anchored routing) — disabled so its own route logs
+      // (unprefixed by design, see `WebServerManager.create`'s health doc) don't get counted below
+      // or fail the "every logged path starts with an anchored id" assertion.
+      health: false,
     },
   )
 
@@ -35,7 +49,9 @@ Deno.test("Start module should init the 'admin'-Application, anchored servers", 
 
   // Assert some anchored server
   for (let call = 0; call < consoleInfo.calls.length; call++) {
-    assert(servers.some((id) => consoleInfo.calls[call].args[1].startsWith(`/${id}`)))
+    assert(
+      servers.some((id) => consoleInfo.calls[call].args[1].startsWith(`/${id}`)),
+    )
   }
 
   await webServerManager.stop(servers)

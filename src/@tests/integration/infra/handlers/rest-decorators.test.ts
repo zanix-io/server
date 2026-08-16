@@ -44,7 +44,9 @@ Deno.test('defineControllerDecorator: versionProtocol is on by default', async (
 
   defineControllerDecorator()(DefaultProtocolController as never)
 
-  const [guard] = Program.middlewares.getGuards({ Target: DefaultProtocolController as never })
+  const [guard] = Program.middlewares.getGuards({
+    Target: DefaultProtocolController as never,
+  })
   const [interceptor] = Program.middlewares.getInterceptors({
     Target: DefaultProtocolController as never,
   })
@@ -56,17 +58,27 @@ Deno.test('defineControllerDecorator: versionProtocol is on by default', async (
   assertEquals(guardResult, {})
 
   const response = await interceptor({ locals } as never, new Response('{}'))
-  assertEquals(response.headers.get(PROTOCOL_VERSION_HEADER), String(DEFAULT_PROTOCOL_VERSION))
+  assertEquals(
+    response.headers.get(PROTOCOL_VERSION_HEADER),
+    String(DEFAULT_PROTOCOL_VERSION),
+  )
 })
 
 Deno.test('defineControllerDecorator: versionProtocol: false disables it', () => {
   class NoProtocolController extends ZanixController {}
 
-  defineControllerDecorator({ versionProtocol: false })(NoProtocolController as never)
+  defineControllerDecorator({ versionProtocol: false })(
+    NoProtocolController as never,
+  )
 
-  assertEquals(Program.middlewares.getGuards({ Target: NoProtocolController as never }), [])
   assertEquals(
-    Program.middlewares.getInterceptors({ Target: NoProtocolController as never }),
+    Program.middlewares.getGuards({ Target: NoProtocolController as never }),
+    [],
+  )
+  assertEquals(
+    Program.middlewares.getInterceptors({
+      Target: NoProtocolController as never,
+    }),
     [],
   )
 })

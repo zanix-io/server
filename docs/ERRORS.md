@@ -69,7 +69,9 @@ new ErrorLogThrottle({
   store: {
     async increment(status, windowMs) {
       const value = await redis.incr(`err-log-throttle:${status}`)
-      if (value === 1) await redis.pexpire(`err-log-throttle:${status}`, windowMs)
+      if (value === 1) {
+        await redis.pexpire(`err-log-throttle:${status}`, windowMs)
+      }
       return value
     },
     async reset(status) {
@@ -102,11 +104,15 @@ new ErrorLogThrottle({
     async increment(status, windowMs) {
       const cache = ProgramModule.providers.get(ThrottleCacheProvider)
       const value = await cache.incr(`err-log-throttle:${status}`)
-      if (value === 1) await cache.expire(`err-log-throttle:${status}`, windowMs)
+      if (value === 1) {
+        await cache.expire(`err-log-throttle:${status}`, windowMs)
+      }
       return value
     },
     async reset(status) {
-      await ProgramModule.providers.get(ThrottleCacheProvider).del(`err-log-throttle:${status}`)
+      await ProgramModule.providers.get(ThrottleCacheProvider).del(
+        `err-log-throttle:${status}`,
+      )
     },
   },
 })
@@ -138,6 +144,67 @@ new ErrorLogThrottle({ excludeStatuses: [401, 403] })
 ```
 
 ---
+
+## Accessing the original request in `onError`
+
+`onError` (passed per server type, e.g. `bootstrapServers({ rest: { onError } })`) only ever
+receives the error — never the `Request` that triggered it. That's normally fine, but some decisions
+genuinely need the request: what the client sent in a header, what path it asked for, whether it's a
+browser or an API client. Set `attachRequestToErrors: true` on that same server type to make it
+available, then read it back inside `onError` with `getRequestFromError`:
+
+```ts
+import { bootstrapServers, getRequestFromError } from 'jsr:@zanix/server@[version]'
+import { HttpError } from 'jsr:@zanix/utils@[version]/errors'
+
+await bootstrapServers({
+  rest: {
+    attachRequestToErrors: true,
+    onError(error) {
+      const request = getRequestFromError(error)
+      // Echo back the client's own correlation id (or mint one) so their logs and yours can be
+      // tied together for this exact failed request — impossible without the request in scope,
+      // since `onError` otherwise has no way to read any header at all.
+      const requestId = request?.headers.get('x-request-id') ??
+        crypto.randomUUID()
+
+      const isHttpError = error instanceof HttpError
+      const status = isHttpError ? error.status.value : 500
+      const message = isHttpError ? error.message : 'Internal Server Error'
+
+      return new Response(JSON.stringify({ message, requestId }), {
+        status,
+        headers: { 'content-type': 'application/json' },
+      })
+    },
+  },
+})
+```
+
+A request to an unmatched route under this server's own prefix (e.g. `GET /api/does-not-exist`) now
+gets:
+
+```json
+{
+  "message": "NOT_FOUND",
+  "requestId": "<whatever X-Request-Id the client sent, or a fresh uuid>"
+}
+```
+
+This applies to every error that reaches `onError` this way, not just `NOT_FOUND` —
+`METHOD_NOT_ALLOWED` from route matching, a CORS rejection (`BAD_REQUEST`/`METHOD_NOT_ALLOWED`), and
+any custom `guard`/`pipe` throw all go through the same path, so the same `onError` handles all of
+them uniformly.
+
+**Defaults to `false`, and stays inert until you explicitly read it.** The attached request is
+stored as a non-enumerable property — invisible to `serializeError`, `console.error(error)`,
+`JSON.stringify`, and this package's own client-response/backend-logging paths — so turning this on
+never by itself puts request data into a log line. But non-enumerable isn't a hard access boundary:
+`Object.getOwnPropertyNames(error)` still lists the property, and something that walks an error's
+_every_ own property regardless of enumerability (a verbose error-reporting/observability SDK, for
+instance) would still see it once attached. That's why it's opt-in rather than always-on: a
+`Request` can carry `Authorization`/cookies, so only turn this on for a server type whose `onError`
+actually needs it.
 
 ## Using Errors from ZanixUtils
 
@@ -171,6 +238,8 @@ const response = httpErrorResponse(error)
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `httpErrorResponse(error, options?)`            | Builds a JSON `Response` for an error, using its `status.value` (defaults to `400`) and merging in any extra `options.headers`.                                                                                                                                                |
 | `getSerializedErrorResponse(error, contextId?)` | Serializes an error into the JSON string used by `httpErrorResponse`, without building a `Response`.                                                                                                                                                                           |
+| `getRequestFromError(error)`                    | Reads back the `Request` attached via `attachRequestToErrors` (see [Accessing the original request in `onError`](#accessing-the-original-request-in-onerror)) — `undefined` if the server type never opted in, or the error never went through it.                             |
+| `attachRequestToError(error, request)`          | The lower-level function `attachRequestToErrors: true` uses internally. Only call this yourself when building a fully custom `handler` (bypassing the default route-matching one) and you want the same `onError`-visible-request contract for your own thrown errors.         |
 | `attachGlobalErrorHandlers(self)`               | Registers global handlers for uncaught errors and unhandled promise rejections on the given `Window`-like object, forwarding them into the logging system described above. Called automatically on startup — you generally don't need to call it yourself.                     |
 | `new ErrorLogThrottle(options?)`                | Configures the [error log throttling](#error-log-throttling) threshold, window, and/or storage backend described above. See that section for examples.                                                                                                                         |
 | `ErrorLogThrottleStore` (type)                  | The `{ increment(status, windowMs), reset(status) }` contract a custom `store` passed to `ErrorLogThrottle` must implement.                                                                                                                                                    |

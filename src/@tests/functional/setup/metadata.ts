@@ -131,7 +131,10 @@ class _KVLocal extends ZanixKVConnector {
   public override getClient<T = any>(): T {
     throw new Error('Method not implemented.')
   }
-  public override withLock<T>(_: string, _fn: () => T | Promise<T>): Promise<T> {
+  public override withLock<T>(
+    _: string,
+    _fn: () => T | Promise<T>,
+  ): Promise<T> {
     throw new Error('Method not implemented.')
   }
   protected override initialize(): Promise<void> | void {
@@ -221,7 +224,8 @@ class InteractorX extends ZanixInteractor {
   public connectorMessage() {
     this.connectors.get(Connectors).changeLocals(this.context)
     return `this connector is ${
-      this.connectors.get(Connectors).getConnected() && 'connected' || 'disconnected'
+      this.connectors.get(Connectors).getConnected() && 'connected' ||
+      'disconnected'
     } over def ${this.connectors.get(Connectors).def()} by ${
       isUUID(this.context.id) && 'uuid' || 'normal'
     } context and query param ${this.context.payload.search<S>('qparam')}`
@@ -239,7 +243,10 @@ class InteractorD extends ZanixInteractor<{ cache: any }> {
   }
 
   public send() {
-    assertEquals(this.registry.get<_Socket>('socket:user-id')?.send({}), 'message sent')
+    assertEquals(
+      this.registry.get<_Socket>('socket:user-id')?.send({}),
+      'message sent',
+    )
   }
 }
 
@@ -270,7 +277,10 @@ globalGQL.exports = {
 }
 registerGlobalPipe(globalGQL)
 
-const globalInt: MiddlewareGlobalInterceptor = function MiddlewareGlobalPipe(_, response) {
+const globalInt: MiddlewareGlobalInterceptor = function MiddlewareGlobalPipe(
+  _,
+  response,
+) {
   response.headers.set('global-header', 'global interceptor header')
   return response
 }
@@ -281,7 +291,11 @@ globalInt.exports = {
 registerGlobalInterceptor(globalInt)
 
 /** Sockets */
-@Socket({ route: 'mysock/:qparam', Interactor: InteractorD, rto: { Body: C, Params: S } })
+@Socket({
+  route: 'mysock/:qparam',
+  Interactor: InteractorD,
+  rto: { Body: C, Params: S },
+})
 @Guard((ctx) => {
   ctx.locals.session = { id: '9' } as never
   return {}
@@ -330,7 +344,10 @@ class _Socket extends ZanixWebSocket<InteractorD> {
 class _Resolver extends ZanixResolver<InteractorD> {
   @Query({ output: 'OutputData' })
   @Pipe((ctx) => {
-    ctx.url.searchParams.append('searchParam3', 'GQL Pipe search param for hello3')
+    ctx.url.searchParams.append(
+      'searchParam3',
+      'GQL Pipe search param for hello3',
+    )
   })
   public hello3(_: unknown, ctx: HandlerContext) {
     return {
@@ -341,7 +358,10 @@ class _Resolver extends ZanixResolver<InteractorD> {
   }
 
   @Query({ input: { data: 'InputData', value: 'String' } })
-  public hello(payload: { data: { name: string }; value: string }, ctx: HandlerContext) {
+  public hello(
+    payload: { data: { name: string }; value: string },
+    ctx: HandlerContext,
+  ) {
     assert(this.context.id)
     assert(this.context.payload)
     assert(this.context.req)
@@ -364,12 +384,18 @@ class _Resolver2 extends ZanixResolver<InteractorX> {
   @Query()
   @Interceptor(async (_, response) => {
     return new Response(
-      JSON.stringify({ message: 'hello intercepted', currentMessage: await response.json() }),
+      JSON.stringify({
+        message: 'hello intercepted',
+        currentMessage: await response.json(),
+      }),
       { headers: JSON_CONTENT_HEADER },
     )
   })
   @Pipe((ctx) => {
-    ctx.url.searchParams.append('searchParam2', 'GQL Pipe search param for hello2')
+    ctx.url.searchParams.append(
+      'searchParam2',
+      'GQL Pipe search param for hello2',
+    )
   })
   public hello2(_: unknown, ctx: HandlerContext) {
     const contextId = ProgramModule.context.getContext(this.context.id).id
@@ -402,7 +428,11 @@ class _Controller extends ZanixController<InteractorX> {
     assertEquals(ctx.locals.data, 'local data')
     return response
   })
-  public welcome(ctx: HandlerContext<{ params: C; search: S & { searchParamByMid: string } }>) {
+  public welcome(
+    ctx: HandlerContext<
+      { params: C; search: S & { searchParamByMid: string } }
+    >,
+  ) {
     assert(this.context.id)
     assert(this.context.payload)
     assert(this.context.req)

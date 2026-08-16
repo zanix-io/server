@@ -8,7 +8,9 @@ import { getTargetKey } from 'utils/targets.ts'
 import { InternalError } from '@zanix/errors'
 
 /** Define decorator to register a provider */
-export function defineProviderDecorator<L extends Exclude<Lifetime, 'TRANSIENT'>>(
+export function defineProviderDecorator<
+  L extends Exclude<Lifetime, 'TRANSIENT'>,
+>(
   options?: ProviderTypes | ProviderDecoratorOptions<L>,
 ): ZanixClassDecorator {
   let key: string
@@ -28,7 +30,13 @@ export function defineProviderDecorator<L extends Exclude<Lifetime, 'TRANSIENT'>
     if (!(Target.prototype instanceof ZanixProvider)) {
       throw new InternalError(
         `The class '${Target.name}' is not a valid Provider. Please extend '${ZanixProvider.name}'`,
-        { meta: { source: 'zanix', targetName: Target.name, baseTarget: ZanixProvider.name } },
+        {
+          meta: {
+            source: 'zanix',
+            targetName: Target.name,
+            baseTarget: ZanixProvider.name,
+          },
+        },
       )
     }
 
@@ -67,7 +75,13 @@ export function defineProviderDecorator<L extends Exclude<Lifetime, 'TRANSIENT'>
           `own module graph, evaluated before the owning package's registration ran). Make sure ` +
           `the package that owns it (its own '/core' entrypoint, which calls ` +
           `registerCoreProviderSlot) is imported before this class is decorated.`,
-        { meta: { source: 'zanix', targetName: Target.name, providerSlot: slot } },
+        {
+          meta: {
+            source: 'zanix',
+            targetName: Target.name,
+            providerSlot: slot,
+          },
+        },
       )
     } else {
       key = getTargetKey(Target)

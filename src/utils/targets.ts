@@ -15,7 +15,10 @@ const types: ModuleTypes[] = ['connector', 'provider', 'interactor']
 /** Target module setup startup initialization */
 const targetModuleInit = (key: string) => {
   const [type, id] = key.split(INSTANCE_KEY_SEPARATOR) as [ModuleTypes, string]
-  const instance = ProgramModule.targets['getInstance']<ZanixConnector>(id, type)
+  const instance = ProgramModule.targets['getInstance']<ZanixConnector>(
+    id,
+    type,
+  )
 
   if (type !== 'connector') return
 
@@ -89,11 +92,27 @@ export const getTargetKey = (target?: { name: string }): string => {
  */
 // deno-lint-ignore ban-types
 export function getConnectorKey(Target: Function): string | undefined {
-  return (Target.prototype as { [ZANIX_PROPS]?: { key?: string } })?.[ZANIX_PROPS]?.key
+  return (Target.prototype as { [ZANIX_PROPS]?: { key?: string } })
+    ?.[ZANIX_PROPS]?.key
 }
 
-/** Connector module setup init mode */
-export const connectorModuleInitialization = (instance: ZanixConnector) => {
+/**
+ * Waits for a connector instance to become fully ready and healthy: first `instance.isReady`,
+ * then polls `instance.isHealthy()` (using the instance's own `timeoutConnection`/`retryInterval`
+ * options) until it reports healthy or the timeout elapses.
+ *
+ * Exported publicly so a caller composing connectors OUTSIDE the `@Connector`/`TargetContainer`
+ * decorator path (which normally runs this automatically via `targetInitializations`) can still
+ * reuse the exact same health-gating instead of re-implementing it.
+ *
+ * @param instance An already-constructed `ZanixConnector` instance.
+ * @returns A promise that resolves to `true` once the instance is ready and healthy.
+ * @throws {InternalError} if the health check does not report healthy before `timeoutConnection`
+ * elapses.
+ */
+export const connectorModuleInitialization = (
+  instance: ZanixConnector,
+): Promise<boolean> => {
   const timeout = instance['timeoutConnection']
   const retryInterval = instance['retryInterval']
 
@@ -166,7 +185,9 @@ export const targetInitializations = async (
 ): Promise<void> => {
   for await (const type of types) {
     await Promise.all(
-      ProgramModule.targets.getTargetsByStartMode(startMode, type).map(targetModuleInit),
+      ProgramModule.targets.getTargetsByStartMode(startMode, type).map(
+        targetModuleInit,
+      ),
     )
   }
 }
@@ -190,7 +211,9 @@ export const closeAllConnections = async (): Promise<void> => {
 
   await Promise.all(
     keys.map((key) => {
-      return ProgramModule.targets.getConnector<ZanixConnector>(key, { useExistingInstance: true })
+      return ProgramModule.targets.getConnector<ZanixConnector>(key, {
+        useExistingInstance: true,
+      })
         ?.['close']()
     }),
   )

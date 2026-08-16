@@ -30,10 +30,14 @@ export type GuardContext = HandlerContext & {
   connectors: ZanixConnectorsGetter<CoreModules>
 }
 /** The context passed to a global pipe/interceptor: `HandlerContext` plus the interactors getter. */
-export type GlobalMidContext = HandlerContext & { interactors: ZanixInteractorsGetter }
+export type GlobalMidContext = HandlerContext & {
+  interactors: ZanixInteractorsGetter
+}
 
 /** Declares which server types (or `'all'`) a global middleware definition applies to. */
-export type GlobalMiddlewareContext = ZanixGlobalExports<{ server: (WebServerTypes | 'all')[] }>
+export type GlobalMiddlewareContext = ZanixGlobalExports<
+  { server: (WebServerTypes | 'all')[] }
+>
 
 export type MiddlewareInternalGuard<A extends unknown[] = any[]> = (
   context: HandlerContext,

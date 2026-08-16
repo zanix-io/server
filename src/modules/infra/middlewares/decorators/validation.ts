@@ -29,5 +29,8 @@ import { defineMiddlewareDecorator } from './assembly.ts'
  * @returns {ZanixGenericDecorator} The method decorator that applies the validation to the target handler.
  */
 export function RequestValidation(rto: RtoTypes): ZanixGenericDecorator {
-  return defineMiddlewareDecorator('pipe', (ctx) => requestValidationPipe(ctx, rto))
+  return defineMiddlewareDecorator(
+    'pipe',
+    (ctx) => requestValidationPipe(ctx, rto),
+  )
 }

@@ -13,6 +13,7 @@ import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { routeProcessor } from './routes.ts'
 import { httpErrorResponse } from 'utils/errors/helper.ts'
+import { attachRequestToError } from 'utils/errors/request-context.ts'
 import { HttpError } from '@zanix/errors'
 import {
   routerGuard,
@@ -21,7 +22,18 @@ import {
 } from 'middlewares/defaults/main.middlewares.ts'
 
 /**
- * Main  process execution
+ * Main process execution. `enableALS` (see `GenericHandlerOptions.enableALS`'s own doc for the
+ * Deno-vs-Node-compat caveat) opens one `asyncContext` scope per request here — the
+ * highest-concurrency use of `AsyncContext` in this codebase, since a busy server runs many of
+ * these `runWith` calls genuinely concurrently.
+ *
+ * `routerInterceptor` already catches everything from the handler body/custom interceptors and
+ * converts it directly to a `Response` (`httpErrorResponse`, see its own doc) — it never throws.
+ * `routerGuard` (CORS, cookies, any custom `guards`) and `routerPipe` (custom `pipes`) are the only
+ * phases whose errors actually escape uncaught up to `Deno.serve`'s `onError` — this one `try/catch`
+ * around both is what makes `attachRequestToErrors` apply uniformly to every guard/pipe throw
+ * (framework-owned like CORS's `BAD_REQUEST`/`METHOD_NOT_ALLOWED`, or a consumer's own custom
+ * guard/pipe) without each of them needing to call `attachRequestToError` itself.
  */
 const mainProcess = (options: {
   route: ProcessedRouteDefinition
@@ -29,15 +41,33 @@ const mainProcess = (options: {
   type: WebServerTypes
   cors?: CorsOptions
   gzip?: GzipOptions
+  attachRequestToErrors?: boolean
 }) => {
   const { route: { interceptors, handler, pipes, guards, enableALS } } = options
-  const { context, gzip, cors, type } = options
+  const { context, gzip, cors, type, attachRequestToErrors } = options
 
   const process = async () => {
-    const { response, headers } = await routerGuard(context, { type, cors, guards })
-    if (response) return response
-    await routerPipe(context, pipes)
-    return routerInterceptor(context, null as never, { gzip, interceptors, handler, headers })
+    try {
+      const { response, headers } = await routerGuard(context, {
+        type,
+        cors,
+        guards,
+      })
+      if (response) return response
+      await routerPipe(context, pipes)
+      return routerInterceptor(context, null as never, {
+        gzip,
+        interceptors,
+        handler,
+        headers,
+        type,
+      })
+    } catch (error) {
+      if (attachRequestToErrors && error instanceof Error) {
+        throw attachRequestToError(error, context.req)
+      }
+      throw error
+    }
   }
 
   if (!enableALS) return process()
@@ -63,7 +93,11 @@ export const getMainHandler = (
   type: WebServerTypes,
   application: string = DEFAULT_APPLICATION,
   globalPrefix: string = '',
-  options: { cors?: CorsOptions; gzip?: GzipOptions } = {},
+  options: {
+    cors?: CorsOptions
+    gzip?: GzipOptions
+    attachRequestToErrors?: boolean
+  } = {},
 ): ServerHandler => {
   if (type === 'graphql') {
     // Registered lazily here, at Runtime-activation time rather than composition time (no
@@ -76,19 +110,25 @@ export const getMainHandler = (
     }, application)
   }
 
-  const { relativePaths, absolutePaths, routePaths } = routeProcessor(
+  const { relativePaths, catchAllPaths, absolutePaths, routePaths } = routeProcessor(
     type,
     application,
     globalPrefix,
   )
 
-  const { cors, gzip } = options
+  const { cors, gzip, attachRequestToErrors } = options
 
   return (async (req: Request): Promise<Response> => {
     const url = new URL(req.url)
 
     // Context definition
-    const context = { id: contextId(), payload: {}, req, url, locals: {} } as HandlerContext
+    const context = {
+      id: contextId(),
+      payload: {},
+      req,
+      url,
+      locals: {},
+    } as HandlerContext
 
     Object.assign(context.payload, { body: await bodyPayloadProperty(req) })
 
@@ -105,24 +145,68 @@ export const getMainHandler = (
     const absoluteRoute = absolutePaths[fullPath]
 
     if (absoluteRoute) {
-      return mainProcess({ route: absoluteRoute, context, gzip, cors, type })
+      return mainProcess({
+        route: absoluteRoute,
+        context,
+        gzip,
+        cors,
+        type,
+        attachRequestToErrors,
+      })
     }
 
-    const processedRoute = findMatchingRoute(relativePaths, fullPath)
+    // Deterministic precedence, independent of registration order: ordinary `:param` routes are
+    // tried before catch-all (`:name*`) routes, always — never "whichever was registered first".
+    // `relativePaths`/`catchAllPaths` are two SEPARATE tables precisely so this order is fixed
+    // structurally, not by accident of iteration order within one combined table.
+    const processedRoute = findMatchingRoute(relativePaths, fullPath) ??
+      findMatchingRoute(catchAllPaths, fullPath)
     if (!processedRoute) {
       if (routePaths.absolute.has(path) || routePaths.relative.test(path)) {
-        throw new HttpError('METHOD_NOT_ALLOWED', { id: context.id })
+        const error = new HttpError('METHOD_NOT_ALLOWED', { id: context.id })
+        throw attachRequestToErrors ? attachRequestToError(error, req) : error
       }
 
-      throw new HttpError('NOT_FOUND', { id: context.id, meta: { path } })
+      const error = new HttpError('NOT_FOUND', {
+        id: context.id,
+        meta: { path },
+      })
+      throw attachRequestToErrors ? attachRequestToError(error, req) : error
     }
 
     const { route, match } = processedRoute
 
-    // Define a lazy-loaded getter to improve efficiency by computing values only when accessed
-    Object.defineProperty(context.payload, 'params', payloadAccessorDefinition(match, route.params))
+    // Case-preserved mirror of `fullPath`, computed lazily only when this route actually declares
+    // a catch-all — every other route never pays for it. `cleanRoute` applies the IDENTICAL
+    // structural transform either way (trim, `\`→`/`, collapse `//`, drop trailing slash) and
+    // differs only in the final `.toLowerCase()`, so character OFFSETS in `path` (lowercased, what
+    // `match`/`match.indices` were computed against) line up exactly with the same offsets in this
+    // case-preserved string — no re-matching needed, just a direct slice by those same indices (see
+    // `payloadAccessorDefinition`'s own doc).
+    const rawFullPath = route.catchAllParam
+      ? `${cleanRoute(url.pathname, true)}/${req.method}`
+      : undefined
 
-    return mainProcess({ route, context, gzip, cors, type })
+    // Define a lazy-loaded getter to improve efficiency by computing values only when accessed
+    Object.defineProperty(
+      context.payload,
+      'params',
+      payloadAccessorDefinition(
+        match,
+        route.params,
+        route.catchAllParam,
+        rawFullPath,
+      ),
+    )
+
+    return mainProcess({
+      route,
+      context,
+      gzip,
+      cors,
+      type,
+      attachRequestToErrors,
+    })
   })
 }
 
@@ -135,26 +219,37 @@ export const getMainHandler = (
  * WebSocket, SSR, etc.) under a single `Deno.serve` instance — especially useful
  * on platforms where only one port listener is allowed.
  *
- * Always returns the live-lookup dispatcher — even when `box.current` has exactly one entry at call
- * time — rather than shortcutting to that single handler function directly. `manager.ts`'s
+ * Always returns the live-lookup dispatcher, even when `box.current` has exactly one entry at call
+ * time. Although it would be possible to shortcut directly to that handler, doing so would prevent
+ * the dispatcher from observing future updates to `box.current`. `manager.ts`'s
  * `create()` never mutates a port's dispatch table in place — each new registration swaps `box`'s
  * own `current` field to an entirely new, frozen table (see `HandlerBox`'s own doc) — so the
  * dispatcher must always dereference `box.current` fresh per request, never close over one specific
  * table snapshot, or it would go stale the moment a later registration swaps `current` to a new
  * table. The extra `getPrefix()` call in the single-handler case is negligible.
  *
- * A request whose path prefix doesn't match any registered handler gets a plain `NOT_FOUND`
- * response here, rather than reaching a per-type handler's own 404 logic — this can legitimately
- * happen once *any* two logical servers share a port.
+ * A request whose path prefix doesn't match any registered handler, and for which no `''`-keyed
+ * catch-all is registered either (see below), gets a plain `NOT_FOUND` response here, rather than
+ * reaching a per-type handler's own 404 logic — this can legitimately happen once *any* two logical
+ * servers share a port.
+ *
+ * An entry registered under the empty-string key (an unanchored server with no `globalPrefix` at
+ * all — e.g. an `'ssr'` server, whose pages must resolve at the site's real root paths rather than
+ * under a fixed first path segment) acts as this port's catch-all: it's tried whenever the
+ * request's own first path segment has no dedicated entry. This never shadows a real prefix (an
+ * exact match always wins first), so it composes safely with REST/GraphQL/Socket sharing the same
+ * port under their own non-empty prefixes.
  */
 export function multiplexer(box: HandlerBox) {
   return (request: Request, info: Deno.ServeHandlerInfo<Deno.NetAddr>) => {
     const url = new URL(request.url)
     const prefix = getPrefix(url.pathname)
-    const handler = box.current[prefix]
+    const handler = box.current[prefix] ?? box.current['']
 
     if (!handler) {
-      return httpErrorResponse(new HttpError('NOT_FOUND', { meta: { path: url.pathname } }))
+      return httpErrorResponse(
+        new HttpError('NOT_FOUND', { meta: { path: url.pathname } }),
+      )
     }
 
     return handler(request, info)

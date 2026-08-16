@@ -20,7 +20,7 @@ export type RuntimeActivation = {
    *
    * **Independent of `application`** — an Application other than the default one (`'admin'`,
    * `'billing'`, `'metrics'`, ...) is not, by itself, hidden or obscured; it's just a different
-   * named composition boundary (see `docs/HANDLERS.md`'s "Applications" section). Whether a given
+   * named composition boundary (see `docs/APPLICATIONS.md`'s "Applications" section). Whether a given
    * Runtime gets the id-anchored, obscured-URL treatment is this field's own, explicit decision —
    * `@zanix/core`'s admin bootstrap and `@zanix/admin`'s own standalone server both set one for
    * their own admin Runtime (via `resolveApplicationServerId`, reading their own
@@ -48,7 +48,7 @@ export type RuntimeActivation = {
 }
 
 /**
- * Resolves a Runtime-activation config (see `docs/HANDLERS.md`'s "Applications" section) into a
+ * Resolves a Runtime-activation config (see `docs/APPLICATIONS.md`'s "Applications" section) into a
  * concrete `Runtime` — the one place this resolution actually happens. This runs entirely at
  * composition time, before `WebServerManager.create` is ever called: `create` only ever consumes
  * the `Runtime` this returns, never derives id-anchoring/dispatch behavior itself.

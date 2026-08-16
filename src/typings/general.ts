@@ -6,9 +6,13 @@ import type { ZanixDatabaseConnector } from 'modules/infra/connectors/core/datab
  */
 export type Seeders = Array<{
   model: unknown
-  handlers:
-    // deno-lint-ignore no-explicit-any
-    Array<(model: any, context: typeof ZanixDatabaseConnector['prototype']) => Promise<void> | void>
+  handlers: Array<
+    (
+      // deno-lint-ignore no-explicit-any
+      model: any,
+      context: typeof ZanixDatabaseConnector['prototype'],
+    ) => Promise<void> | void
+  >
 }>
 
 /**
@@ -25,7 +29,9 @@ export type Seeders = Array<{
  * - `Error` → The actual error instance that caused the failure.
  * @returns {void}
  */
-export type ConnectionStatusHandler = <T extends Error | 'OK' | 'unknownError'>(status: T) => void
+export type ConnectionStatusHandler = <T extends Error | 'OK' | 'unknownError'>(
+  status: T,
+) => void
 
 /** Async return */
 export type Async<V> = {

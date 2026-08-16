@@ -144,7 +144,10 @@ Deno.test('Cors validation pipe', async () => {
   })
 
   assertEquals(response5.response?.status, preflightsResp.status)
-  assertEquals(response5.response?.headers.values(), preflightsResp.headers.values())
+  assertEquals(
+    response5.response?.headers.values(),
+    preflightsResp.headers.values(),
+  )
 
   // method not allowed
   assertThrows(

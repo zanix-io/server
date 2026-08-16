@@ -22,7 +22,11 @@ Deno.test(
 
       // 1. No globalPrefix — not the last call of this sequence.
       noPrefixId = (await bootstrapServers({
-        rest: { application: 'admin', id: 'shared-no-prefix-anchor', port: SHARED_PORT },
+        rest: {
+          application: 'admin',
+          id: 'shared-no-prefix-anchor',
+          port: SHARED_PORT,
+        },
       }, { finalize: false }))[0]
 
       // 2. Same port, custom globalPrefix, different (explicit) serverID — the sequence's
@@ -36,9 +40,18 @@ Deno.test(
         },
       }))[0]
 
-      assert(noPrefixId, 'no-globalPrefix anchored server should have been created')
-      assert(withPrefixId, 'with-globalPrefix anchored server should have been created')
-      assert(noPrefixId !== withPrefixId, 'the two servers must have distinct ids')
+      assert(
+        noPrefixId,
+        'no-globalPrefix anchored server should have been created',
+      )
+      assert(
+        withPrefixId,
+        'with-globalPrefix anchored server should have been created',
+      )
+      assert(
+        noPrefixId !== withPrefixId,
+        'the two servers must have distinct ids',
+      )
 
       const addr = webServerManager.info(noPrefixId).addr
       assert(addr, 'the shared listener should be up')
@@ -51,7 +64,9 @@ Deno.test(
       )
 
       // Each server only serves its own combined prefix.
-      const noPrefixRes = await fetch(`http://${addr.hostname}:${addr.port}/${noPrefixId}/probe`)
+      const noPrefixRes = await fetch(
+        `http://${addr.hostname}:${addr.port}/${noPrefixId}/probe`,
+      )
       assertEquals(noPrefixRes.status, 200)
       await noPrefixRes.body?.cancel()
 

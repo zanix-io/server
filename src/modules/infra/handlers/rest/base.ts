@@ -12,8 +12,9 @@ import { HandlerGenericClass } from '../generic.ts'
  * @template Interactor - The generic type representing the type of interactors used in the controller.
  *                        By default, it is set to `never` meaning no interactor is provided unless specified.
  */
-export abstract class ZanixController<Interactor extends ZanixInteractorGeneric = never>
-  extends HandlerGenericClass<Interactor, HandlerContext> {
+export abstract class ZanixController<
+  Interactor extends ZanixInteractorGeneric = never,
+> extends HandlerGenericClass<Interactor, HandlerContext> {
   /** Creates the controller instance, scoped to the current request's context. */
   constructor(protected context: HandlerContext) {
     super(context.id)

@@ -30,11 +30,15 @@ Deno.test(
       const addr = webServerManager.info(serverId).addr
       assert(addr, 'the anchored server should be listening')
 
-      const currentRes = await fetch(`http://${addr.hostname}:${addr.port}/rotation-new/probe`)
+      const currentRes = await fetch(
+        `http://${addr.hostname}:${addr.port}/rotation-new/probe`,
+      )
       assertEquals(currentRes.status, 200)
       await currentRes.body?.cancel()
 
-      const previousRes = await fetch(`http://${addr.hostname}:${addr.port}/rotation-old/probe`)
+      const previousRes = await fetch(
+        `http://${addr.hostname}:${addr.port}/rotation-old/probe`,
+      )
       assertEquals(previousRes.status, 200)
       await previousRes.body?.cancel()
 

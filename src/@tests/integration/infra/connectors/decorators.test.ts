@@ -51,7 +51,9 @@ const mockCORE_CONNECTORS = {
 }
 
 // Inject into global (mocking actual imports)
-Program.targets.defineTarget = mockDefineTarget.defineTarget.bind(mockDefineTarget)
+Program.targets.defineTarget = mockDefineTarget.defineTarget.bind(
+  mockDefineTarget,
+)
 ConnectorCoreModules['cache:local'] = mockCORE_CONNECTORS.cache as any
 ConnectorCoreModules['database'] = mockCORE_CONNECTORS.database as any // Override imported `getTargetKey` (simulate the import)
 ;(globalThis as any).getTargetKey = mockGetTargetKey

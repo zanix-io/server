@@ -40,7 +40,10 @@ export interface ErrorLogThrottleStore {
   reset(status: number): Promise<void> | void
 }
 
-const statusErrorLogThrottle = new Map<number, { value: number; expiredTime: number }>()
+const statusErrorLogThrottle = new Map<
+  number,
+  { value: number; expiredTime: number }
+>()
 
 /** The default in-memory, single-instance {@link ErrorLogThrottleStore}. */
 export const defaultErrorLogThrottleStore: ErrorLogThrottleStore = {
@@ -48,7 +51,10 @@ export const defaultErrorLogThrottleStore: ErrorLogThrottleStore = {
     const now = Date.now()
     const entry = statusErrorLogThrottle.get(status)
     if (!entry || now > entry.expiredTime) {
-      statusErrorLogThrottle.set(status, { value: 1, expiredTime: now + windowMs })
+      statusErrorLogThrottle.set(status, {
+        value: 1,
+        expiredTime: now + windowMs,
+      })
       return 1
     }
     entry.value++
@@ -110,7 +116,9 @@ export interface ErrorLogThrottleConfig {
 }
 
 /** Default values applied to {@link ErrorLogThrottleConfig}; also usable to restore them. */
-export const DEFAULT_ERROR_LOG_THROTTLE_CONFIG: Required<ErrorLogThrottleConfig> = {
+export const DEFAULT_ERROR_LOG_THROTTLE_CONFIG: Required<
+  ErrorLogThrottleConfig
+> = {
   threshold: DEFAULT_THRESHOLD,
   windowMs: HOUR_MS,
   maxStatus: DEFAULT_MAX_STATUS,
@@ -204,7 +212,9 @@ export class ErrorLogThrottle {
    * @param {number} [options.maxStatus] - Exclusive upper bound of the throttled status range; raise above `500` to also throttle server errors.
    * @param {number[]} [options.excludeStatuses] - Status codes that always bypass throttling and are logged every time.
    */
-  constructor(options: ErrorLogThrottleConfig & { store?: ErrorLogThrottleStore } = {}) {
+  constructor(
+    options: ErrorLogThrottleConfig & { store?: ErrorLogThrottleStore } = {},
+  ) {
     const { store, ...config } = options
     if (store) setErrorLogThrottleStore(store)
     setErrorLogThrottleConfig(config)
@@ -252,7 +262,9 @@ export const shouldNotLogError = async (e: unknown): Promise<boolean> => {
 
   const { threshold, windowMs, maxStatus, excludeStatuses } = errorLogThrottleConfig
 
-  if (errorStatus >= maxStatus || excludeStatuses.includes(errorStatus)) return false
+  if (errorStatus >= maxStatus || excludeStatuses.includes(errorStatus)) {
+    return false
+  }
 
   const count = await errorLogThrottleStore.increment(errorStatus, windowMs)
 
@@ -310,7 +322,10 @@ export const getExtendedErrorResponse = (
  * @param {unknown} error - The error object to be processed.
  * @param {string} [contextId] - Optional request context id to be sent with the error.
  */
-export const getSerializedErrorResponse = (error: unknown, contextId?: string): string => {
+export const getSerializedErrorResponse = (
+  error: unknown,
+  contextId?: string,
+): string => {
   const extendedError = getExtendedErrorResponse(error, contextId)
 
   return JSON.stringify(extendedError)
@@ -362,7 +377,12 @@ export const httpErrorResponse = (
  */
 export const logAppError = async (
   e: unknown,
-  options: { message: string; code: string; meta?: Record<string, unknown>; contextId?: string },
+  options: {
+    message: string
+    code: string
+    meta?: Record<string, unknown>
+    contextId?: string
+  },
 ) => {
   if (await shouldNotLogError(e)) return
 

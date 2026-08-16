@@ -1,18 +1,20 @@
 # Handlers
 
-Handlers are the entry point for incoming requests or events. Zanix Server supports three kinds:
-**REST controllers**, **GraphQL resolvers**, and **WebSocket handlers**. All of them follow the same
-base pattern: extend a base class and decorate it with a class decorator to register it. REST and
-GraphQL then use method decorators (`@Get`, `@Query`, etc.) to register one route per method;
-WebSocket handlers register a single connection route on the class decorator itself and instead
-override plain (non-decorated) lifecycle methods to react to it.
+Handlers are the entry point for incoming requests or events. Zanix Server supports four kinds:
+**REST controllers**, **GraphQL resolvers**, **WebSocket handlers**, and **SSR controllers**. All of
+them follow the same base pattern: extend a base class and decorate it with a class decorator to
+register it. REST, GraphQL, and SSR then use method decorators (`@Get`, `@Query`, etc.) to register
+one route per method; WebSocket handlers register a single connection route on the class decorator
+itself and instead override plain (non-decorated) lifecycle methods to react to it.
 
 > ℹ️ Method decorators (`@Get`, `@Query`, etc.) only take effect when the method's class is also
-> decorated with the matching class decorator — `@Controller` for REST, `@Resolver` for GraphQL.
-> WebSocket handlers have no method-level route decorator: `@Socket` alone defines the connection's
-> route, and lifecycle methods (`onopen`, `onmessage`, etc.) are plain overrides, not decorated. In
-> all three cases, if the class decorator is missing, or the class doesn't extend the required base
-> class, the class decorator throws an `InternalError` as soon as it runs.
+> decorated with the matching class decorator — `@Controller` for REST, `@Resolver` for GraphQL,
+> `@SsrController` for SSR (reusing the exact same `@Get`/`@Post`/etc. method decorators as REST —
+> see [SSR](#ssr) for why). WebSocket handlers have no method-level route decorator: `@Socket` alone
+> defines the connection's route, and lifecycle methods (`onopen`, `onmessage`, etc.) are plain
+> overrides, not decorated. In all four cases, if the class decorator is missing, or the class
+> doesn't extend the required base class, the class decorator throws an `InternalError` as soon as
+> it runs.
 
 ## REST
 
@@ -37,6 +39,56 @@ class UsersController extends ZanixController {
   }
 }
 ```
+
+### Dynamic route parameters
+
+A `:name` segment matches exactly one path segment (`@Get(':id')` matches `/42`, not `/42/43`) — its
+value is read from `ctx.payload.params.name`. Matching is case-insensitive for the route as a whole,
+and a `:name` param's own captured value is lowercased, same as the rest of the path.
+
+A trailing `:name*` — the same `:name` syntax with a `*` suffix — matches one or more remaining
+segments instead of exactly one, letting a single route serve an arbitrarily nested path:
+
+```ts
+@Get('/assets/:path*')
+public serve(ctx: HandlerContext) {
+  // GET /assets/logo.svg           -> ctx.payload.params.path === 'logo.svg'
+  // GET /assets/icons/foo/bar.svg  -> ctx.payload.params.path === 'icons/foo/bar.svg'
+}
+```
+
+This is a general router capability, not tied to serving files specifically — any route that needs
+to capture an arbitrary remaining path (a proxy/passthrough endpoint, a nested resource path) can
+use it the same way.
+
+A catch-all is only valid as the **last** segment of a route — `@Get('/:path*/foo')` throws
+`InternalError` as soon as the decorator runs (registration time, never the first time a request
+happens to reach it), the same fail-fast posture invalid input already gets elsewhere in this
+framework.
+
+**Precedence is deterministic and independent of registration order**: an exact/static route always
+wins over a `:name` route, which always wins over a `:name*` route, regardless of which one was
+registered first. Given all three registered for the same prefix:
+
+```ts
+@Get('/files/readme')     // wins for GET /files/readme
+@Get('/files/:name')      // wins for GET /files/foo
+@Get('/files/:path*')     // wins for GET /files/foo/bar
+```
+
+`/files/readme` always resolves to the exact route, `/files/foo` to `:name`, and `/files/foo/bar` to
+`:path*` — no matter which of the three was declared first in source.
+
+**A catch-all's own captured value preserves the request's original casing** — the one exception to
+"matching and values are case-insensitive" above. `Get('/assets/:path*')` handling a request to
+`/assets/Logo.svg` reads `ctx.payload.params.path` as `'Logo.svg'`, not `'logo.svg'`, so a consumer
+resolving a case-sensitive resource (a real filename, for instance) gets the exact string the caller
+sent. The route itself still matches case-insensitively, same as any other route — only the
+catch-all's captured value is case-preserved.
+
+No param value — `:name` or `:name*` alike — is ever automatically URL-decoded; a percent-encoded
+segment (`%20`, for instance) reaches the handler exactly as it arrived, still encoded. Decode it
+yourself if the value needs it.
 
 ### Request validation (RTOs)
 
@@ -64,8 +116,9 @@ Besides a plain string prefix, `@Controller` accepts an options object:
 | `enableALS`       | Enables `AsyncLocalStorage`-based context isolation per request (see below).                                                                |
 | `versionProtocol` | Negotiates a protocol version on every request/response. On by default — see [Protocol version negotiation](#protocol-version-negotiation). |
 
-Which [Application](#applications) a controller's routes belong to is never one of these options —
-it's resolved automatically from context, not declared per class (see that section for why).
+Which [Application](./APPLICATIONS.md#applications) a controller's routes belong to is never one of
+these options — it's resolved automatically from context, not declared per class (see that guide for
+why).
 
 ## GraphQL
 
@@ -91,8 +144,9 @@ class UsersResolver extends ZanixResolver {
 ```
 
 `@Resolver` accepts the same `prefix`/`Interactor`/`enableALS`/`versionProtocol` options as
-`@Controller` — a resolver registered under a non-default [Application](#applications) has its
-fields added to a separate schema/root-value bucket, never merged into the default one.
+`@Controller` — a resolver registered under a non-default
+[Application](./APPLICATIONS.md#applications) has its fields added to a separate schema/root-value
+bucket, never merged into the default one.
 
 `@Query`/`@Mutation` are shorthands for the generic `@GQLRequest(type)` decorator, useful when the
 operation type needs to be resolved dynamically:
@@ -169,286 +223,149 @@ const socket = this.registry.get<OverviewSocket>(userId)
 socket?.push({ event: 'balance-updated' })
 ```
 
-## Applications
+## SSR
 
-Every route/resolver/socket belongs to exactly one **Application**. An Application is never declared
-on a decorator (no `@Controller`/`@Resolver`/`@Socket` option controls it) — it's resolved
-automatically from context, the moment the class is registered: whichever
-`ProgramModule.defineApplication(name, setup)` scope is currently running (see `@zanix/server`'s own
-JSDoc for that method), or the **default Application** (`'main'`) when none is active. Ordinary app
-code — the overwhelming common case — never needs to know this exists: every handler you write lands
-in `'main'` automatically.
-
-`bootstrapServers`'s own per-type `application` option (`BootstrapServerOptions[type].application` —
-see [Getting Started](./GETTING-STARTED.md)) decides which Application a given server mounts: a
-server bootstrapped with `application: 'admin'` mounts **only** routes/resolvers/sockets registered
-under `'admin'`, and a server bootstrapped without it (the default) mounts only the default
-Application's ones. A route never leaks between two Applications.
-
-Each Application is its own bucket, keyed by name — not a single shared boolean. Two different
-packages composing into the _same_ named Application (e.g. your own app's own admin controller
-alongside a package like `@zanix/admin`'s own admin routes, both wrapped in
-`defineApplication('admin', ...)`) land in that Application's one bucket and get served together by
-whichever `bootstrapServers` call mounts it; a different Application name is a fully separate
-bucket.
-
-**`application` is purely an ownership/composition boundary — it carries no URL-anchoring or
-exposure meaning of its own.** An Application other than the default one (`'admin'`, `'billing'`,
-`'metrics'`, ...) is not, by itself, "internal" or hidden — it's just a different named composition
-boundary, on equal footing with `'main'`. Whether a server's own id doubles as an obscuring URL
-prefix is a fully independent decision — see "Anchored servers" below.
-
-Application (and any URL prefix a server happens to use) is a **routing/obscurity boundary only** —
-it does not add any authentication, authorization, or network-level restriction by itself. Add an
-explicit guard (e.g. `@zanix/auth`'s `AuthTokenValidation`) for real access control, same as you
-would for any public route.
+Extend `ZanixSsrController` and decorate the class with `@SsrController`. There is no dedicated
+SSR-only method decorator — `@Get`, `@Post`, `@Patch`, `@Put`, `@Delete`, and the generic
+`@Request(method, ...)` are the exact same decorators REST uses, reused as-is; the only difference
+is which class decorator sits on top: `@SsrController` routes them into the `'ssr'` route table
+instead of `'rest'`. RTO-based validation (`Params`/`Body`/`Search`) and dynamic route parameters
+(`:name`, and the trailing catch-all `:name*` — see
+[Dynamic route parameters](#dynamic-route-parameters)) both work identically to REST, since it's the
+same underlying mechanism.
 
 ```ts
-import { AuthTokenValidation } from '@zanix/auth'
-import { Controller, Get, ProgramModule, ZanixController } from 'jsr:@zanix/server@[version]'
+import { Get, SsrController, ZanixSsrController } from 'jsr:@zanix/server@[version]'
+import type { HandlerContext } from 'jsr:@zanix/server@[version]'
 
-await ProgramModule.defineApplication('admin', () => {
-  @Controller('admin/health')
-  class AdminHealthController extends ZanixController {
-    @Get()
-    @AuthTokenValidation({ permissions: ['admin'] })
-    public check() {
-      return { status: 'ok' }
-    }
+@SsrController('products')
+class ProductPage extends ZanixSsrController {
+  @Get(':id')
+  public serve(ctx: HandlerContext) {
+    return new Response(`<h1>Product ${ctx.payload.params.id}</h1>`, {
+      headers: { 'content-type': 'text/html' },
+    })
   }
-})
+}
 ```
+
+`@SsrController` accepts the same options as `@Controller` — `prefix`, `Interactor`, `enableALS`,
+`versionProtocol` — nothing SSR-specific is added or dropped at the decorator level.
+
+Two differences from REST worth knowing before bootstrapping one:
+
+- **No default `globalPrefix`.** An unanchored `'rest'` server defaults every route under
+  `/api/...`; an unanchored `'ssr'` server has none — routes resolve at their bare declared path
+  (`/products/1`, never `/api/products/1`). A page's URL is its own address, not an API endpoint
+  under a namespace.
+- **`cors.allowedMethods` is fixed at `['GET', 'POST']`**, not user-configurable like REST's — a
+  page's own `GET` (render) and `POST` (form action) are both real, first-class routes by default.
+
+Bootstrap it exactly like any other type — standalone, with no Zanix App involved at all:
 
 ```ts
 import { bootstrapServers } from 'jsr:@zanix/server@[version]'
 
-// A second, admin-only server — only sees the 'admin' Application's routes. Not the last call in
-// this boot sequence, so it must defer the metadata cleanup shared with the public call below.
-await bootstrapServers({ rest: { application: 'admin' } }, { finalize: false })
-
-// Default-Application server — never sees `admin/health`. The sequence's last call, so it finalizes
-// cleanup as usual (default `finalize: true`).
-await bootstrapServers({ rest: { globalPrefix: '/api' } })
+await bootstrapServers({ ssr: { port: 3000 } })
 ```
 
-Calling `bootstrapServers` more than once in the same process — as this admin-server pattern does —
-requires passing `{ finalize: false }` to every call except the last one: `postBoot` cleanup purges
-the shared route/pending-resolver registries by default, and an earlier call finalizing would wipe
-routes/resolvers a later call in the same sequence still needs to read. See `bootstrapServers`'s own
-doc comment for the full mechanism, and
-[Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) for
-`resolveApplicationServerId()` — the rest of the plumbing `@zanix/core`/`@zanix/admin` share for
-this same pattern.
+This is the right choice for a plain project that wants one or a few hand-written SSR pages without
+adopting a full app-composition layer — the class attributes to the default (`'main'`) Application
+automatically, same as any REST controller with no active `ProgramModule.defineApplication` scope
+(see [Applications](./APPLICATIONS.md#applications)). A larger, composed frontend (routing,
+hydration, PWA — `@zanix/space`) instead registers its own `'ssr'` server as a **named app** via
+`@zanix/core`'s `apps` option (`apps.<name>.server.ssr`) — same handler type and same options
+underneath, just mounted through the Application-composition layer instead of directly. See
+`@zanix/core`'s own README for that shape and for when to prefer one over the other.
 
-### Boot sessions
+### Hot-reloading a decorated route
 
-The `{ finalize: false }` pattern above coordinates calls WITHIN one sequence you control end to end
-(one `async function`, like `@zanix/core`'s own `start()`). It doesn't, by itself, protect two
-_independent_ top-level sequences — e.g. `@zanix/core`'s `Zanix.start()` and `@zanix/admin`'s own
-`ZanixAdminHub.start()` — from corrupting each other if they're ever fired without a sequential
-`await` between them: whichever one's own last `bootstrapServers()` call finalizes first would
-otherwise wipe the _other_ sequence's not-yet-served routes/discovery/resolvers too, since
-`finalize` used to purge those registries unconditionally, regardless of who registered what.
+Every route decorator (`@Controller`, `@SsrController`, `@Resolver`, `@Socket`) registers its class
+exactly once — re-running the same decorator against the same class collides ("Route path ... is
+already defined"). That's the correct behavior for ordinary composition, but it gets in the way of
+tooling that reimports a decorated module outside the normal boot cycle — a dev-server that
+re-evaluates a page file after a change, for instance, produces a fresh class object whose
+`@SsrController`/`@Get` decorators fire again for what is conceptually the same route.
 
-`bootstrapServers()` now wraps its own body in a **boot session** (`ProgramModule.sessions` /
-`BootSessionContainer`) — an `AsyncContext`-backed ambient scope, the same mechanism
-`ApplicationContainer` already uses to resolve "which Application is registering right now" safely
-across concurrent async batches (see above). `finalize` cleanup asks "which Applications does some
-_other_, still-running session currently own?" and preserves only those — everything else is swept,
-exactly like the original unscoped wipe. When no other session is genuinely concurrent right now
-(the common case, including every call within one single-session multi-call sequence), that "other
-sessions' Applications" set is empty, so cleanup reduces to precisely the original full wipe — this
-is deliberately NOT "only remove what _my own_ session touched": most real registration (a
-`@Controller`/`@Resolver` decorator, triggered by a plain `import()`) happens _before_ any
-`bootstrapServers()`/session ever starts, so an "only my own" rule would leave it untracked by every
-session and stop being cleared at all. A bare `bootstrapServers()` call gets a session of its own
-automatically — nothing to opt into for ordinary use. A package composing a WIDER multi-call
-sequence (its own `start()`, in the same spirit as `@zanix/core`'s) should wrap that whole sequence
-in one outer session so every `bootstrapServers()` call nested inside shares it, instead of each
-forking its own:
+`ProgramModule.unregisterRoutes(Target, type?)` removes every route entry registered for a specific
+class reference — the OLD one, before reimporting — so the fresh reimport can register cleanly:
 
 ```ts
 import { ProgramModule } from 'jsr:@zanix/server@[version]'
 
-await ProgramModule.runBootSession(async () => {
-  await defineAdminMetadata()
-  await bootstrapServers(adminOptions, { finalize: false })
-  await bootstrapServers(mainOptions) // last call — finalizes the whole session
-})
+const previous = await import(pageFilePath)
+ProgramModule.unregisterRoutes(previous.default) // deregister the old class first
+const fresh = await import(`${pageFilePath}?t=${Date.now()}`) // re-runs its decorators cleanly
 ```
 
-This is what lets `Zanix.start({ admin: true })` and `ZanixAdminHub.start()` safely coexist in one
-process even fired concurrently (no `await` between them) — see `@zanix/core`'s
-`docs/admin-architecture.md#running-both-servers`.
+This is not part of ordinary application composition — a route decorator already registers its class
+correctly the first time. It's a framework-internal/tooling escape hatch for lazy re-registration
+flows only.
 
-### Anchored servers
+### Hot-uninstalling an Application
 
-A server is **anchored** — its own id doubles as an obscuring URL prefix instead of a plain
-`globalPrefix`-based one — **if and only if `BootstrapServerOptions[type].id` is explicitly set**.
-There is no separate `anchored` flag and no auto-generated/random anchored id: omitting `id` always
-gives a plain, unprefixed server. **`id` is a fully separate option from `application`**, set
-explicitly per server type, precisely because a non-default Application doesn't mean "internal" on
-its own: an app with `'admin'`, `'billing'`, and `'metrics'` Applications composed in the same
-process wouldn't want all three anchored just because none of them is `'main'`. `@zanix/core`'s
-admin bootstrap sets an explicit `id` (from `ADMIN_SERVER_ID`) for its own `'admin'`-Application
-server; a different Application that doesn't need URL obscurity simply never sets one.
+`unregisterRoutes` above works per decorated class — the right granularity for reloading one page or
+controller. Uninstalling a whole Application at runtime (e.g. an `@zanix/app` package being
+hot-removed from a running process) needs two coarser-grained operations instead, since neither one
+alone is a full teardown:
+
+- **`ProgramModule.unregisterApplicationRoutes(application)`** removes every route registered under
+  `application`, across every server type, in one call — metadata only. Narrower than the
+  pre-existing `resetExceptApplications` (which needs the caller to enumerate every OTHER
+  Application to `preserve`, silently wiping anything it forgets): this only ever touches
+  `application`'s own entries, so a caller that only knows the ONE app it's removing can call it
+  safely.
+- **`WebServerManager.unmount(id)`** hot-unmounts one already-`create()`d server's own dispatch
+  entry from its port's live handler table, via the same atomic freeze-and-swap `create()` itself
+  uses (an in-flight request still sees either the fully-old or fully-new table, never a partial
+  one). Unlike `stop()`, it never touches the real `Deno.serve()` listener — a port shared with
+  OTHER still-registered servers keeps accepting connections for them unaffected; requests that used
+  to reach `id`'s own routes fall through to the port's own catch-all or a plain `NOT_FOUND`.
 
 ```ts
-import { bootstrapServers, getServiceId } from 'jsr:@zanix/server@[version]'
+import { ProgramModule, webServerManager } from 'jsr:@zanix/server@[version]'
 
-await bootstrapServers({
-  rest: { application: 'admin', id: `${getServiceId()}-rest` },
-})
+ProgramModule.unregisterApplicationRoutes('admin') // drop the metadata for every 'admin' route
+webServerManager.unmount(adminServerId) // stop serving them on the already-bound listener
 ```
 
-`id` is forwarded to `WebServerManager.create`'s `runtime` parameter (compiled via `compileRuntime`)
-and validated at runtime against `[a-z0-9_-]+` (it anchors the URL path prefix routes are dispatched
-under) — see [Utilities → Identity helpers](./UTILITIES.md#identity-helpers) for
-`getServiceId()`/`sanitizeIdentifier()`.
+Use both together for a full hot-uninstall: `unregisterApplicationRoutes` alone still leaves the
+live dispatch entry serving stale routes on an already-bound listener, and `unmount` alone leaves
+the route metadata behind for the next `bootstrapServers()` call to trip over. Known limitation:
+even when `id` was the last server on a shared port, `unmount` never closes the real socket (would
+require re-attributing which OTHER server actually bound it) — use `stop()` on the port's original
+owner for a full teardown of the listener itself.
 
-`globalPrefix` still works alongside an anchored server — it's appended as an extra path segment
-after the id, rather than replacing it:
+### Intercepting requests before dispatch (`preHandler`)
 
-```ts
-await bootstrapServers({
-  rest: { application: 'admin', id: `${getServiceId()}-rest`, globalPrefix: 'ops' },
-})
-// routes are reachable at /{id}/ops/... instead of /{id}/...; omit `globalPrefix` to keep the
-// bare /{id}/... path.
-```
+`bootstrapServers`'s per-type options (and `WebServerManager.create`'s own `options`) accept an
+optional `preHandler`, tried on every request _before_ that server's normal dispatch (its route
+table, or a fully custom `handler`). Returning `null`/`undefined` falls through to normal dispatch
+unchanged; returning a `Response` short-circuits it — normal dispatch never runs for that request.
 
-**Safe rotation with `previousId`.** Once a stable `id` is pinned for legitimate reachability,
-rotating it (security hygiene, or recovering from a leaked one) would otherwise need a perfectly
-synchronized cutover across every caller. `previousId` avoids that: set it alongside a new `id` and
-both prefixes reach the same routes simultaneously, so callers still using the old address keep
-working until they're updated to the new one.
-
-```ts
-await bootstrapServers({
-  rest: { application: 'admin', id: 'billing-v2', previousId: 'billing-v1' },
-})
-// both /billing-v2/... and /billing-v1/... are reachable during the transition window; drop
-// `previousId` in a later redeploy to close it.
-```
-
-`previousId` is only meaningful alongside `id` (`compileRuntime` throws if given without it — there
-is nothing to rotate _from_), and **isn't supported for a `graphql` server**: building a second
-handler for the previous prefix would compile an empty stub schema instead of the real one (see
-`handlers/graphql/schema.ts`'s `defineSchema`, which consumes its Query/Mutation accumulator once a
-schema is built). Rotate a `graphql` Application's `rest`/`socket` servers instead. See
-[Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) for
-`resolvePreviousApplicationServerId()`, the built-in rotation runbook any Application-scoped server
-(admin or otherwise) can use.
-
-### Sharing a port with an unanchored server
-
-An anchored server no longer needs a port of its own: if it resolves to the same port as another
-server of the **same** `type` (anchored or not), both now share one real `Deno.serve()` listener
-instead of failing with `AddrInUse`. Anchoring stays purely a routing boundary — routes are still
-dispatched separately (the anchored one by its own id prefix, the unanchored one by its
-`globalPrefix`), so a route never leaks between them even while the port is shared. Note the two
-must use _different_ prefixes to safely share a port unprefixed-vs-unprefixed too — an unanchored
-server's default `globalPrefix` (`'api'`/`'graphql'`/`'socket'` depending on type) collides with
-another unanchored server of the same type on the same port exactly like any other same-prefix
-collision would:
+This exists for concerns that must intercept requests ahead of route matching, on the exact same
+port/origin as the server's own routes, without replacing the whole dispatcher the way `handler`
+does. The reference use case is a dev-server layered on top of an SSR server: browser requests for
+build-tool assets (`/@vite/*`, transformed `.css`/component files) must be served before a page
+route is ever considered, on the same origin the page itself renders from — something no combination
+of `guards`/`pipes` can do, since those only run once a route has already matched.
 
 ```ts
 import { bootstrapServers } from 'jsr:@zanix/server@[version]'
 
-// Unanchored, default-Application server on port 8000.
-await bootstrapServers({ rest: { port: 8000 } })
-
-// Anchored admin-Application server sharing the SAME port — no longer throws AddrInUse.
-await bootstrapServers({ rest: { port: 8000, application: 'admin', id: 'admin-rest' } })
-```
-
-This is an implementation-level relaxation, not a recommendation to actually do this by default —
-giving the anchored server its own distinct port (via an explicit `port` or `PORT_<TYPE>`) remains
-the recommended way to isolate it at the network level too, on any deployment platform that allows
-more than one externally-routable port. Whichever server's `bootstrapServers`/`create` call binds
-the port first owns the real socket: its own `server` options (SSL, hostname, etc.) are what
-actually apply, and a later server sharing that port only reuses the bound address for its own route
-table. Stopping that later server is then a no-op — stop the server that originally bound the port
-to actually release it. See `WebServerManager.create()`'s own JSDoc for the full trade-off list,
-including a narrow startup window where a request for a not-yet-registered route on a shared port
-gets a `404` instead of reaching its handler.
-
-## Discovery
-
-`/admin/*`-style routes are for authenticated CRUD/actions; **Discovery** is a separate, read-only
-mechanism for a module to expose a snapshot of the resources it owns — e.g. templates, triggers —
-under `/.well-known/zanix/{resourceType}`, so another service (a central admin/orchestrator, a sync
-job) can learn what currently exists without a bespoke API per resource kind.
-
-Three layers, mirroring how Application composition, `Runtime` compilation, and `WebServerManager`
-activation stay separate:
-
-- **`DiscoveryProvider`** (domain) — a module implements only `snapshot()` (and optionally
-  `version()`), with zero knowledge of HTTP, versioning, pagination, or auth:
-
-  ```ts
-  import type { DiscoveryProvider } from 'jsr:@zanix/server@[version]'
-
-  const templatesProvider: DiscoveryProvider<{ name: string; hbs: string }> = {
-    snapshot: async () => await fetchAllTemplatesFromMyOwnStorage(),
-  }
-  ```
-
-- **Registration** — `ProgramModule.defineDiscovery(resourceType, provider, options?)`, called
-  inside whatever `ProgramModule.defineApplication(...)` scope the accompanying routes/controllers
-  already use — `resourceType` is supplied here, not on the provider, the same way a `@Controller`'s
-  `prefix` is supplied at the decoration site rather than baked into the underlying business class:
-
-  ```ts
-  await ProgramModule.defineApplication('admin', () => {
-    ProgramModule.defineDiscovery('templates', templatesProvider)
-  })
-  ```
-
-  A plain, re-callable function — not a decorator, not a cached side-effect import — for the same
-  reason `@zanix/admin`'s own `defineAdminMetadata()` has to be one: the discovery registry is wiped
-  at the end of every finalized boot sequence, so a process that boots more than once needs this to
-  genuinely re-run each time.
-
-- **Mounting** — once `bootstrapServers()` activates a REST server for that Application, every
-  registered provider becomes an ordinary REST route (`.well-known/zanix/{resourceType}`),
-  registered the same lazy way GraphQL's own POST route is — no new server type, no new
-  `WebServerManager` concept. `WebServerManager` itself never learns Discovery exists; it only ever
-  reads the resulting route table once, same as always.
-
-**Auth is opt-in, not assumed.** `@zanix/server` has no built-in notion of permissions/roles/tokens
-(that's `@zanix/auth`, a separate package this one doesn't depend on) — `defineDiscovery`'s own
-`options.guards` are forwarded as-is to the underlying route, the same generic `MiddlewareGuard`
-mechanism any other route already uses:
-
-```ts
-ProgramModule.defineDiscovery('templates', templatesProvider, {
-  guards: [myOwnAuthGuard], // e.g. built from @zanix/auth's AuthTokenValidation
+await bootstrapServers({
+  ssr: {
+    port: 3000,
+    preHandler: async (req) => {
+      const url = new URL(req.url)
+      if (url.pathname.startsWith('/@vite/')) {
+        return await serveDevAsset(url.pathname)
+      }
+      return null // not a dev asset — fall through to the normal SSR route table
+    },
+  },
 })
 ```
-
-**Omitting `guards` leaves the endpoint unauthenticated** — this is the registering module's own
-responsibility, not something enforced silently.
-
-Every Discovery response negotiates its own protocol version via `DISCOVERY_PROTOCOL_HEADER`
-(`X-Znx-Discovery-Protocol`) — the same negotiation mechanism `/admin/*`'s `versionProtocol` option
-uses internally, with its own distinct header/version so the two protocols can evolve independently.
-The response envelope:
-
-```json
-{
-  "resourceType": "templates",
-  "generatedAt": "2026-08-01T12:00:00.000Z",
-  "items": [/* whatever snapshot() returned */]
-}
-```
-
-**Scope of this first version, deliberately**: `snapshot()` is the only materialization strategy —
-large/unbounded resources (a `stream()` capability, with a stateless, resumable cursor) are
-specified as a future direction but not built, since nothing in this framework's own consumers needs
-it yet. `version()` is accepted but not yet used to skip a redundant `snapshot()` call on an
-unchanged resource — every request calls it fresh. Both are additive to build later without a
-breaking change to `DiscoveryProvider`'s own shape.
 
 ## Protocol version negotiation
 
@@ -523,7 +440,9 @@ overhead per request — enable it only when the handler actually needs per-requ
 
 ## See also
 
+- [Applications](./APPLICATIONS.md) — how a handler's Application is resolved, anchored servers,
+  shared ports, boot sessions, and Discovery.
 - [Middlewares](./MIDDLEWARES.md) — guards, pipes, and interceptors that run around these handlers.
 - [Dependency Injection](./DEPENDENCY-INJECTION.md) — how `Interactor` injection and lifecycle work.
 - [Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) — the
-  shared stable-id plumbing behind the `'admin'`-Application server pattern above.
+  shared stable-id plumbing behind the `'admin'`-Application server pattern.

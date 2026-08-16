@@ -50,7 +50,11 @@ Deno.test(
 
       // 1. Anchored call — NOT the last call of this boot sequence, so it must not finalize.
       anchoredId = (await bootstrapServers({
-        graphql: { application: 'admin', id: 'graphql-scope-anchor', port: ANCHORED_PORT },
+        graphql: {
+          application: 'admin',
+          id: 'graphql-scope-anchor',
+          port: ANCHORED_PORT,
+        },
       }, { finalize: false }))[0]
 
       // 2. Unanchored call — the last call of the sequence, finalizes as usual (default).
@@ -59,32 +63,48 @@ Deno.test(
       }))[0]
 
       assert(anchoredId, 'anchored GraphQL server should have been created')
-      assert(unanchoredId, 'unanchored GraphQL server should have been created')
+      assert(
+        unanchoredId,
+        'unanchored GraphQL server should have been created',
+      )
 
       // The anchored scope's own resolver must actually be served — not a stub schema. An anchored
       // server is mounted at `/${serverId}` (its generated id, not `globalPrefix`) — see
       // `bootstrapServers`'s own doc comment on `anchored`.
-      const anchoredRes = await fetch(`http://0.0.0.0:${ANCHORED_PORT}/${anchoredId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: `query { anchoredscopeprobe }` }),
+      const anchoredRes = await fetch(
+        `http://0.0.0.0:${ANCHORED_PORT}/${anchoredId}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: `query { anchoredscopeprobe }` }),
+        },
+      )
+      assertEquals(await anchoredRes.json(), {
+        data: { anchoredscopeprobe: 'anchored' },
       })
-      assertEquals(await anchoredRes.json(), { data: { anchoredscopeprobe: 'anchored' } })
 
       // The unanchored scope's resolver, registered BEFORE the anchored call ran, must survive that
       // call's cleanup and still be served by the second (finalizing) call — this is the bug this
       // test guards against: before the `finalize` fix, the anchored call's cleanup wiped
       // `type:resolver` for BOTH scopes, so this second call would have built an empty stub schema.
-      const unanchoredRes = await fetch(`http://0.0.0.0:${UNANCHORED_PORT}/graphql`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: `query { unanchoredscopeprobe }` }),
+      const unanchoredRes = await fetch(
+        `http://0.0.0.0:${UNANCHORED_PORT}/graphql`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: `query { unanchoredscopeprobe }` }),
+        },
+      )
+      assertEquals(await unanchoredRes.json(), {
+        data: { unanchoredscopeprobe: 'unanchored' },
       })
-      assertEquals(await unanchoredRes.json(), { data: { unanchoredscopeprobe: 'unanchored' } })
 
       // Sequence-scoped metadata is gone once the sequence actually finalized — proving this
       // doesn't grow unboundedly across boots, without needing to skip cleanup altogether.
-      assertEquals(ProgramModule.targets.getTargetsByType('resolver').length, 0)
+      assertEquals(
+        ProgramModule.targets.getTargetsByType('resolver').length,
+        0,
+      )
       assertEquals(ProgramModule.routes.getRoutes('graphql'), undefined)
 
       // `type:connector` must NOT have been cleared yet — it's still needed by
@@ -96,7 +116,10 @@ Deno.test(
 
       await closeAllConnections()
 
-      assert(closed, 'closeAllConnections() should have called .close() on the probe connector')
+      assert(
+        closed,
+        'closeAllConnections() should have called .close() on the probe connector',
+      )
       assertEquals(
         ProgramModule.targets.getTargetsByType('connector').length,
         0,

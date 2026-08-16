@@ -12,7 +12,9 @@ export class MiddlewaresContainer extends BaseContainer {
   /**
    * Generic function to add a middleare
    */
-  private addMiddleware<T extends MiddlewareGuard | MiddlewareInterceptor | MiddlewarePipe>(
+  private addMiddleware<
+    T extends MiddlewareGuard | MiddlewareInterceptor | MiddlewarePipe,
+  >(
     middleware: T,
     getMiddlewares: ({ Target, propertyKey }: MetadataTargetSymbols) => T[],
     keyFn: (propertyKey: string) => string,
@@ -33,16 +35,24 @@ export class MiddlewaresContainer extends BaseContainer {
     pipe: MiddlewarePipe,
     { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ) {
-    this.addMiddleware(pipe, this.getPipes.bind(this), this.#pipesKey.bind(this), {
-      Target,
-      propertyKey,
-    })
+    this.addMiddleware(
+      pipe,
+      this.getPipes.bind(this),
+      this.#pipesKey.bind(this),
+      {
+        Target,
+        propertyKey,
+      },
+    )
   }
 
   /**
    * Function to add a global pipe.
    */
-  public addGlobalPipe(pipe: MiddlewarePipe, servers: (WebServerTypes | 'all')[]) {
+  public addGlobalPipe(
+    pipe: MiddlewarePipe,
+    servers: (WebServerTypes | 'all')[],
+  ) {
     servers.forEach((server) => {
       this.addPipe(pipe, { propertyKey: server })
     })
@@ -55,16 +65,24 @@ export class MiddlewaresContainer extends BaseContainer {
     guard: MiddlewareGuard,
     { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ) {
-    this.addMiddleware(guard, this.getGuards.bind(this), this.#guardsKey.bind(this), {
-      Target,
-      propertyKey,
-    })
+    this.addMiddleware(
+      guard,
+      this.getGuards.bind(this),
+      this.#guardsKey.bind(this),
+      {
+        Target,
+        propertyKey,
+      },
+    )
   }
 
   /**
    * Function to add a global guard.
    */
-  public addGlobalGuard(guard: MiddlewareGuard, servers: (WebServerTypes | 'all')[]) {
+  public addGlobalGuard(
+    guard: MiddlewareGuard,
+    servers: (WebServerTypes | 'all')[],
+  ) {
     servers.forEach((server) => {
       this.addGuard(guard, { propertyKey: server })
     })
@@ -105,14 +123,22 @@ export class MiddlewaresContainer extends BaseContainer {
   public getGuards(
     { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
   ): MiddlewareGuard[] {
-    return this.getData<MiddlewareGuard[] | undefined>(this.#guardsKey(propertyKey), Target) || []
+    return this.getData<MiddlewareGuard[] | undefined>(
+      this.#guardsKey(propertyKey),
+      Target,
+    ) || []
   }
 
   /**
    * Retrieves all Pipes associated with a specific target or property
    */
-  public getPipes({ Target, propertyKey = 'local' }: MetadataTargetSymbols = {}): MiddlewarePipe[] {
-    return this.getData<MiddlewarePipe[] | undefined>(this.#pipesKey(propertyKey), Target) || []
+  public getPipes(
+    { Target, propertyKey = 'local' }: MetadataTargetSymbols = {},
+  ): MiddlewarePipe[] {
+    return this.getData<MiddlewarePipe[] | undefined>(
+      this.#pipesKey(propertyKey),
+      Target,
+    ) || []
   }
 
   /**

@@ -24,7 +24,10 @@ Deno.test({
     })
 
     const servers = await bootstrapServers({ rest: { port: 1450 } })
-    assert(servers.length > 0, 'a REST server should have started for the registered provider')
+    assert(
+      servers.length > 0,
+      'a REST server should have started for the registered provider',
+    )
 
     const info = webServerManager.info(servers[0])
     assert(info.addr, 'the server should be listening')
@@ -39,7 +42,11 @@ Deno.test({
     assertEquals(body.resourceType, 'e2e-templates')
     assertEquals(body.items, [{ name: 'welcome' }, { name: 'password-reset' }])
     assert(typeof body.generatedAt === 'string')
-    assertEquals(Object.keys(body).sort(), ['generatedAt', 'items', 'resourceType'])
+    assertEquals(Object.keys(body).sort(), [
+      'generatedAt',
+      'items',
+      'resourceType',
+    ])
 
     await webServerManager.stop(servers)
   },
@@ -50,7 +57,9 @@ Deno.test({
   sanitizeResources: false,
   name: 'Discovery: a provider with no guards is reachable without any auth header',
   fn: async () => {
-    const provider: DiscoveryProvider<unknown> = { snapshot: () => Promise.resolve([]) }
+    const provider: DiscoveryProvider<unknown> = {
+      snapshot: () => Promise.resolve([]),
+    }
 
     await ProgramModule.defineApplication(DEFAULT_APPLICATION, () => {
       ProgramModule.defineDiscovery('e2e-no-auth', provider)
@@ -74,7 +83,9 @@ Deno.test({
   sanitizeResources: false,
   name: 'Discovery: an unrecognized declared protocol version is rejected with 400',
   fn: async () => {
-    const provider: DiscoveryProvider<unknown> = { snapshot: () => Promise.resolve([]) }
+    const provider: DiscoveryProvider<unknown> = {
+      snapshot: () => Promise.resolve([]),
+    }
 
     await ProgramModule.defineApplication(DEFAULT_APPLICATION, () => {
       ProgramModule.defineDiscovery('e2e-version-check', provider)

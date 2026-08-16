@@ -21,10 +21,15 @@ import { AsyncContext } from 'modules/infra/base/storage.ts'
  *
  * Backed by `AsyncContext` (`AsyncLocalStorage`) for the same reason `ApplicationContainer` is — a
  * flat mutable variable would be overwritten by whichever concurrent sequence runs last, silently
- * misattributing the other's registrations.
+ * misattributing the other's registrations. This class's own "two concurrent, interleaved
+ * sessions" test exercises exactly the scenario `AsyncContext`'s doc flags as the one worth
+ * watching (see that doc for the Deno-vs-Node-compat caveat) — `ApplicationContainer` relies on
+ * the same guarantee but currently has no equivalent dedicated test of its own.
  */
 export class BootSessionContainer {
-  #context: AsyncContext = new AsyncContext({ name: 'zanix-boot-session-context' })
+  #context: AsyncContext = new AsyncContext({
+    name: 'zanix-boot-session-context',
+  })
   #activeSessions = new Map<string, Set<string>>()
 
   /**
@@ -74,7 +79,9 @@ export class BootSessionContainer {
 
     for (const [id, ownedApplications] of this.#activeSessions) {
       if (id === ownId) continue
-      for (const application of ownedApplications) applications.add(application)
+      for (const application of ownedApplications) {
+        applications.add(application)
+      }
     }
 
     return applications

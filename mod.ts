@@ -42,6 +42,9 @@ export { Request as GQLRequest } from 'handlers/graphql/decorators/request.ts'
 export { ZanixWebSocket } from 'handlers/sockets/base.ts'
 export { Socket } from 'handlers/sockets/decorators/base.ts'
 
+export { ZanixSsrController } from 'handlers/ssr/base.ts'
+export { SsrController } from 'handlers/ssr/decorators/base.ts'
+
 // Interactors
 export { ZanixInteractor } from 'interactors/base.ts'
 export { Interactor } from 'interactors/decorators/base.ts'
@@ -61,7 +64,13 @@ export { registerCoreConnectorSlot } from 'connectors/core/all.ts'
 // Providers
 export { ZanixProvider } from 'providers/base.ts'
 export { ZanixCacheProvider } from 'providers/core/cache.ts'
-export { ZanixWorkerProvider } from 'providers/core/worker.ts'
+export { dispatchWorkerTask, ZanixWorkerProvider } from 'providers/core/worker.ts'
+export type { WorkerDispatchMode, WorkerDispatchOptions } from 'providers/core/worker.ts'
+/**
+ * Re-exported because `WorkerDispatchOptions.callback`/`dispatchWorkerTask` reference them —
+ * `TaskCallbackResponse` in turn because `TaskCallback` itself references it.
+ */
+export type { TaskCallback, TaskCallbackResponse, TaskFunction } from '@zanix/types'
 export { ZanixAsyncMQProvider } from 'providers/core/asyncmq.ts'
 export { Provider } from 'providers/decorators/base.ts'
 export { registerCoreProviderSlot } from 'providers/core/all.ts'
@@ -131,14 +140,16 @@ export {
 
 // Utils
 export { TargetError } from 'utils/errors/target.ts'
-export { gzipResponse, gzipResponseFromResponse } from 'utils/gzip.ts'
+export { gzipResponse, gzipResponseFromResponse, gzipStreamingResponse } from 'utils/gzip.ts'
 export { ErrorLogThrottle, httpErrorResponse } from 'utils/errors/helper.ts'
 export { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
 export { getSerializedErrorResponse } from 'utils/errors/helper.ts'
 export type { ErrorLogThrottleConfig, ErrorLogThrottleStore } from 'utils/errors/helper.ts'
+export { attachRequestToError, getRequestFromError } from 'utils/errors/request-context.ts'
 export {
   cleanupInitializationsMetadata,
   closeAllConnections,
+  connectorModuleInitialization,
   getConnectorKey,
   getTargetKey,
   targetInitializations,
@@ -187,6 +198,10 @@ export type {
 export type {
   BootstrapServerOptions,
   CorsAllowedMethods,
+  HealthCheckContext,
+  HealthCheckFn,
+  HealthOptions,
+  PreHandler,
   Runtime,
   ServerHandler,
   ServerID,
@@ -245,11 +260,12 @@ export type { GqlOptions, RestFullOptions } from 'typings/clients.ts'
 export type { HandlerFunction, HandlerResponse, HttpMethod } from 'typings/router.ts'
 /**
  * Implement this to expose a resource under `/.well-known/zanix/{resourceType}` — see
- * `ProgramModule.defineDiscovery` and `docs/HANDLERS.md`'s "Discovery" section.
+ * `ProgramModule.defineDiscovery` and `docs/APPLICATIONS.md`'s "Discovery" section.
  */
 export type { DiscoveryProvider } from 'typings/discovery.ts'
 export type {
   ConnectorDecoratorOptions,
+  GenericHandlerOptions,
   HandlerDecoratorMethodOptions,
   InteractorDecoratorOptions,
   ProviderDecoratorOptions,
@@ -260,6 +276,13 @@ export type {
   ZanixGenericDecorator,
   ZanixMethodDecorator,
 } from 'typings/decorators.ts'
+/**
+ * Re-exported because `GenericHandlerOptions`/`HandlerDecoratorMethodOptions` (above) reference them
+ * for RTO-based request validation (`Body`/`Params`/`Search`) — see `docs/HANDLERS.md#request-validation-rtos`.
+ */
+export type { RtoTypes } from '@zanix/types'
+/** Re-exported because `RtoTypes` (above) and `HandlerGenericClass`'s own validation reference it. */
+export type { BaseRTO } from '@zanix/validator'
 
 // Base/internal classes referenced by the public API's inheritance chains and signatures
 export type { Program } from 'modules/program/public.ts'
@@ -275,3 +298,18 @@ export { WebServerManager } from 'modules/webserver/manager.ts'
 export { bootstrapServers, webServerManager } from 'webserver/mod.ts'
 export { compileRuntime } from 'modules/webserver/runtime.ts'
 export type { RuntimeActivation } from 'modules/webserver/runtime.ts'
+/**
+ * `BootstrapServerOptions.health` resolved into the fully-defaulted shape `WebServerManager.create`'s
+ * own `health` parameter accepts — see `resolveHealthOptions`, `health.ts`. Exported so that
+ * parameter's own public type is resolvable; ordinary `bootstrapServers()` callers never need to
+ * build one of these themselves.
+ */
+export type { ResolvedHealthOptions } from 'modules/webserver/health.ts'
+/**
+ * Registers an Application's mount prefix — the piece `routeProcessor` inserts between
+ * `globalPrefix` and a route's own controller-prefix/method-path. Exported publicly because its
+ * intended writer, `@zanix/app`'s `AppContainer`, lives in a separate package from
+ * `@zanix/server`. `getApplicationMountPrefix` stays internal — only `routeProcessor` (this
+ * package's own webserver pipeline) ever needs to read it back.
+ */
+export { registerApplicationMount } from 'modules/webserver/application-mount-registry.ts'

@@ -75,7 +75,12 @@ Deno.test({
       'An error occurred in the system',
     )
     assertThrows(
-      () => provider.saveToCaches({ provider: 'redis', key: 'key', value: 'value' }),
+      () =>
+        provider.saveToCaches({
+          provider: 'redis',
+          key: 'key',
+          value: 'value',
+        }),
       HttpError,
       'An error occurred in the system',
     )

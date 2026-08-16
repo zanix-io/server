@@ -46,7 +46,8 @@ Deno.test('defineSchema: Application buckets stay independent (no cross-reset)',
   assert(!internalFields.includes('publiconlyfield'))
 
   const publicFields = Object.keys(
-    (defineSchema(DEFAULT_APPLICATION).getType('Query') as GraphQLObjectType).getFields(),
+    (defineSchema(DEFAULT_APPLICATION).getType('Query') as GraphQLObjectType)
+      .getFields(),
   )
   assert(publicFields.includes('publiconlyfield'))
   assert(!publicFields.includes('internalonlyfield'))

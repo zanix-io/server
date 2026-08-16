@@ -24,9 +24,9 @@ A second, `application: 'admin', id: <explicit-id>` `bootstrapServers` call — 
 mount only the `'admin'` Application's routes/resolvers/sockets (an admin API, a health check,
 etc.), isolated (routing-wise — see the caveat below) from the default Application's — no longer
 needs a reserved port of its own: a same-`type` unanchored and anchored server sharing one port now
-works instead of failing with `AddrInUse`. See [Handlers → Applications](./HANDLERS.md#applications)
-for the full mechanism (including what this routing separation does and doesn't protect against) and
-[Handlers → Sharing a port with an unanchored server](./HANDLERS.md#sharing-a-port-with-an-unanchored-server)
+works instead of failing with `AddrInUse`. See [Applications](./APPLICATIONS.md#applications) for
+the full mechanism (including what this routing separation does and doesn't protect against) and
+[Applications → Sharing a port with an unanchored server](./APPLICATIONS.md#sharing-a-port-with-an-unanchored-server)
 for the shared-port trade-offs. There's no `ADMIN_*_PORT`-style constant for this anymore — a
 package building an admin-server pattern on top of `@zanix/server` (`@zanix/core`, `@zanix/admin`)
 picks its own port, and can derive a stable server `id` instead via

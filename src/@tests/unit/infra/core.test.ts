@@ -88,12 +88,27 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
     caller: testInstance,
   }
   // Validate args
-  assertEquals(getCoreProvidersSpy.calls[0].args, [ProviderCoreModules.worker.key, ctx])
-  assertEquals(getCoreProvidersSpy.calls[1].args, [ConnectorCoreModules.asyncmq.key, ctx])
-  assertEquals(getCoreProvidersSpy.calls[2].args, [ProviderCoreModules.cache.key, ctx])
+  assertEquals(getCoreProvidersSpy.calls[0].args, [
+    ProviderCoreModules.worker.key,
+    ctx,
+  ])
+  assertEquals(getCoreProvidersSpy.calls[1].args, [
+    ConnectorCoreModules.asyncmq.key,
+    ctx,
+  ])
+  assertEquals(getCoreProvidersSpy.calls[2].args, [
+    ProviderCoreModules.cache.key,
+    ctx,
+  ])
 
-  assertEquals(getCoreConnectorsSpy.calls[0].args, [ConnectorCoreModules.database.key, ctx])
-  assertEquals(getCoreConnectorsSpy.calls[1].args, [ConnectorCoreModules.search.key, ctx])
+  assertEquals(getCoreConnectorsSpy.calls[0].args, [
+    ConnectorCoreModules.database.key,
+    ctx,
+  ])
+  assertEquals(getCoreConnectorsSpy.calls[1].args, [
+    ConnectorCoreModules.search.key,
+    ctx,
+  ])
 })
 
 Deno.test(

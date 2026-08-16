@@ -52,7 +52,9 @@ export class DiscoveryContainer extends BaseContainer {
 
   /** Every `[resourceType, registration]` pair registered for `application`, or `[]` if none. */
   public getProviders(application: string): [string, DiscoveryRegistration][] {
-    const registry = this.getData<Map<string, Map<string, DiscoveryRegistration>>>(
+    const registry = this.getData<
+      Map<string, Map<string, DiscoveryRegistration>>
+    >(
       this.#discoveryKey,
     )
     const byResource = registry?.get(application)
@@ -65,7 +67,9 @@ export class DiscoveryContainer extends BaseContainer {
    * independent, temporally-overlapping boot session's not-yet-served Discovery providers survive.
    */
   public resetExceptApplications(preserve: Set<string>): void {
-    const registry = this.getData<Map<string, Map<string, DiscoveryRegistration>>>(
+    const registry = this.getData<
+      Map<string, Map<string, DiscoveryRegistration>>
+    >(
       this.#discoveryKey,
     )
     if (!registry) return

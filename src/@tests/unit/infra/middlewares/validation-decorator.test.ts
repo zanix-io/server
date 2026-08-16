@@ -37,7 +37,10 @@ Deno.test({
     const pipeFn = (addDecoratorDataSpy.calls[0].args[0] as any).mid
     addDecoratorDataSpy.restore()
 
-    const ctx = { id: 'ctx-validation', payload: { body: { name: 'Ismael' } } } as any
+    const ctx = {
+      id: 'ctx-validation',
+      payload: { body: { name: 'Ismael' } },
+    } as any
 
     await pipeFn(ctx)
 

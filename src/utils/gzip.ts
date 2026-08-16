@@ -97,6 +97,51 @@ export function gzipResponse(
   const headers = JSON_CONTENT_HEADER
 
   const encoded = encoder.encode(body)
-  const { body: finalBody, headers: finalHeaders } = maybeGzip(encoded, headers, threshold)
+  const { body: finalBody, headers: finalHeaders } = maybeGzip(
+    encoded,
+    headers,
+    threshold,
+  )
   return new Response(finalBody, { headers: finalHeaders })
+}
+
+/**
+ * GZIP-compresses a `Response` WITHOUT buffering its body first — unlike
+ * {@link gzipResponseFromResponse}, which reads the entire body into memory via `arrayBuffer()`
+ * before deciding whether to compress it. That buffering is invisible for an ordinary REST/GraphQL
+ * response (already fully materialized in memory by the time it reaches this layer), but it is
+ * fatal for a genuinely streamed body — e.g. SSR's `renderToReadableStream` — because it forces
+ * this layer to wait for the ENTIRE stream to finish before sending a single byte downstream,
+ * silently converting a streaming response into a buffered one for any client that sends
+ * `Accept-Encoding: gzip` (i.e. virtually every real browser). Use this instead whenever the
+ * response body must remain live end-to-end.
+ *
+ * There is no `threshold` option here: with a live stream the total body size isn't known upfront,
+ * so the only gate available is `content-type` — a response whose type doesn't match
+ * {@link COMPRESSIBLE_REGEX}, or that has no body at all, is returned completely untouched.
+ *
+ * @param {Response} response - The source response, whose `body` (if present) is piped directly
+ * through `CompressionStream('gzip')` — never read into memory as a whole.
+ * @returns {Response} A new `Response` with the same status/statusText, streamed and
+ * gzip-compressed when its content-type qualifies; the original response, untouched, otherwise.
+ *
+ * @example
+ * ```ts
+ * return gzipStreamingResponse(await renderToResponse(page))
+ * ```
+ */
+export function gzipStreamingResponse(response: Response): Response {
+  const headers = new Headers(response.headers)
+  const contentType = headers.get('content-type') ?? ''
+  if (!response.body || !COMPRESSIBLE_REGEX.test(contentType)) return response
+
+  const compressed = response.body.pipeThrough(new CompressionStream('gzip'))
+  headers.set('content-encoding', 'gzip')
+  headers.delete('content-length')
+
+  return new Response(compressed, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
 }

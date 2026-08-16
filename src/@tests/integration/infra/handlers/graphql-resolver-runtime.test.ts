@@ -22,12 +22,17 @@ Deno.test({
       }
     }
 
-    Program.middlewares.addGuard(() => ({ response: new Response('blocked') }), {
-      Target: GuardedResolver,
-      propertyKey: 'hello',
-    })
+    Program.middlewares.addGuard(
+      () => ({ response: new Response('blocked') }),
+      {
+        Target: GuardedResolver,
+        propertyKey: 'hello',
+      },
+    )
 
-    defineResolverRequestDecorator('Query', { name: 'hello' })(GuardedResolver.prototype.hello)
+    defineResolverRequestDecorator('Query', { name: 'hello' })(
+      GuardedResolver.prototype.hello,
+    )
     defineResolverDecorator()(GuardedResolver as never)
 
     const context = {
@@ -38,7 +43,9 @@ Deno.test({
     } as unknown as HandlerContext
     const request = { context } as never
 
-    const callHello = getRootValueBucket(DEFAULT_APPLICATION)['hello'] as unknown as (
+    const callHello = getRootValueBucket(
+      DEFAULT_APPLICATION,
+    )['hello'] as unknown as (
       payload: unknown,
       request: unknown,
     ) => Promise<unknown>
@@ -58,7 +65,9 @@ Deno.test({
       }
     }
 
-    defineResolverRequestDecorator('Query', { name: 'hello' })(AlsResolver.prototype.hello)
+    defineResolverRequestDecorator('Query', { name: 'hello' })(
+      AlsResolver.prototype.hello,
+    )
     defineResolverDecorator({ enableALS: true })(AlsResolver as never)
 
     const context = {
@@ -69,7 +78,9 @@ Deno.test({
     } as unknown as HandlerContext
     const request = { context } as never
 
-    const callHello = getRootValueBucket(DEFAULT_APPLICATION)['hello'] as unknown as (
+    const callHello = getRootValueBucket(
+      DEFAULT_APPLICATION,
+    )['hello'] as unknown as (
       payload: unknown,
       request: unknown,
     ) => Promise<unknown>

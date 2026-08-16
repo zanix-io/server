@@ -44,7 +44,9 @@ Deno.test('defineResolverDecorator: versionProtocol is on by default', async () 
 
   defineResolverDecorator()(DefaultProtocolResolver as never)
 
-  const [guard] = Program.middlewares.getGuards({ Target: DefaultProtocolResolver as never })
+  const [guard] = Program.middlewares.getGuards({
+    Target: DefaultProtocolResolver as never,
+  })
   const [interceptor] = Program.middlewares.getInterceptors({
     Target: DefaultProtocolResolver as never,
   })
@@ -56,14 +58,27 @@ Deno.test('defineResolverDecorator: versionProtocol is on by default', async () 
   assertEquals(guardResult, {})
 
   const response = await interceptor({ locals } as never, new Response('{}'))
-  assertEquals(response.headers.get(PROTOCOL_VERSION_HEADER), String(DEFAULT_PROTOCOL_VERSION))
+  assertEquals(
+    response.headers.get(PROTOCOL_VERSION_HEADER),
+    String(DEFAULT_PROTOCOL_VERSION),
+  )
 })
 
 Deno.test('defineResolverDecorator: versionProtocol: false disables it', () => {
   class NoProtocolResolver extends ZanixResolver {}
 
-  defineResolverDecorator({ versionProtocol: false })(NoProtocolResolver as never)
+  defineResolverDecorator({ versionProtocol: false })(
+    NoProtocolResolver as never,
+  )
 
-  assertEquals(Program.middlewares.getGuards({ Target: NoProtocolResolver as never }), [])
-  assertEquals(Program.middlewares.getInterceptors({ Target: NoProtocolResolver as never }), [])
+  assertEquals(
+    Program.middlewares.getGuards({ Target: NoProtocolResolver as never }),
+    [],
+  )
+  assertEquals(
+    Program.middlewares.getInterceptors({
+      Target: NoProtocolResolver as never,
+    }),
+    [],
+  )
 })

@@ -1,17 +1,23 @@
 import type {
   HandlerBox,
+  HealthCheckFn,
   Runtime,
+  ServerHandler,
   ServerID,
   ServerManagerData,
   ServerManagerOptions,
   WebServerTypes,
 } from 'typings/server.ts'
 
-import { capitalize, fileExists } from '@zanix/helpers'
+import type { ResolvedHealthOptions } from './health.ts'
+
+import { capitalize, cleanRoute, fileExists } from '@zanix/helpers'
 import { getMainHandler, multiplexer } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { compileRuntime } from './runtime.ts'
+import { buildLivenessHandler, buildReadinessHandler } from './health.ts'
+import { getPrefix } from 'utils/routes.ts'
 import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
 
@@ -37,6 +43,23 @@ export class WebServerManager {
   #handlers: Record<number, HandlerBox> = {}
   #servers: Partial<ServerManagerData> = {}
   #sslOptions: { key?: string; cert?: string } = {}
+  // Ports that already got a liveness default registered — see `create()`'s own health block.
+  // Lives alongside `#handlers` for the same reason: a port's real listener, not any one
+  // Application, is the unit liveness cares about — it never varies per Application (always the
+  // same cheap `{status:'ok'}`), so there's nothing to merge, first claim simply wins. Cleared in
+  // the same `finished.then()` that clears `#handlers`'s own entry for that port, so a later
+  // `create()` on a reused port number starts fresh.
+  #livenessPorts: Set<number> = new Set()
+  // Per-port, per-Application accumulation of `HealthOptions.checks` — unlike liveness, readiness
+  // genuinely varies per Application (see `buildReadinessHandler`'s own `{shared, apps}` doc), so
+  // every Application sharing a port that opts into health gets its own entry merged in here, and
+  // the readiness handler is rebuilt from the full accumulator on every `create()` call for that
+  // port — never "first Application wins, the rest are silently dropped" like liveness. Cleared
+  // alongside `#livenessPorts`/`#handlers` for the same port-reuse reason.
+  #readinessChecksByPort: Map<
+    number,
+    Map<string, Record<string, HealthCheckFn>>
+  > = new Map()
 
   /**
    * Initializes the WebServerManager instance and loads ports and SSL options from environment variables (`SSL_KEY_PATH` and `SSL_CERT_PATH`).
@@ -47,7 +70,10 @@ export class WebServerManager {
     const sslCertPath = Deno.env.get('SSL_CERT_PATH')
 
     // TODO: review for downloading ssl files on web using these paths or base64 solution support
-    if (sslKeyPath && sslCertPath && fileExists(sslKeyPath) && fileExists(sslCertPath)) {
+    if (
+      sslKeyPath && sslCertPath && fileExists(sslKeyPath) &&
+      fileExists(sslCertPath)
+    ) {
       this.#sslOptions = {
         cert: Deno.readTextFileSync(sslCertPath),
         key: Deno.readTextFileSync(sslKeyPath),
@@ -73,7 +99,8 @@ export class WebServerManager {
    * @returns
    */
   private getEnvPort = (type: WebServerTypes) => {
-    const portValue = Deno.env.get(`PORT_${type.toUpperCase()}`) || Deno.env.get('PORT')
+    const portValue = Deno.env.get(`PORT_${type.toUpperCase()}`) ||
+      Deno.env.get('PORT')
 
     if (!portValue) return
 
@@ -85,7 +112,7 @@ export class WebServerManager {
    * If a server with the same id already exists, it returns the existing server as-is.
    *
    * @param {WebServerTypes} type - The name of the server (e.g., "rest", "static").
-   * @param {ServerManagerOptions} [options={}] - Options that include the function to handle incoming requests and configuration for the server, such as SSL options and the `onListen` callback.
+   * @param {ServerManagerOptions} [options={}] - Options that include the function to handle incoming requests and configuration for the server, such as SSL options and the `onListen` callback. `options.preHandler`, when given, is tried before `handler` on every request — see `PreHandler`'s own doc.
    * @param {Runtime} [runtime] - An already-compiled `Runtime` (see `compileRuntime`, `runtime.ts`)
    * — the sole boundary `create` accepts for Application/anchoring/dispatch info. `create` never
    * derives any of that itself: resolving it happens entirely in `compileRuntime`, before `create`
@@ -97,6 +124,18 @@ export class WebServerManager {
    * existing entry's own `type`/options** — if you pass a `Runtime` whose `serverID` is already
    * registered under a different config, `create` silently keeps the original registration and
    * discards yours (same idempotent-reuse rule as the "same id already exists" case above).
+   * @param {ResolvedHealthOptions} [health] - Already-resolved `BootstrapServerOptions.health`
+   * (see `resolveHealthOptions`, `health.ts`) — `undefined` registers nothing.
+   * `/health`/`/ready` (or `health.path`/`.readyPath`) are added as raw, top-level entries in this
+   * call's own port dispatch table — the SAME mechanism this method uses for its own primary/
+   * previous-rotation entries just below, never through `ProgramModule.routes`/`routeProcessor`
+   * like a normal REST route, since a normal route would inherit this server's own `globalPrefix`
+   * and stop being reachable at the literal, unprefixed path an orchestrator probe expects.
+   * Liveness is first-claim-wins: skipped once this exact port already has an entry at that
+   * dispatch key, or a consumer's own registration already occupies it. Readiness is different —
+   * every Application sharing the port that opts into health contributes its own `checks`, merged
+   * (never dropped) into a single `{shared, apps}` response — see `buildReadinessHandler`'s own
+   * doc and `#readinessChecksByPort`'s own doc for the accumulation mechanism.
    * @returns {ServerID} The id of the created server, or the given/existing id if a
    * server with that id was already registered (the existing server is left untouched).
    *
@@ -124,9 +163,16 @@ export class WebServerManager {
   public create<T extends WebServerTypes>(
     type: T,
     options: ServerManagerOptions<T> = {},
-    runtime: Runtime = compileRuntime(type, { globalPrefix: options.server?.globalPrefix }),
+    runtime: Runtime = compileRuntime(type, {
+      globalPrefix: options.server?.globalPrefix,
+    }),
+    health: ResolvedHealthOptions | undefined = undefined,
   ): ServerID {
-    const { server: { onceStop, ssl, gzip, cors, ...opts } = {} } = options
+    const {
+      preHandler,
+      server: { onceStop, ssl, gzip, cors, attachRequestToErrors, ...opts } = {},
+    } = options
+
     const {
       serverID,
       dispatchKey,
@@ -140,15 +186,28 @@ export class WebServerManager {
 
     const usingDefaultHandler = !options.handler
     const {
-      handler = getMainHandler(type, application, routeHandlerPrefix, { cors, gzip }),
+      handler = getMainHandler(type, application, routeHandlerPrefix, {
+        cors,
+        gzip,
+        attachRequestToErrors,
+      }),
     } = options
+    // `preHandler` wraps whichever `handler` was just resolved (default or caller-supplied) — it
+    // never replaces it. Only this dispatch key's own handler is wrapped; a `previousDispatchKey`
+    // entry (rotation window, below) always dispatches straight to its own `getMainHandler` build,
+    // unwrapped — `preHandler` is a concern of the CURRENT id, not the one being rotated away from.
+    const dispatchHandler: ServerHandler = preHandler
+      ? async (req, info) => (await preHandler(req, info)) ?? await handler(req, info)
+      : handler
 
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
     // Port assignment
     opts.port = this.getEnvPort(type) || opts.port || 8000 //default port
 
-    if (!this.#sslOptions && ssl) this.#sslOptions = { cert: ssl.cert, key: ssl.key }
+    if (!this.#sslOptions && ssl) {
+      this.#sslOptions = { cert: ssl.cert, key: ssl.key }
+    }
 
     // Protocol assignment
     const baseProtocol = type === 'socket' ? 'ws' : 'http'
@@ -177,15 +236,92 @@ export class WebServerManager {
     const previousHandlerEntry = usingDefaultHandler && previousDispatchKey &&
         previousRouteHandlerPrefix
       ? {
-        [previousDispatchKey]: getMainHandler(type, application, previousRouteHandlerPrefix, {
-          cors,
-          gzip,
-        }),
+        [previousDispatchKey]: getMainHandler(
+          type,
+          application,
+          previousRouteHandlerPrefix,
+          {
+            cors,
+            gzip,
+            attachRequestToErrors,
+          },
+        ),
       }
       : {}
-    box.current = Object.freeze({ ...box.current, [dispatchKey]: handler, ...previousHandlerEntry })
+    box.current = Object.freeze({
+      ...box.current,
+      [dispatchKey]: dispatchHandler,
+      ...previousHandlerEntry,
+    })
+
+    // Health/readiness — see this method's own `@param health` doc and `health.ts`. Liveness is an
+    // all-or-nothing, first-claim-wins default (it never varies per Application — see
+    // `#livenessPorts`'s own doc). Readiness instead ACCUMULATES across every Application sharing
+    // this port: each `create()` call that opts into health contributes its own
+    // `HealthOptions.checks` to `#readinessChecksByPort`, and the merged handler is rebuilt every
+    // time — otherwise the first Application to claim the port would silently own `/ready` for
+    // every other Application sharing it, with their own checks never even attempted.
+    if (health) {
+      const livenessKey = getPrefix(health.path)
+      const readinessKey = getPrefix(health.readyPath)
+
+      // A real override at the literal path is only detectable — and only possible — for a
+      // genuinely unprefixed/unanchored dispatch (`dispatchKey === ''`, the multiplexer's own
+      // catch-all — see `multiplexer`'s own doc): that's the only case where a controller's own
+      // registered `path` IS the final reachable URL, with no `globalPrefix`/anchoring segment
+      // ever prepended to it. For anything else (an anchored server, or one with a real
+      // `globalPrefix`), a controller decorated with a raw path that happens to equal `/health`
+      // is never actually reachable there once served — checking the route registry in that case
+      // would risk a FALSE positive (skipping the framework default over a route that was never
+      // really at this literal URL to begin with), so this lookup is skipped entirely then, same
+      // as before this fix.
+      const hasOwnRouteAt = (path: string): boolean =>
+        dispatchKey === '' &&
+        !!ProgramModule.routes.getRoutes(type)
+          ?.[`${application}:${cleanRoute(path)}/GET`]
+
+      const additions: Record<string, ServerHandler> = {}
+
+      if (!this.#livenessPorts.has(opts.port)) {
+        if (!(livenessKey in box.current) && !hasOwnRouteAt(health.path)) {
+          additions[livenessKey] = buildLivenessHandler()
+          logger.info(
+            `${capitalize(type)} sever route:`,
+            `/${livenessKey}`,
+            '| Method: GET',
+            'noSave',
+          )
+        }
+        this.#livenessPorts.add(opts.port)
+      }
+
+      if (!hasOwnRouteAt(health.readyPath)) {
+        const isFirstForPort = !(readinessKey in box.current)
+        const appChecks = this.#readinessChecksByPort.get(opts.port) ??
+          new Map()
+        appChecks.set(application, health.checks)
+        this.#readinessChecksByPort.set(opts.port, appChecks)
+
+        additions[readinessKey] = buildReadinessHandler(appChecks)
+        if (isFirstForPort) {
+          logger.info(
+            `${capitalize(type)} sever route:`,
+            `/${readinessKey}`,
+            '| Method: GET',
+            'noSave',
+          )
+        }
+      }
+
+      if (Object.keys(additions).length) {
+        box.current = Object.freeze({ ...box.current, ...additions })
+      }
+    }
+
     const handlers = this.#handlers
     const currentServers = this.#servers
+    const livenessPorts = this.#livenessPorts
+    const readinessChecksByPort = this.#readinessChecksByPort
 
     currentServers[serverID] = {
       _start() {
@@ -208,7 +344,16 @@ export class WebServerManager {
           )
 
           if (existingServer) {
-            delete handlers[port] // clean up memory
+            // Deliberately NEVER delete `handlers[port]` here: the real `Deno.serve()` listener
+            // (bound by whichever server's own `_start()` ran first) closes over the box OBJECT at
+            // `handlers[port]`, not over this map entry — but a THIRD (or later) server sharing the
+            // same port still calls `create()` before its own `_start()`, and `create()`'s `??=`
+            // (see above) only reuses that same live box if the map entry still points to it.
+            // Deleting it here orphans that box from the map, so any later `create()` on this port
+            // builds a brand-new, disconnected table the running listener never sees — the server
+            // ends up reporting the correct `addr` (copied from `existingServer` below) while every
+            // one of its own routes 404s. Previously this line assumed exactly two servers ever
+            // shared a port; this class's own doc always described "two (or more)".
             const addr = existingServer.addr
             logger.success(
               `${serverInfo} server is running at ${protocol}://${addr?.hostname}:${addr?.port}`,
@@ -220,6 +365,17 @@ export class WebServerManager {
           this.addr = server.addr
 
           server.finished.then(() => {
+            // Safe HERE, unlike the reuse branch above: `finished` only resolves once THIS real
+            // listener (the one every reuser on this port depends on) has actually stopped — no
+            // live reference to `handlers[port]`'s box can still need it. A later `create()` call
+            // for this same port number would need (and correctly get, via `??=`) a brand-new box
+            // anyway, since reusing this one would mean binding a listener that no longer exists.
+            delete handlers[port]
+            // Same reasoning applies to `#livenessPorts`/`#readinessChecksByPort` — a later
+            // `create()` on this reused port number gets a brand-new box with no health entries in
+            // it, so it must be free to register its own defaults again from scratch.
+            livenessPorts.delete(port)
+            readinessChecksByPort.delete(port)
             onceStop?.()
           })
           // overriding stop function
@@ -228,15 +384,25 @@ export class WebServerManager {
               logger.info(`${serverInfo} server is finished`, 'noSave')
             })
         } catch (error) {
-          throw new InternalError(`An error ocurred on starting ${serverInfo} server`, {
-            cause: error,
-            meta: { source: 'zanix', serverInfo, serverType: this.type, port },
-          })
+          throw new InternalError(
+            `An error ocurred on starting ${serverInfo} server`,
+            {
+              cause: error,
+              meta: {
+                source: 'zanix',
+                serverInfo,
+                serverType: this.type,
+                port,
+              },
+            },
+          )
         }
       },
       stop: () => {},
       protocol,
       type,
+      port: opts.port as number,
+      dispatchKey,
     }
 
     return serverID
@@ -255,7 +421,11 @@ export class WebServerManager {
   ): Readonly<Pick<ServerManagerData[never], 'addr' | 'protocol' | 'type'>> {
     const server = this.#servers[id] || ({} as ServerManagerData[never])
 
-    return Object.freeze({ addr: server.addr, protocol: server.protocol, type: server.type })
+    return Object.freeze({
+      addr: server.addr,
+      protocol: server.protocol,
+      type: server.type,
+    })
   }
 
   /**
@@ -302,5 +472,37 @@ export class WebServerManager {
 
     for (const key of id) delete this.#servers[key]
     return true
+  }
+
+  /**
+   * Hot-unmounts ONE already-`create()`d server's own dispatch entry — strips its `dispatchKey`
+   * from its port's `HandlerBox` via the same atomic freeze-and-swap `create()` itself uses, so an
+   * in-flight request still sees either the fully-old or fully-new table, never a partial one.
+   * Unlike `stop()`, this never touches the real `Deno.serve()` listener — a port shared with
+   * OTHER still-registered servers (see `create()`'s own port-sharing remarks) keeps accepting
+   * connections for them unaffected; requests that used to reach `id`'s own routes fall through to
+   * the port's `''`-keyed catch-all (if any) or a plain `NOT_FOUND`, same as any other unmatched
+   * prefix. A no-op if `id` was never registered, or its port's box is already gone.
+   *
+   * Known limitation, deliberate for v1: even when `id` was the LAST server left on a shared port,
+   * this never closes the real socket — doing so would require re-attributing which OTHER
+   * registered server's own `_start()` actually bound it (see `create()`'s "first bind wins"
+   * remarks), which this method doesn't attempt. Use `stop()` on the port's original owner for a
+   * full teardown of the real listener; this method only ever removes bookkeeping and the one
+   * dispatch entry.
+   *
+   * @param id The server id to unmount — see `Runtime.serverID`.
+   */
+  public unmount(id: ServerID): void {
+    const server = this.#servers[id]
+    if (!server) return
+
+    const box = this.#handlers[server.port]
+    if (box) {
+      const { [server.dispatchKey]: _removed, ...rest } = box.current
+      box.current = Object.freeze(rest)
+    }
+
+    delete this.#servers[id]
   }
 }

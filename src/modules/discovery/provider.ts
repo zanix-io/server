@@ -14,6 +14,8 @@ export const DISCOVERY_PROTOCOL_VERSION = 1
  * identical output. Never touches HTTP — see `discovery/mount.ts`'s `compileHttpRuntime` for the
  * layer that does.
  */
-export function compileDiscoveryContract(resourceType: string): DiscoveryContract {
+export function compileDiscoveryContract(
+  resourceType: string,
+): DiscoveryContract {
   return { resourceType, protocolVersion: DISCOVERY_PROTOCOL_VERSION }
 }

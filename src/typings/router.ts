@@ -27,7 +27,14 @@ export type HandlerResponse =
  * - `'OPTIONS'` — Describe the communication options for the target resource.
  * - `'HEAD'` — Same as GET but only retrieves the headers.
  */
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'OPTIONS' | 'HEAD'
+export type HttpMethod =
+  | 'GET'
+  | 'POST'
+  | 'PUT'
+  | 'DELETE'
+  | 'PATCH'
+  | 'OPTIONS'
+  | 'HEAD'
 
 /** The signature every registered route handler is normalized to before being invoked. */
 export type HandlerFunction = (
@@ -39,7 +46,9 @@ export type HandlerFunction = (
 export type RouteDefinition = {
   handler:
     | HandlerFunction
-    | Required<Omit<MetadataTargetSymbols, 'type'>> & { type?: MetadataTargetSymbols['type'] }
+    | Required<Omit<MetadataTargetSymbols, 'type'>> & {
+      type?: MetadataTargetSymbols['type']
+    }
   enableALS?: boolean
   httpMethod?: HttpMethod
 } & Partial<Middlewares>
@@ -54,6 +63,15 @@ export type ProcessedRouteDefinition =
      * An array of strings representing the route parameters.
      */
     params: string[]
+    /**
+     * The name of `params`' own trailing catch-all entry (`:name*`), if this route declares one —
+     * always `params`'s own last entry when present (registration-time validation guarantees a
+     * catch-all can only ever be the last segment). `undefined` for an ordinary route (no catch-all
+     * at all). Used by `payloadAccessorDefinition` to know which single param, if any, must read
+     * its value from the request's ORIGINAL, case-preserved pathname instead of the (always
+     * lowercase-matched) capture — every other param is unaffected either way.
+     */
+    catchAllParam?: string
     /**
      * A function that processes or handles route logic.
      */

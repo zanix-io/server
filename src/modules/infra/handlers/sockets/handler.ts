@@ -55,7 +55,9 @@ export const socketHandler: (rto: RtoTypes) => HandlerFunction = (rto) =>
             message: `"${event.data}" should be a valid JSON`,
           })
 
-          return socket.send(getSerializedErrorResponse(error, this.context.id))
+          return socket.send(
+            getSerializedErrorResponse(error, this.context.id),
+          )
         }
 
         return catcher(this.context, socket, event, async () => {

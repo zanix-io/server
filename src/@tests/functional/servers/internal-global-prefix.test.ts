@@ -19,7 +19,11 @@ Deno.test(
 
       // 1. No globalPrefix — not the last call of this sequence, so it must not finalize.
       noPrefixId = (await bootstrapServers({
-        rest: { application: 'admin', id: 'no-prefix-anchor', port: NO_PREFIX_PORT },
+        rest: {
+          application: 'admin',
+          id: 'no-prefix-anchor',
+          port: NO_PREFIX_PORT,
+        },
       }, { finalize: false }))[0]
 
       // 2. With globalPrefix — the sequence's last call, finalizes as usual.
@@ -32,8 +36,14 @@ Deno.test(
         },
       }))[0]
 
-      assert(noPrefixId, 'no-globalPrefix anchored server should have been created')
-      assert(withPrefixId, 'with-globalPrefix anchored server should have been created')
+      assert(
+        noPrefixId,
+        'no-globalPrefix anchored server should have been created',
+      )
+      assert(
+        withPrefixId,
+        'with-globalPrefix anchored server should have been created',
+      )
 
       const noPrefixAddr = webServerManager.info(noPrefixId).addr
       const withPrefixAddr = webServerManager.info(withPrefixId).addr

@@ -28,7 +28,10 @@ Deno.test({
 
     assertEquals(Object.keys(instance).includes(ZANIX_PROPS), false)
     assertEquals(JSON.stringify(instance).includes('_znx_props_'), false)
-    assertEquals(Object.prototype.propertyIsEnumerable.call(instance, ZANIX_PROPS), false)
+    assertEquals(
+      Object.prototype.propertyIsEnumerable.call(instance, ZANIX_PROPS),
+      false,
+    )
 
     // Direct access still works: only enumeration is affected, not readability.
     assertEquals(instance.getZnxProps().lifetime, 'TRANSIENT')

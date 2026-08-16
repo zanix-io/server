@@ -23,7 +23,10 @@ export abstract class ZanixSearchConnector extends RestClient {
    * @param doc - The document to index.
    * @param opts - Per-call options (e.g. a target index overriding the connector's default).
    */
-  public abstract index(doc: Record<string, unknown>, opts?: { index?: string }): Promise<void>
+  public abstract index(
+    doc: Record<string, unknown>,
+    opts?: { index?: string },
+  ): Promise<void>
 
   /**
    * Indexes multiple documents in a single batch request.

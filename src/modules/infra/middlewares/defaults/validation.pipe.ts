@@ -27,14 +27,22 @@ export const requestValidationPipe: MiddlewarePipe<[RtoTypes]> = async (
     ctx.payload.body = await classValidation(rto.Body, payload.body, { ctx })
   }
   if (rto.Params) {
-    ctx.payload.params = await classValidation(rto.Params, processUrlParams(payload.params), {
-      ctx,
-    })
+    ctx.payload.params = await classValidation(
+      rto.Params,
+      processUrlParams(payload.params),
+      {
+        ctx,
+      },
+    )
   }
   if (rto.Search) {
-    ctx.payload.search = await classValidation(rto.Search, processUrlParams(payload.search), {
-      ctx,
-    })
+    ctx.payload.search = await classValidation(
+      rto.Search,
+      processUrlParams(payload.search),
+      {
+        ctx,
+      },
+    )
   }
 
   // setting scoped context

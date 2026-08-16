@@ -48,11 +48,18 @@ export function defineControllerDecorator(
     applyVersionProtocolToTarget(Target, versionProtocol)
 
     ProgramModule.routes.setEndpoint({ Target, endpoint: prefix })
-    const methodDecorators = ProgramModule.decorators.getDecoratorsData('controller')
+    const methodDecorators = ProgramModule.decorators.getDecoratorsData(
+      'controller',
+    )
 
     methodDecorators.forEach((decorator) => {
       const { handler, httpMethod, endpoint } = decorator
-      ProgramModule.routes.setEndpoint({ Target, propertyKey: handler, endpoint, httpMethod })
+      ProgramModule.routes.setEndpoint({
+        Target,
+        propertyKey: handler,
+        endpoint,
+        httpMethod,
+      })
       ProgramModule.targets.addProperty({ Target, propertyKey: handler })
     })
     ProgramModule.decorators.deleteDecorators('controller')
@@ -84,7 +91,15 @@ export function defineControllerMethodDecorator(
 
   return function (method) {
     const handler = method.name.toString()
-    ProgramModule.decorators.addDecoratorData({ handler, endpoint, httpMethod }, 'controller')
-    if (rto) defineMiddlewareDecorator('pipe', (ctx) => requestValidationPipe(ctx, rto))(method)
+    ProgramModule.decorators.addDecoratorData(
+      { handler, endpoint, httpMethod },
+      'controller',
+    )
+    if (rto) {
+      defineMiddlewareDecorator(
+        'pipe',
+        (ctx) => requestValidationPipe(ctx, rto),
+      )(method)
+    }
   }
 }

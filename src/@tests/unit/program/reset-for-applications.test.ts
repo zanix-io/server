@@ -26,10 +26,11 @@ Deno.test(
 
     const routes = program.routes.getRoutes('rest')
     assert(routes)
-    assertEquals(routes['/admin-route/GET'], undefined)
-    assertEquals(routes['/main-route/GET'], undefined)
+    // Storage key is `${application}:${path}/${httpMethod}`.
+    assertEquals(routes['admin:/admin-route/GET'], undefined)
+    assertEquals(routes['main:/main-route/GET'], undefined)
     assert(
-      routes['/hub-route/GET'],
+      routes['admin-hub:/hub-route/GET'],
       "a different, still-in-flight session's Application must survive",
     )
   },
@@ -61,8 +62,14 @@ Deno.test(
   () => {
     const program = new ProgramClass()
 
-    program.discovery.define('admin', 'triggers', { provider: {} as never, guards: [] })
-    program.discovery.define('admin-hub', 'triggers', { provider: {} as never, guards: [] })
+    program.discovery.define('admin', 'triggers', {
+      provider: {} as never,
+      guards: [],
+    })
+    program.discovery.define('admin-hub', 'triggers', {
+      provider: {} as never,
+      guards: [],
+    })
 
     program.discovery.resetExceptApplications(new Set(['admin-hub']))
 
@@ -108,9 +115,13 @@ Deno.test(
     program.targets.resetResolversExceptApplications(new Set(['admin-hub']))
 
     assertEquals(program.targets.getTargetsByType('resolver', 'admin'), [])
-    assertEquals(program.targets.getTargetsByType('resolver', 'admin-hub'), ['hub-resolver-key'])
+    assertEquals(program.targets.getTargetsByType('resolver', 'admin-hub'), [
+      'hub-resolver-key',
+    ])
     // Reading with no Application filter still sees only the survivor.
-    assertEquals(program.targets.getTargetsByType('resolver'), ['hub-resolver-key'])
+    assertEquals(program.targets.getTargetsByType('resolver'), [
+      'hub-resolver-key',
+    ])
   },
 )
 
