@@ -94,6 +94,10 @@ export {
   PROTOCOL_VERSION_LOCALS_KEY,
   resolveVersionProtocolOptions,
 } from 'modules/infra/middlewares/protocol-version.ts'
+export {
+  GUARD_BLOCKED_HEADERS_LOCALS_KEY,
+  GUARD_HEADERS_LOCALS_KEY,
+} from 'modules/infra/middlewares/defaults/main.middlewares.ts'
 export type {
   ResolvedVersionProtocolOptions,
   VersionProtocolOption,

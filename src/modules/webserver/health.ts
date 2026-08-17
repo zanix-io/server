@@ -3,7 +3,7 @@ import type { ZanixConnector } from 'modules/infra/connectors/base.ts'
 
 import ProgramModule from 'modules/program/mod.ts'
 import { getConnectors, getProviders } from 'modules/program/public.ts'
-import logger from '@zanix/utils/logger'
+import logger from '@zanix/logger'
 
 /**
  * `BootstrapServerOptions.health` resolved into a fully-defaulted shape — the only value

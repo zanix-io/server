@@ -5,6 +5,7 @@ import {
   buildReadinessHandler,
   resolveHealthOptions,
 } from 'modules/webserver/health.ts'
+import type { HealthCheckFn } from 'typings/server.ts'
 
 console.error = () => {}
 
@@ -167,7 +168,7 @@ Deno.test(
   async () => {
     const { status, body } = await call(
       buildReadinessHandler(
-        new Map([
+        new Map<string, Record<string, HealthCheckFn>>([
           ['app-a', { a: () => true }],
           ['app-b', { b: () => false }],
         ]),

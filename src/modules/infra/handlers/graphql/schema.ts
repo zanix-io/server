@@ -5,8 +5,6 @@ import { defineScalars, getGqlTypes, scalarTypes } from './types.ts'
 import { readConfig } from '@zanix/helpers'
 import { buildSchema } from 'graphql'
 
-const fileConfig = readConfig()
-
 /**
  * Accumulated `Query`/`Mutation` SDL fragments, one bucket per Application — a resolver
  * registers into whichever bucket matches the Application it was defined under (see
@@ -33,7 +31,19 @@ const defaultResolver = (type: ResolverTypes) => {
   return `\n"""\nThis ${type} example serves as a demostration and does not perform any specific actions or operations. Its purpose is to showcase the structure or syntax of a GraphQL ${type} without executing any functional logic or producing a meaningful output.\n"""\n_zanix${type}: ${scalarTypes.unknown.name}`
 }
 
+let cachedFileConfig: ReturnType<typeof readConfig> | undefined
+
+/**
+ * The real project config — read lazily, on first actual use, not at module load. Merely
+ * importing this module (e.g. transitively, through `@zanix/server`'s own real exports) must
+ * never require a `deno.json`/`.jsonc` to already exist. Memoized after the first call — same
+ * lazy-cache pattern `@zanix/asyncmq`'s own `project()` uses
+ * (`modules/rabbitmq/provider/setup.ts`).
+ */
+const getFileConfig = () => cachedFileConfig ??= readConfig()
+
 export const defineSchema = (application: string = DEFAULT_APPLICATION) => {
+  const fileConfig = getFileConfig()
   const bucket = getBucket(application)
 
   if (bucket.Query === '') bucket.Query = defaultResolver('Query')

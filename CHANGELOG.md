@@ -11,6 +11,45 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`GUARD_HEADERS_LOCALS_KEY`** — the `ctx.locals` key `mainInterceptor` now stashes the
+  fully-accumulated guard headers under, right before invoking the handler, and deletes again once
+  it returns. Lets a handler that needs to know what a guard already decided for some header — not
+  just whether its OWN response already has that header — make a fully-informed choice about its own
+  precedence, instead of relying solely on `mainInterceptor`'s own generic, two-state merge
+  (`overwrite: false`, see the `mergeHeaders` entry below), which can only ever distinguish "the
+  handler's response already has it" from "it doesn't." That's not expressive enough for a handler
+  whose own zero-config default would otherwise be indistinguishable from a deliberate choice — the
+  real motivating case: `@zanix/space`'s `SpacePageController`, whose built-in nonce-based CSP
+  default used to always count as "already set" by the time this merge ran, permanently preventing a
+  guard-registered `cspGuard()` from ever becoming the effective app-wide default it was meant to be
+  for a page that configured nothing of its own (see `@zanix/space`'s own CHANGELOG for the full
+  three-tier fix this enables: page's own explicit config > guard > the page's own zero-config
+  default). Same `ctx.locals`-based "guard state handed to a later stage" pattern
+  `PROTOCOL_VERSION_LOCALS_KEY` already establishes, applied here in the other temporal direction
+  (read by the HANDLER itself, not by a later interceptor). Defensive: `context.locals` is now
+  initialized (`??= {}`) if a caller's own context omits it, rather than assumed. 2 new unit tests
+  in `main.test.ts`: the handler reads back the exact same `Headers` instance passed in, and the key
+  is genuinely gone from `context.locals` once the handler returns.
+- **`GUARD_BLOCKED_HEADERS_LOCALS_KEY`** — the companion `ctx.locals` key, in the OTHER temporal
+  direction from `GUARD_HEADERS_LOCALS_KEY` above: a handler may set it, during its own execution,
+  to a plain `Set<string>` of lowercased header names `mainInterceptor` must never fill in from a
+  guard for that response, no matter what — read back once, right after the handler returns, then
+  deleted. Exists for the one case `GUARD_HEADERS_LOCALS_KEY` alone can't express: a handler that
+  explicitly decided "no value for this header at all, not mine, not the guard's" (e.g.
+  `@zanix/space`'s own `Page({ headers: { csp: false } })`) can't communicate that by simply not
+  setting the header itself — an absent header is exactly what `mainInterceptor`'s own merge already
+  reads as "please fill this from the guard," the opposite of what's needed here. Filtered out of
+  the guard's own contribution BEFORE the merge even runs — never partially applied, never a value
+  that has to be stripped back out of the response afterward. Deliberately generic: a plain set of
+  header names, no CSP or `@zanix/space`-specific concept anywhere in this package, so any handler
+  for any header can use it the same way (see `@zanix/space`'s own CHANGELOG for the real case this
+  unblocks — its `frameOptions`/`referrerPolicy`/`noSniff`/... all needed the exact same "explicit
+  disable must produce a genuinely absent header" guarantee CSP did). 4 new unit tests in
+  `main.test.ts`: a blocked header never reaches the final response at all (verified via `.has()`,
+  not just a falsy `.get()`); blocking one header has zero effect on any other guard header still
+  merging in normally; blocking a header has zero effect on `Set-Cookie`, which keeps accumulating
+  via `.append()` unaffected; and with no blocklist set at all, every guard header still merges in
+  exactly as before this mechanism existed.
 - **Trailing catch-all route parameter (`:name*`)** — a named param suffixed with `*`, valid ONLY as
   a route's own last segment (`Get('/assets/:path*')` captures `/assets/logo.svg`,
   `/assets/icons/foo/bar.svg`, any depth). A catch-all anywhere but last (`/:path*/foo`) throws
@@ -190,6 +229,50 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`mainInterceptor` corrupted any single-value header — most visibly `Content-Security-Policy` —
+  into an invalid, comma-joined string whenever a guard set it (`@zanix/space`'s `cspGuard`,
+  registered via `defineMiddleware`/`@Guard`) AND a handler's own response already set the same
+  header itself (e.g. a page's own default/declared CSP, applied directly inside its handler, never
+  through the guard pipeline).** Every guard-accumulated header was merged onto the final response
+  via `response.headers.append(key, value)`, unconditionally — `.append()` on an already-set
+  single-value header comma-joins the two values (confirmed empirically: `Headers` follows the Fetch
+  spec's header-list combining for anything except `Set-Cookie`), and CSP has no defined meaning for
+  a comma-joined value (directives are `;`-separated) — real browsers do not enforce it as "both
+  policies apply." Fixed generally, not just for CSP: a guard's header now only applies when the
+  handler's own response hasn't already set that same header — the handler's value, when present, is
+  the more specific, final word and is left untouched; the guard's is simply dropped rather than
+  blindly combined into it. `Set-Cookie` is unaffected (still accumulates via `.append()`, the one
+  header HTTP allows repeated). The resulting precedence — the **handler/page always wins when it
+  sets a header itself; a guard's value only ever applies as the base/default when the handler
+  didn't** — matches how `@zanix/space`'s own `defineSpaceApp({ headers })` vs. `Page({ headers })`
+  precedence already worked (page > app-wide default), now extended consistently to a
+  guard-registered `cspGuard()`/`securityHeadersGuard()` too, for every header they can set, not
+  only CSP. 5 unit tests in `main.test.ts` covering: guard header applying as the default when the
+  handler set none, a handler's own header applying unaffected when no guard set one, a handler's
+  header winning over a guard's own value for the same key (never comma-joined), the same win rule
+  holding for a non-CSP header (proving it's general, not CSP-specific), and multiple `Set-Cookie`
+  headers still all accumulating correctly. The `Set-Cookie`-vs-everything-else merge rule itself —
+  previously duplicated inline in both `mainGuard` and `mainInterceptor`, each with its own copy of
+  the same reasoning — is now a single internal `mergeHeaders(target, source, { overwrite })`
+  helper, so the two can no longer silently drift apart from each other. `overwrite` is the one real
+  difference between the two call sites, kept explicit rather than hidden inside the shared
+  function: `mainGuard` passes `true` (last guard wins, accumulating across the whole guard chain),
+  `mainInterceptor` passes `false` (the handler's own value, if already set, is never overwritten).
+  Purely internal — not exported, no observable behavior change, verified by the same 7
+  `main.test.ts` tests passing unchanged before and after.
+- **`handlers/graphql/schema.ts` read the project config (`readConfig()`) at _module load_ time**,
+  unconditionally — so merely importing `@zanix/server`, for any reason, required a
+  `deno.json`/`.jsonc` to already exist in `Deno.cwd()`, even for code paths that never touch
+  GraphQL. Root cause of a `@zanix/cli` bug where `zanix new <type>` could silently exit `0` with no
+  output and no project created: the CLI's own command registration eagerly imports `@zanix/server`
+  (for `zanix space dev`'s real use of `bootstrapServers`), which pulled in this module regardless
+  of which subcommand actually ran, throwing in the empty directory every `zanix new` starts from
+  (see `@zanix/cli`'s own CHANGELOG for the full chain and the two independent defense layers added
+  there). `readConfig()` is now called lazily, inside `defineSchema()`, on first actual use —
+  memoized, so no added cost after the first real call. No change to GraphQL's own behavior or
+  public contract: same schema-generation tests pass unchanged, plus a new one confirming the config
+  value still flows correctly into the generated schema description, and a real (non-mocked)
+  subprocess regression importing `@zanix/server` from an empty directory.
 - **A second guard returning `Set-Cookie` silently clobbered an earlier guard's own `Set-Cookie` on
   the same request.** `mainGuard` (`modules/infra/middlewares/defaults/main.middlewares.ts`)
   accumulated every guard's returned `headers` with a plain object spread

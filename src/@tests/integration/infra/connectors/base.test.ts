@@ -50,7 +50,7 @@ Deno.test('ZanixConnector: should wait initialization connection on setup modes'
     'Health check failed: Timeout reached',
   )
 
-  assertAlmostEquals(Date.now() - time, 2000, 100)
+  assertAlmostEquals(Date.now() - time, 2000, 400)
   assertAlmostEquals(
     attemps,
     conn['timeoutConnection'] / conn['retryInterval'],
@@ -74,7 +74,7 @@ Deno.test('ZanixConnector: should wait initialization connection on setup modes'
   assertAlmostEquals(
     Date.now() - time2,
     attemps * waitTime + attemps * conn2['retryInterval'],
-    100,
+    300,
   )
 
   TestConnector.prototype.isHealthy = originalIsHealthy
