@@ -4,7 +4,13 @@ import type { HandlerContext } from 'typings/context.ts'
 import type { CorsOptions } from 'typings/middlewares.ts'
 import type { GzipOptions } from 'typings/general.ts'
 
-import { bodyPayloadProperty, findMatchingRoute, getPrefix } from 'utils/routes.ts'
+import {
+  bodyPayloadProperty,
+  bucketRoutesByMethod,
+  EMPTY_ROUTES,
+  findMatchingRoute,
+  getPrefix,
+} from 'utils/routes.ts'
 import { contextId, payloadAccessorDefinition } from 'utils/context.ts'
 import { getGraphqlHandler } from 'handlers/graphql/handler.ts'
 import { cleanRoute, searchParamsPropertyDescriptor } from '@zanix/helpers'
@@ -116,6 +122,14 @@ export const getMainHandler = (
     globalPrefix,
   )
 
+  // Both `:param` tables, split into one bucket per HTTP method — built once, here, never per
+  // request. See `bucketRoutesByMethod`'s own doc: the scan `findMatchingRoute` performs is linear,
+  // and without this a `GET` runs the regex of every `POST`/`PUT`/`PATCH`/`DELETE` route before
+  // reaching its own. Precedence between the two tables is unchanged (ordinary `:param` first,
+  // catch-all second), and so is the behavior for a method no route uses.
+  const relativeByMethod = bucketRoutesByMethod(relativePaths)
+  const catchAllByMethod = bucketRoutesByMethod(catchAllPaths)
+
   const { cors, gzip, attachRequestToErrors } = options
 
   return (async (req: Request): Promise<Response> => {
@@ -159,8 +173,9 @@ export const getMainHandler = (
     // tried before catch-all (`:name*`) routes, always — never "whichever was registered first".
     // `relativePaths`/`catchAllPaths` are two SEPARATE tables precisely so this order is fixed
     // structurally, not by accident of iteration order within one combined table.
-    const processedRoute = findMatchingRoute(relativePaths, fullPath) ??
-      findMatchingRoute(catchAllPaths, fullPath)
+    const processedRoute =
+      findMatchingRoute(relativeByMethod[req.method] ?? EMPTY_ROUTES, fullPath) ??
+        findMatchingRoute(catchAllByMethod[req.method] ?? EMPTY_ROUTES, fullPath)
     if (!processedRoute) {
       if (routePaths.absolute.has(path) || routePaths.relative.test(path)) {
         const error = new HttpError('METHOD_NOT_ALLOWED', { id: context.id })

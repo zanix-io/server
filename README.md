@@ -294,7 +294,13 @@ If you'd like to contribute to this library, please follow these steps:
 4. Make Your Changes: Implement the feature or fix the bug, ensuring you follow the project's coding
    style and guidelines.
 
-5. Write Tests: If applicable, write tests to verify that your changes work as expected.
+5. Write Tests: If applicable, write tests to verify that your changes work as expected. Run
+   `deno test --allow-all` — that already includes the performance regression gate, which fails only
+   on a significant slowdown of a critical request-path operation. If you touched the request
+   pipeline (routing, middlewares, context or response building), also run `deno task bench` for
+   before/after evidence. See [Benchmarks & Performance Regression](./docs/BENCHMARKS.md) for what
+   the suite measures, and `src/@tests/performance/baseline.ts` for every recorded baseline and why
+   each threshold is what it is.
 
 6. Submit a Pull Request: Once you're satisfied with your changes, submit a pull request with a
    clear description of the changes you’ve made.

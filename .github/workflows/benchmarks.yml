@@ -1,0 +1,80 @@
+# .github/workflows/benchmarks.yml
+
+name: Benchmarks
+
+on:
+  # On demand, and weekly. Deliberately NOT on push or pull_request: the performance regression
+  # gate already runs inside `deno test` in `publish.yml`, which is the single place a benchmark
+  # number is allowed to fail a build. Duplicating it here would give two verdicts on the same
+  # question, from two runners of different speeds.
+  workflow_dispatch:
+  schedule:
+    # Tuesdays, 04:23 UTC. An odd minute on purpose — GitHub queues scheduled runs and delays the
+    # ones landing on the hour. Scheduled runs only ever execute on the default branch.
+    - cron: '23 4 * * 2'
+
+jobs:
+  benchmarks:
+    name: Backend benchmarks (report only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # `deno task bench` runs one bench file per process — see `deno.jsonc`'s own comment for why.
+      # This step fails only if a benchmark itself breaks, which is a real error worth catching; it
+      # never fails on a slower number.
+      - name: Run Deno.bench suite
+        # `shell: bash` for `-o pipefail`: GitHub's default shell does not set it, so the pipe
+        # would report `tee`'s exit code and a broken benchmark would pass silently. `NO_COLOR`
+        # because Deno's ANSI escapes render as garbage inside a summary code block.
+        shell: bash
+        env:
+          NO_COLOR: '1'
+        run: deno task bench | tee bench-output.txt
+
+      # `bench:baseline` is the only layer that covers ALL scenarios, including the 15 `Deno.bench`
+      # cannot run at all (see `Scenario.skipDenoBench`). Reported, never committed from here: a
+      # baseline recorded on a shared runner would be a measurement of the runner.
+      - name: Re-measure every scenario (baseline table)
+        shell: bash
+        env:
+          NO_COLOR: '1'
+        run: deno task bench:baseline -- --runs=3 | tee baseline-output.txt
+
+      - name: Publish results to the job summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '## Backend benchmarks'
+            echo
+            echo 'Reporting only — the performance regression gate lives in `deno test`'
+            echo '(`publish.yml`), not here. Two caveats when reading these numbers:'
+            echo
+            echo '- **Shared runner.** Timings move with whatever else the machine is doing. Read'
+            echo '  the trend across runs, and compare a scenario against ITSELF across commits —'
+            echo '  never a single figure against the baselines in `baseline.ts`, which were'
+            echo '  recorded on different hardware.'
+            echo '- **Do not commit these as a baseline.** A baseline recorded here would encode'
+            echo '  this runner’s speed, not this package’s.'
+            echo
+            echo '### `deno bench`'
+            echo '```'
+            cat bench-output.txt
+            echo '```'
+            echo
+            echo '### Full scenario table (all 71, including those `deno bench` cannot run)'
+            echo '```'
+            cat baseline-output.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
