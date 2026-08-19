@@ -7,6 +7,153 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.2.1] - 2026-08-19
+
+### Fixed
+
+- **A `postBoot`/`lazy` connector whose `initialize()` fails no longer permanently breaks for the
+  rest of the process's lifetime.** `ZanixConnector` (`connectors/base.ts`) now retries
+  `initialize()` every `retryInterval` until `timeoutConnection` elapses (the same knobs
+  `ConnectorAutoInitOptions` already documented, but which previously only governed post-ready
+  `isHealthy()` polling) before giving up — so a connector whose backing service isn't reachable at
+  the exact instant it's initialized (e.g. a container startup race, for `postBoot`) gets a real
+  chance to recover instead of failing once and requiring a manual restart once the dependency comes
+  back. Deliberately scoped to `postBoot`/`lazy` only — nothing else is positioned to retry those.
+  `onSetup`/`onBoot` still fail on the first attempt: both run before the server starts serving, so
+  a failure there already aborts boot, and an orchestrator's own restart policy (where configured)
+  is the appropriate retry mechanism at that point, not an in-process one that would only delay the
+  fail-fast signal it needs.
+- **The same connector-initialization failure no longer gets logged more than once.** `isReady`
+  rejecting was being observed, unhandled, by more than one independent consumer at once
+  (`instanceFreeze`, `utils/targets.ts`'s `connectorModuleInitialization` propagating uncaught out
+  of `targetInitializations('postBoot')`, `webserver/health.ts`'s `/ready` handler), each surfacing
+  as its own separate "An unhandled rejection error has been detected" log — visibly, as the exact
+  same error `id` repeated three times over. Fixed at the source in three places: `logAppError` now
+  stamps the error object `_logged: true` after logging it, so any later re-encounter of that exact
+  same error instance is silently skipped (see its own doc); `instanceFreeze` now `.catch()`es the
+  rejection instead of leaving it dangling; and `targetInitializations('postBoot')` no longer
+  propagates a target's failure uncaught to its caller — a connector failure is already self-logged,
+  and anything else is logged once here as a safety net. `onSetup`/`onBoot` keep their original
+  fail-fast behavior (both run before the server starts serving, so a failure there should still
+  stop boot).
+- **`buildReadinessHandler` (`webserver/health.ts`) no longer 500s on every single `/ready` poll
+  once a connector has permanently failed to initialize.** `connector.isReady` rejects rather than
+  resolving to `false` in that case (see `ZanixConnector`'s own doc) — `/ready` now reports that
+  connector as a normal failing (`degraded`, `503`) check instead of throwing.
+
+### Changed
+
+- **The internal `_Zanix`-prefixed synthetic subclass name a core connector is auto-registered under
+  (e.g. `_ZanixRabbitMQConnector`, plus a decorator-transpilation numeric suffix) no longer leaks
+  into `ZanixConnector`'s own error logs.** Both the "Failed to initialize connector ..." message
+  (`connectors/base.ts`) and every `meta.connectorName` (that same error's own `meta`, and the
+  health-check-timeout error in `connectorModuleInitialization`, `utils/targets.ts`) now resolve
+  through a new protected `coreDisplayName(label?)` method instead of the raw
+  `this.constructor.name` — the message text passes the explicit `'from core'` label, while both
+  `meta.connectorName` fields call it with no label, falling back to `` `${connectorKey} core` ``.
+  Every core connector package (`@zanix/asyncmq`, `@zanix/datamaster`) previously had to reimplement
+  this exact same `name.startsWith('_Zanix') ? label : name` check itself just to keep it out of ITS
+  OWN log lines, which did nothing for `@zanix/server`'s own logging. See `coreDisplayName`'s own
+  doc for the full contract; those packages' local reimplementations should switch to calling it
+  instead once they depend on this version.
+
+- **Route matching now scans only the routes whose HTTP method the request actually uses.**
+  `findMatchingRoute` is a linear scan, and because a route's storage key (and therefore its
+  compiled regex) ends in its own method suffix, a `GET` was running the regex of every `POST`,
+  `PUT`, `PATCH` and `DELETE` route in the application before reaching its own — work that could
+  never match. `getMainHandler` now splits both `:param` tables into one bucket per method
+  (`bucketRoutesByMethod`, `utils/routes.ts`), once at construction time, never per request. No
+  public API changed, `routeProcessor`'s output is untouched, and 404/405 handling is unchanged: a
+  method with no bucket resolves to an empty table, which matches nothing — exactly what scanning
+  the full table already did. Measured end to end, both variants interleaved in one process:
+  **1.79x** on a 50-route/5-method table and **2.37x** on a 200-route/5-method one, for the whole
+  request, and within noise on a single-method table (one extra property lookup). New benchmark
+  scenarios cover both shapes, so a future routing change has to prove it helps the mixed table
+  without hurting the single-method one.
+- **The guard and interceptor phases no longer pay two wasted microtask ticks per middleware.** Both
+  iterated an array of FUNCTIONS with `for await`, which awaits each ELEMENT before calling it — one
+  tick spent awaiting a function — and then unconditionally awaited the result, ticking again even
+  for the synchronous middlewares this package ships (`corsGuard` and `cookiesGuard` are both sync).
+  Now an indexed loop awaits only what is actually thenable (checked via `.then`, so a cross-realm
+  promise still behaves identically). Order, short-circuit behavior and header-merge semantics are
+  unchanged. Measured: **1.23x** faster guard phase with only the built-in guards, **1.36x** with
+  three application guards, **1.21x** on the interceptor phase with three interceptors. `mainGuard`
+  also skips building an entries array for a guard that set no header at all, which is the common
+  case.
+
+  Two plausible-sounding hypotheses about this same phase were measured and REFUTED before the real
+  cost was found, and are recorded here so nobody re-attempts them: allocating the guard-header
+  `Headers` costs **0.040 µs**, and building the three `interactors`/`providers`/`connectors`
+  getters costs **0.007 µs** — V8 optimizes them away entirely. Making those getters lazy via
+  `Object.defineProperties` would have cost **1.181 µs**, roughly **30x more than the work it was
+  meant to avoid**. See `docs/BENCHMARKS.md` for the full record, including why the request
+  lifecycle itself was measured and deliberately left alone.
+
+### Added
+
+- **Backend-only benchmark suite (`src/@tests/benchmarks/`)** — `Deno.bench` coverage of the
+  operations that actually make up this package's request runtime: per-request context setup
+  (context id, body parsing, the lazy query/param accessors, cookie parsing and filtering, the
+  `enableALS` scope), routing (boot-time `routeProcessor` compilation and per-request
+  `findMatchingRoute` matching, both at 5/50/200 routes, plus catch-all and the full-scan miss the
+  404 path takes), the guard/pipe/interceptor pipeline with zero and with three declared
+  middlewares, response building (string / `Response` / JSON at three payload sizes, error
+  responses, gzip, the health endpoints), the full in-process `Request` → `Response` lifecycle, the
+  GraphQL server type (schema assembly plus the request handler for queries, a mutation, and list
+  results at three sizes), and the WebSocket handler's per-message reply path and non-upgrade
+  rejection. The WebSocket **upgrade** itself is deliberately absent: `Deno.upgradeWebSocket` needs
+  a real hijackable connection, so benchmarking it would measure the kernel's socket path rather
+  than this package — it stays covered functionally instead. The 12 GraphQL/WebSocket scenarios ship
+  as informational only: their baselines were recorded in a session where the machine benchmarked at
+  ~40% of the throughput the other 59 were recorded at, which is a real measurement but not a
+  reference worth thresholding against. No thresholds live in the benchmarks by design — they exist
+  to produce baseline evidence and to compare versions. Self-contained by construction: nothing in
+  the suite opens a socket, touches the filesystem, reaches a database or depends on any service
+  outside this package, so a measured number can only move when this package's own code moves. New
+  `deno task bench`, scoped by a `bench.include` block in `deno.jsonc`, which runs one bench file
+  per process — `Deno.bench`'s harness in Deno 2.9.5 accumulates across benchmarks within a process
+  and reproducibly exhausts the V8 heap partway through a single combined run. For the same reason,
+  15 of the 71 scenarios (every full-request-lifecycle one, plus the largest JSON payloads) are
+  excluded from the `Deno.bench` layer via `Scenario.skipDenoBench`: `Deno.bench` cannot run them at
+  all, while this suite's own sampler runs each 100,000 times in ~164 MB. They lose their
+  `deno bench` row, not their coverage — the regression gate measures, thresholds and reports every
+  one of them, and `deno task bench:baseline` prints them all as a table.
+- **`benchmarks.yml`** — a report-only workflow, on `workflow_dispatch` and a weekly schedule. It
+  runs `deno task bench` and a 3-run `deno task bench:baseline`, and publishes both tables to the
+  run's job summary. It deliberately does NOT run the regression gate: that already runs inside
+  `deno test` in `publish.yml`, which stays the single place a benchmark number can fail a build.
+- **Performance regression gate (`src/@tests/performance/`)** — a real test, running inside the
+  ordinary `deno test` (also available alone via `deno task test:perf`), that fails when a critical
+  request-path operation drops below a recorded floor. It runs in two stages. First a **validity
+  gate**: a benchmark that silently stops doing its job does not fail, it gets FASTER, so each
+  scenario's own return value is asserted for a deterministic property (a status code, a parsed
+  field, a source-chunk count) before any timing is trusted. Then the **throughput floors**: 48 of
+  71 scenarios are gated, each with a margin derived from its own measured spread — 35% where the
+  observed run-to-run drop stayed within 15%, 45% where it reached 15–30%, both widened by the
+  measured 4–19% penalty the gate pays for running as one test among ~480 others rather than in a
+  fresh process. Scenarios whose spread is wider than the regressions a floor could catch, whose
+  measurement is dominated by benchmark harness overhead, or which measure a Deno primitive rather
+  than this package, are measured and reported but deliberately NOT gated. A scenario that comes in
+  under its floor is re-measured once before being called a regression, which removes the
+  single-scenario false failures a busy machine otherwise produces without weakening any floor.
+  Floors are also scaled, in the same run, by how fast the machine executing them actually is —
+  measured as the median drift of four `control:` scenarios that contain no `@zanix/server` code at
+  all, so the scaling can relax a floor for a slow or contended agent but can never absorb a real
+  regression (verified end to end: a 3× slowdown injected into `contextId()` is caught at the same
+  machine speed at which the unmodified code passes). Below 35% of the reference machine's speed the
+  gate reports instead of judging, rather than pretending a verdict it cannot support. Baselines
+  come from ten independent recording runs on a documented reference machine;
+  `deno task bench:baseline` re-measures and prints a paste-ready table. `ZANIX_PERF_GATE=off`
+  downgrades the throughput floors to a report on a machine too slow or too contended for them,
+  leaving the machine-independent validity assertions active.
+- **Streaming-SSR time-to-first-byte coverage** — the one property the existing gzip throughput
+  benchmarks are structurally incapable of detecting, since they drain the whole body and so would
+  not move at all if a response stopped streaming. `gzipStreamingResponse` and
+  `gzipResponseFromResponse` are now measured for time to FIRST chunk against a synthetic streamed
+  response, and — more importantly — the difference between them is asserted exactly, as the number
+  of source chunks each pulls before its first byte reaches the consumer (3 vs. 65). That count is
+  deterministic, so it gates; the timings that quantify it stay informational.
+
 ## [3.2.0] - 2026-08-15
 
 ### Added

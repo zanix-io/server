@@ -179,11 +179,17 @@ export abstract class BaseInstancesContainer extends BaseContainer {
    */
   private instanceFreeze<T extends TargetBaseClass>(instance: T) {
     if ('isReady' in instance) {
+      // `isReady` rejects when every initialization attempt failed (see `ZanixConnector`'s own
+      // doc) — that failure is already logged by the connector itself, so this `.catch` exists
+      // purely to keep this `.then` from being ANOTHER unhandled path observing the same
+      // rejection (it would otherwise surface as its own separate "unhandled rejection" report).
+      // A connector that never became ready is simply left unfrozen — still safe to leave alone,
+      // since nothing else here depends on it.
       ;(instance as unknown as typeof ZanixConnector['prototype']).isReady.then(
         () => {
           Object.freeze(instance)
         },
-      )
+      ).catch(() => {})
     } else Object.freeze(instance)
   }
 

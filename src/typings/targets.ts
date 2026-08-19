@@ -221,7 +221,7 @@ export type CoreModules<
  * - If set to `false`, the connector will not automatically initialize and will require manual initialization.
  * - If set to an object, it allows configuring the auto-initialization behavior with the following properties:
  *    - `timeoutConnection`: The maximum time (in milliseconds) to wait for the connection to be established during auto-initialization. Defaults to **10000ms (10 seconds)**.
- *    - `retryInterval`: The interval (in milliseconds) between each retry when attempting to auto-initialize. Defaults to **500ms**.
+ *    - `retryInterval`: The interval (in milliseconds) between each retry. Defaults to **500ms**. Governs two separate things: retrying a failed `initialize()` call itself — only for `startMode: 'postBoot'`/`'lazy'`; `onSetup`/`onBoot` never retry `initialize()`, so boot stays fail-fast — and the interval between post-ready `isHealthy()` checks, for every `startMode`.
  *
  * @type {boolean | { timeoutConnection?: number; retryInterval?: number }}
  */
@@ -233,7 +233,7 @@ export type ConnectorAutoInitOptions =
      */
     timeoutConnection?: number
     /**
-     * The interval (in milliseconds) between each retry when attempting to auto-initialize. Defaults to **500ms**.
+     * The interval (in milliseconds) between each retry. Defaults to **500ms**. Governs two separate things: retrying a failed `initialize()` call itself — only for `startMode: 'postBoot'`/`'lazy'`; `onSetup`/`onBoot` never retry `initialize()`, so boot stays fail-fast — and the interval between post-ready `isHealthy()` checks, for every `startMode`.
      */
     retryInterval?: number
   }
@@ -253,7 +253,7 @@ export type ConnectorOptions = {
    * - If set to `false`, the connector will not automatically initialize and will require manual initialization.
    * - If set to an object, it allows configuring the auto-initialization behavior with the following properties:
    *    - `timeoutConnection`: The maximum time (in milliseconds) to wait for the connection to be established during auto-initialization. Defaults to **10000ms (10 seconds)**.
-   *    - `retryInterval`: The interval (in milliseconds) between each retry when attempting to auto-initialize. Defaults to **500ms**.
+   *    - `retryInterval`: The interval (in milliseconds) between each retry. Defaults to **500ms**. Governs two separate things: retrying a failed `initialize()` call itself — only for `startMode: 'postBoot'`/`'lazy'`; `onSetup`/`onBoot` never retry `initialize()`, so boot stays fail-fast — and the interval between post-ready `isHealthy()` checks, for every `startMode`.
    */
   autoInitialize?: ConnectorAutoInitOptions
 }

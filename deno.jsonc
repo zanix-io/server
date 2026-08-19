@@ -1,6 +1,6 @@
 {
   "name": "@zanix/server",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true,
@@ -52,13 +52,13 @@
     "@std/http": "jsr:@std/http@0.224",
     "@std/assert": "jsr:@std/assert@0.224",
     "@std/testing": "jsr:@std/testing@1.0.9",
-    "@zanix/logger": "jsr:@zanix/utils@^2.6.0/logger",
-    "@zanix/helpers": "jsr:@zanix/utils@^2.6.0/helpers",
-    "@zanix/validator": "jsr:@zanix/utils@^2.6.0/validator",
-    "@zanix/regex": "jsr:@zanix/utils@^2.6.0/regex",
-    "@zanix/errors": "jsr:@zanix/utils@^2.6.0/errors",
-    "@zanix/types": "jsr:@zanix/utils@^2.6.0/types",
-    "@zanix/workers": "jsr:@zanix/utils@^2.6.0/workers",
+    "@zanix/logger": "jsr:@zanix/utils@^2.6.1/logger",
+    "@zanix/helpers": "jsr:@zanix/utils@^2.6.1/helpers",
+    "@zanix/validator": "jsr:@zanix/utils@^2.6.1/validator",
+    "@zanix/regex": "jsr:@zanix/utils@^2.6.1/regex",
+    "@zanix/errors": "jsr:@zanix/utils@^2.6.1/errors",
+    "@zanix/types": "jsr:@zanix/utils@^2.6.1/types",
+    "@zanix/workers": "jsr:@zanix/utils@^2.6.1/workers",
     "@std/uuid": "jsr:@std/uuid@0.224",
     "async_hooks": "node:async_hooks",
     "shared/": "./src/shared/",
@@ -73,11 +73,41 @@
     "webserver/": "./src/modules/webserver/"
   },
   "exports": { ".": "./mod.ts" },
+  "tasks": {
+    // The benchmark suite (`src/@tests/benchmarks/`), ONE FILE PER PROCESS.
+    //
+    // The two permissions are the same ones `deno test` needs: `@zanix/helpers`' `readConfig()`
+    // reads `deno.jsonc`, and `@zanix/logger` reads the environment to decide its output format.
+    // Without BOTH, importing any module in this package terminates the process silently.
+    //
+    // The files are listed explicitly instead of letting `bench.include` sweep them into a single
+    // `deno bench` run, because that single run does not survive: `Deno.bench`'s harness in Deno
+    // 2.9.5 accumulates across benchmarks within a process and reproducibly exhausts the V8 heap
+    // partway through (measured: a 32 GB peak footprint, `Fatal JavaScript out of memory`, and no
+    // table at all — even with `n`/`warmup` capped at 250/100 and the heaviest scenarios already
+    // excluded via `Scenario.skipDenoBench`). Run per file, every one of them completes. Re-test
+    // when upgrading Deno; if the harness stops accumulating, collapse this back to one command.
+    "bench": "deno bench --allow-read --allow-env src/@tests/benchmarks/context.bench.ts && deno bench --allow-read --allow-env src/@tests/benchmarks/routing.bench.ts && deno bench --allow-read --allow-env src/@tests/benchmarks/middleware.bench.ts && deno bench --allow-read --allow-env src/@tests/benchmarks/response.bench.ts && deno bench --allow-read --allow-env src/@tests/benchmarks/lifecycle.bench.ts && deno bench --allow-read --allow-env src/@tests/benchmarks/graphql.bench.ts && deno bench --allow-read --allow-env src/@tests/benchmarks/sockets.bench.ts",
+    // Just the performance regression gate, without the rest of the test suite.
+    "test:perf": "deno test --allow-all src/@tests/performance/",
+    // Re-measures every scenario — including the ones `deno bench` cannot run at all (see
+    // `Scenario.skipDenoBench`) — and prints both a summary table and a ready-to-paste
+    // `baseline.ts` block. This is therefore also the benchmark layer for those scenarios, not
+    // only the baseline recorder. Run it several times on an idle machine before changing any
+    // recorded baseline — see that file's own doc.
+    "bench:baseline": "deno run --allow-all src/@tests/performance/record-baseline.ts"
+  },
   "publish": {
     "exclude": [".github", "src/@tests"]
   },
   "test": {
     "include": ["src/@tests/**/*.test.ts"]
+  },
+  "bench": {
+    // Scoped to this package's own benchmark suite. Every scenario in it runs in-process against
+    // synthetic requests — no socket, no filesystem, no database, nothing outside this package —
+    // so a measured number can only move when this package's own code moves.
+    "include": ["src/@tests/benchmarks/**/*.bench.ts"]
   },
   "zanix": {
     "project": "library",

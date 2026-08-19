@@ -4,6 +4,7 @@ import type { ModuleTypes, StartMode } from 'typings/program.ts'
 import { INSTANCE_KEY_SEPARATOR, ZANIX_PROPS } from './constants.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { InternalError } from '@zanix/errors'
+import { logAppError } from './errors/helper.ts'
 
 // WeakMap to associate each class constructor with its unique ID.
 // WeakMap ensures that once the class is no longer referenced, its entry is GC'ed.
@@ -130,7 +131,7 @@ export const connectorModuleInitialization = (
           reject(
             new InternalError('Health check failed: Timeout reached', {
               meta: {
-                connectorName: instance.constructor.name,
+                connectorName: instance['coreDisplayName'](),
                 method: 'isHealthy',
                 timeoutDuration: timeout,
                 retryInterval: retryInterval,
@@ -166,27 +167,52 @@ export const connectorModuleInitialization = (
  * Initializes the targets based on the specified start mode.
  * Prioritizes connectors first, then providers, and finally the interactor.
  *
+ * For `startMode: 'postBoot'`, a target failure never rejects this call: `postBoot` targets are
+ * initialized in the background, after the server has already started serving requests (see
+ * `bootstrapServersImpl`, `webserver/mod.ts`, which awaits this call with nothing running yet to
+ * usefully "fail fast" for) — a connector's own failure is already logged once by
+ * `ZanixConnector`'s constructor (`connectors/base.ts`), so it's swallowed here to avoid it also
+ * surfacing as a genuinely unhandled promise rejection; anything else (a provider/interactor that
+ * isn't self-logging) is still logged here as a safety net, once, via `logAppError` (a no-op if it
+ * was already logged elsewhere for the exact same error object — see `logAppError`'s own doc).
+ * `onSetup`/`onBoot` keep the original fail-fast behavior: both run BEFORE the server starts, so a
+ * failure there should stop boot, and is left to reject and propagate to the caller as before.
+ *
  * @param {Exclude<StartMode, 'lazy'>} startMode - The start mode for initialization.
  *     The 'lazy' mode is excluded from the possible start modes.
  *     It can be one of the values defined in `StartMode`.
  *
- * @returns {Promise<void>} A promise that resolves when all targets
- *     have been initialized successfully. The targets are initialized in parallel using `Promise.all()`.
+ * @returns {Promise<void>} A promise that resolves when all targets have settled — successfully
+ *     for `postBoot`, or throws on the first failure for `onSetup`/`onBoot`. Targets of the same
+ *     type initialize in parallel via `Promise.all()`.
  *
  * @async
  *
  * @example
  * // Example usage:
- * const startMode: StartMode = 'immediate';
+ * const startMode: Exclude<StartMode, 'lazy'> = 'onBoot';
  * await targetInitializations(startMode);
  */
 export const targetInitializations = async (
   startMode: Exclude<StartMode, 'lazy'>,
 ): Promise<void> => {
   for await (const type of types) {
+    const keys = ProgramModule.targets.getTargetsByStartMode(startMode, type)
+
+    if (startMode !== 'postBoot') {
+      await Promise.all(keys.map(targetModuleInit))
+      continue
+    }
+
     await Promise.all(
-      ProgramModule.targets.getTargetsByStartMode(startMode, type).map(
-        targetModuleInit,
+      keys.map((key) =>
+        Promise.resolve(targetModuleInit(key)).catch((error) =>
+          logAppError(error, {
+            message: `A 'postBoot' target failed to initialize.`,
+            code: 'POSTBOOT_INIT_ERROR',
+            meta: { key },
+          })
+        )
       ),
     )
   }

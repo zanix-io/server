@@ -30,6 +30,13 @@ All three are registered with a class decorator that controls **when** the insta
 | `postBoot` | Initialized after the server has started, in the background, without blocking startup.    |
 | `lazy`     | Initialized only when first needed; never blocks server startup.                          |
 
+> ℹ️ For a `@Connector`, `onSetup`/`onBoot` fail on the very first failed `initialize()` attempt —
+> both already abort startup, so retrying in-process would only delay that fail-fast signal, which
+> an orchestrator's own restart policy (where configured) is the appropriate place to handle
+> instead. `postBoot`/`lazy` retry `initialize()` per `autoInitialize`'s `retryInterval`/
+> `timeoutConnection` (see below) before giving up, since nothing external is positioned to retry
+> either of those once the server has already reported started.
+
 > ⚠️ A `TRANSIENT` lifetime is not compatible with `startMode: 'lazy'` — a transient instance is
 > always tied to a specific call, so it cannot be lazily shared. Be cautious using a transient
 > connector/interactor as a dependency of another class: its reference is discarded immediately
@@ -59,10 +66,16 @@ Defaults when no options are given: `slot: 'custom'`, `startMode: 'postBoot'`,
 Controls whether the connector initializes itself automatically on instantiation:
 
 - `true` (default) — initializes automatically.
-- `false` — you must call the initialization method manually.
+- `false` — you must call the initialization method manually. `initialize()` is then never called by
+  the framework at all, so none of `timeoutConnection`/`retryInterval` below ever apply.
 - An object — fine-tunes automatic initialization:
-  - `timeoutConnection` — max time (ms) to wait for the connection. Defaults to **10000ms**.
-  - `retryInterval` — time (ms) between retries. Defaults to **500ms**.
+  - `timeoutConnection` — max time (ms) to wait for the connection. Defaults to **10000ms**. Also
+    the budget `connectorModuleInitialization`'s post-ready `isHealthy()` polling uses, for every
+    `startMode`.
+  - `retryInterval` — time (ms) between retries. Defaults to **500ms**. Governs two different retry
+    loops: `initialize()` itself (only for `startMode: 'postBoot'`/`'lazy'` — see the
+    [start mode note](#start-mode) above) and the post-ready `isHealthy()` polling (every
+    `startMode`).
 
 ### `connectorKey` — a connector's own identity
 

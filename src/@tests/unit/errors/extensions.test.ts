@@ -1,6 +1,8 @@
 import { assert, assertEquals, assertExists, assertFalse, assertNotEquals } from '@std/assert'
 import { HttpError, PermissionDenied } from '@zanix/errors'
 import { getExtendedErrorResponse, httpErrorResponse, logAppError } from 'utils/errors/helper.ts'
+import { spy } from '@std/testing/mock'
+import logger from '@zanix/logger'
 
 Deno.test('getExtendedErrorResponse should generate a new id if none exists', () => {
   const error = { message: 'Test error' }
@@ -120,4 +122,42 @@ Deno.test('httpErrorResponse should return all data after log', async () => {
   assertEquals(error.id, response.id)
   assertEquals(response.name, 'Error')
   assertEquals(response.message, 'BAD_REQUEST')
+})
+
+Deno.test({
+  name:
+    'logAppError: stamps the SAME error object `_logged: true`, so a later call with that exact instance is skipped',
+  fn: async () => {
+    console.error = () => {}
+    const logSpy = spy(logger, 'error')
+
+    const error = new Error('shared error instance')
+    await logAppError(error, { message: 'first log', code: 'CODE' })
+    await logAppError(error, { message: 'second log (same object)', code: 'CODE' })
+
+    assertEquals(logSpy.calls.length, 1)
+    assertEquals(logSpy.calls[0].args[0], 'first log')
+
+    logSpy.restore()
+  },
+})
+
+Deno.test({
+  name:
+    'logAppError: never suppresses a DIFFERENT error object, even with an identical message/code to one already logged',
+  fn: async () => {
+    console.error = () => {}
+    const logSpy = spy(logger, 'error')
+
+    const first = new Error('duplicate text')
+    const second = new Error('duplicate text') // same message, but a genuinely different instance
+
+    await logAppError(first, { message: 'same message', code: 'SAME_CODE' })
+    await logAppError(second, { message: 'same message', code: 'SAME_CODE' })
+
+    // Both are real, distinct occurrences — neither should be silently dropped.
+    assertEquals(logSpy.calls.length, 2)
+
+    logSpy.restore()
+  },
 })

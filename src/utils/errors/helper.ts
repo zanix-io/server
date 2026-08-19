@@ -368,6 +368,15 @@ export const httpErrorResponse = (
 /**
  * Logs a app error with optional additional details.
  *
+ * After a successful log, the original error object (`e`) is stamped with `_logged: true` (best
+ * effort — silently skipped if `e` can't be mutated, e.g. it's frozen). This is what makes
+ * `logAppError` idempotent per error INSTANCE: the same underlying error can legitimately resurface
+ * through more than one path (e.g. a connector's own init-failure handler logs it and rejects, and
+ * that same rejection is later observed again by an unrelated `.then()`/`unhandledrejection`
+ * listener elsewhere) — without this stamp, each path would print the same failure again via
+ * {@link shouldNotLogError}'s existing `_logged` handling. This does NOT affect a fresh error with
+ * the same message/type — only the exact same object reference is ever suppressed.
+ *
  * @param {unknown} e - The original error being logged.
  * @param {Object} options - The options object containing error details.
  * @param {string} options.message - The error message describing the issue.
@@ -399,7 +408,11 @@ export const logAppError = async (
   if (error.meta || meta) error.meta = { ...meta, ...error.meta }
 
   try {
-    Object.assign(e as never, { id: error.id, contextId: error.contextId })
+    Object.assign(e as never, {
+      id: error.id,
+      contextId: error.contextId,
+      _logged: true,
+    })
   } catch { /** ignore */ }
 
   logger.error(message, error)

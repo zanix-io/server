@@ -114,7 +114,12 @@ async () => {
       )
       if (!connector) return undefined
 
-      const ready = await connector.isReady
+      // `isReady` REJECTS (doesn't resolve `false`) once every initialization attempt has failed
+      // — see `ZanixConnector`'s own doc (`connectors/base.ts`); the failure itself was already
+      // logged there. Caught here so a permanently-down connector reports as a normal `degraded`
+      // check on every `/ready` poll, rather than throwing and failing the whole readiness
+      // response.
+      const ready = await connector.isReady.catch(() => false)
       if (!ready) return [key, false]
 
       return [key, await runCheck(() => connector.isHealthy())]
