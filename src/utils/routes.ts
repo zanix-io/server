@@ -1,7 +1,11 @@
 import type { ProcessedRoutes } from 'typings/router.ts'
-import { HTTPMETHODS_WITHOUT_BODY, JSON_CONTENT_HEADER } from './constants.ts'
-import { cleanRoute } from '@zanix/helpers'
-import { InternalError } from '@zanix/errors'
+import {
+  DEFAULT_MAX_BODY_BYTES,
+  HTTPMETHODS_WITHOUT_BODY,
+  JSON_CONTENT_HEADER,
+} from './constants.ts'
+import { assertContentLengthWithinLimit, cleanRoute, readBoundedStream } from '@zanix/helpers'
+import { ApplicationError, HttpError, InternalError } from '@zanix/errors'
 
 /** Function to get prefix */
 export const getPrefix = (globalPrefix: string) => {
@@ -109,9 +113,71 @@ export const getParamNames = (route: string) => {
   return params
 }
 
-/** Body payload property */
+/** The two size-limit codes {@linkcode assertContentLengthWithinLimit}/{@linkcode readBoundedStream}
+ * (`@zanix/helpers`) throw as `ApplicationError` — the only ones this module converts into its own
+ * `HttpError('PAYLOAD_TOO_LARGE')`. Any other error (a genuinely unexpected failure, not a size-limit
+ * rejection) propagates unmodified instead of being mislabeled as one. */
+const BODY_SIZE_LIMIT_CODES = new Set([
+  'UTILS_NETWORK_CONTENT_LENGTH_TOO_LARGE',
+  'UTILS_NETWORK_BODY_TOO_LARGE',
+])
+
+function payloadTooLargeError(maxBytes: number, id?: string): HttpError {
+  return new HttpError('PAYLOAD_TOO_LARGE', {
+    id,
+    message: `Request body exceeds the ${maxBytes}-byte limit`,
+  })
+}
+
+/**
+ * Reads `req`'s body into raw text, rejecting (`HttpError('PAYLOAD_TOO_LARGE')`) once it exceeds
+ * `maxBytes` — enforced by counting REAL bytes as the stream itself arrives
+ * ({@linkcode readBoundedStream}, `@zanix/helpers`), not by trusting `Content-Length` alone: a
+ * client can omit that header, lie about it, or send more than it declared under
+ * `Transfer-Encoding: chunked`. The {@linkcode assertContentLengthWithinLimit} check still runs
+ * FIRST though — it rejects an honest oversized request without reading a single byte of it.
+ *
+ * Both helpers throw a plain, framework-neutral `ApplicationError` (`@zanix/errors`), never this
+ * package's own `HttpError` — only the two size-limit codes they can actually produce
+ * ({@linkcode BODY_SIZE_LIMIT_CODES}) are converted into `HttpError('PAYLOAD_TOO_LARGE')` here; any
+ * other error propagates unmodified rather than being mislabeled as a size-limit rejection.
+ */
+async function readBodyText(req: Request, maxBytes: number, id?: string): Promise<string> {
+  if (!req.body) return ''
+
+  try {
+    assertContentLengthWithinLimit(req.headers.get('Content-Length'), maxBytes)
+    const bytes = await readBoundedStream(req.body, maxBytes)
+    return new TextDecoder().decode(bytes)
+  } catch (error) {
+    if (error instanceof ApplicationError && error.code && BODY_SIZE_LIMIT_CODES.has(error.code)) {
+      // `readBoundedStream` already cancels its own reader the instant it rejects for an
+      // over-limit BODY (UTILS_NETWORK_BODY_TOO_LARGE) — but an over-limit CONTENT-LENGTH
+      // (UTILS_NETWORK_CONTENT_LENGTH_TOO_LARGE) is rejected by `assertContentLengthWithinLimit`
+      // BEFORE `readBoundedStream` ever acquires a reader, so `req.body` itself is still open at
+      // that point. Cancel it here — best-effort, same as every other cleanup on this path — so an
+      // honest-Content-Length rejection releases the underlying stream just as reliably as an
+      // actual-bytes rejection does, instead of leaving it dangling.
+      await req.body?.cancel().catch(() => {})
+      throw payloadTooLargeError(maxBytes, id)
+    }
+    throw error
+  }
+}
+
+/**
+ * Body payload property.
+ *
+ * @param req The incoming request.
+ * @param id Request id, attached to a size-limit `HttpError` the same way every other
+ *   framework-owned rejection in this pipeline carries one.
+ * @param maxBodyBytes Rejects the request (413) once its body exceeds this many bytes — see
+ *   {@linkcode readBodyText}. Defaults to {@linkcode DEFAULT_MAX_BODY_BYTES}.
+ */
 export const bodyPayloadProperty = async (
   req: Request,
+  id?: string,
+  maxBodyBytes: number = DEFAULT_MAX_BODY_BYTES,
 ): Promise<unknown> => {
   let computedBody: unknown
   const method = req.method
@@ -123,13 +189,22 @@ export const bodyPayloadProperty = async (
     if (
       contentType && contentType.includes(JSON_CONTENT_HEADER['Content-Type'])
     ) {
-      computedBody = await req.json()
+      const text = await readBodyText(req, maxBodyBytes, id)
+      computedBody = text ? JSON.parse(text) : undefined
     } else if (
       contentType && contentType.includes('application/x-www-form-urlencoded')
     ) {
-      computedBody = await req.formData()
+      const text = await readBodyText(req, maxBodyBytes, id)
+      const formData = new FormData()
+      for (const [key, value] of new URLSearchParams(text)) {
+        formData.append(key, value)
+      }
+      computedBody = formData
     }
-  } catch {
+  } catch (error) {
+    // A real size-limit rejection must reach the client as a 413 — only a malformed body (bad
+    // JSON, etc.) is swallowed to `undefined`, same as before this function enforced any limit.
+    if (error instanceof HttpError) throw error
     return computedBody
   }
 

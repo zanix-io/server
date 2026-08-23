@@ -1,5 +1,5 @@
 import { ZanixCacheConnector } from './cache.ts'
-import ConnectorCoreModules, { registerCoreConnectorSlot } from './all.ts'
+import connectorCoreModules, { registerCoreConnectorSlot } from './all.ts'
 
 // `'cache:custom'`/`'cache:memcached'` still self-register here because no package currently
 // ships a concrete implementation for either — there's no owner to hand the registration call to
@@ -8,4 +8,4 @@ import ConnectorCoreModules, { registerCoreConnectorSlot } from './all.ts'
 registerCoreConnectorSlot('cache:custom', ZanixCacheConnector)
 registerCoreConnectorSlot('cache:memcached', ZanixCacheConnector)
 
-export default ConnectorCoreModules
+export default connectorCoreModules

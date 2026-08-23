@@ -52,6 +52,38 @@ Deno.test({
   },
 })
 
+Deno.test({
+  name:
+    'PublicProgramModule.routes.getRoutes: delegates to ProgramModule.routes.getRoutes, exposing no other RouteContainer method',
+  fn: () => {
+    ProgramModule.routes.resetContainer()
+
+    class PublicGetRoutesTarget extends TargetBaseClass {
+      public handleGet() {}
+    }
+
+    ProgramModule.routes.setEndpoint({
+      Target: PublicGetRoutesTarget,
+      propertyKey: 'handleGet',
+      endpoint: 'public-get-routes-test',
+    })
+    ProgramModule.targets.addProperty({
+      Target: PublicGetRoutesTarget,
+      propertyKey: 'handleGet',
+    })
+    ProgramModule.routes.defineRoute('rest', PublicGetRoutesTarget)
+
+    assertEquals(
+      PublicProgramModule.routes.getRoutes('rest'),
+      ProgramModule.routes.getRoutes('rest'),
+    )
+    // The whole point of this accessor: read-only introspection, never the mutating
+    // `RouteContainer` methods (`defineRoute`/`removeRoutesForTarget`/etc.) `unregisterRoutes`
+    // already covers those individually via its own narrow, purpose-built wrapper.
+    assertEquals(Object.keys(PublicProgramModule.routes), ['getRoutes'])
+  },
+})
+
 Deno.test('PublicProgramModule.unregisterRoutes: delegates to routes.removeRoutesForTarget', () => {
   ProgramModule.routes.resetContainer()
 

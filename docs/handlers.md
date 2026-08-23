@@ -105,6 +105,29 @@ If the path is omitted, the method name is used as the route (e.g. `@Get()` on a
 `listUsers` registers `GET /listUsers`). The RTO object can be passed as the sole argument in that
 case — `@Post({ Body: LogoutRTO })` registers on `POST /logout` for a method named `logout`.
 
+### Static route metadata
+
+Every registered REST route persists its `httpMethod`, `path`, `application`, and — when declared
+via the method decorator's own `Body`/`Params`/`Search` option — the exact RTO class(es) it
+validates against, as plain, serializable metadata reachable via
+`ProgramModule.routes.getRoutes('rest')`. Captured once, at registration time; the runtime
+validation pipeline never reads it back, so nothing here affects request handling — this is purely
+for a build-time consumer (an OpenAPI generator, an API-surface report) that needs to introspect
+what's registered without invoking anything:
+
+```ts
+import { ProgramModule } from 'jsr:@zanix/server@[version]'
+import type { RestRouteEntry } from 'jsr:@zanix/server@[version]'
+
+const routes = ProgramModule.routes.getRoutes('rest') as Record<string, RestRouteEntry> | undefined
+for (const [key, route] of Object.entries(routes ?? {})) {
+  // key is `${application}:${path}/${httpMethod}`
+  console.log(route.path, route.httpMethod, route.rto)
+}
+```
+
+`route.rto` is `undefined` for a route declared with no RTO at all.
+
 ### `@Controller` options
 
 Besides a plain string prefix, `@Controller` accepts an options object:
@@ -116,7 +139,7 @@ Besides a plain string prefix, `@Controller` accepts an options object:
 | `enableALS`       | Enables `AsyncLocalStorage`-based context isolation per request (see below).                                                                |
 | `versionProtocol` | Negotiates a protocol version on every request/response. On by default — see [Protocol version negotiation](#protocol-version-negotiation). |
 
-Which [Application](./APPLICATIONS.md#applications) a controller's routes belong to is never one of
+Which [Application](./applications.md#applications) a controller's routes belong to is never one of
 these options — it's resolved automatically from context, not declared per class (see that guide for
 why).
 
@@ -145,7 +168,7 @@ class UsersResolver extends ZanixResolver {
 
 `@Resolver` accepts the same `prefix`/`Interactor`/`enableALS`/`versionProtocol` options as
 `@Controller` — a resolver registered under a non-default
-[Application](./APPLICATIONS.md#applications) has its fields added to a separate schema/root-value
+[Application](./applications.md#applications) has its fields added to a separate schema/root-value
 bucket, never merged into the default one.
 
 `@Query`/`@Mutation` are shorthands for the generic `@GQLRequest(type)` decorator, useful when the
@@ -161,6 +184,29 @@ class UsersResolver extends ZanixResolver {
   }
 }
 ```
+
+### Validating requests before execution
+
+`ServerOptions.graphqlValidation` runs every GraphQL request through `graphql-js`'s own `validate()`
+— `specifiedRules` plus a query-depth limit — before it ever reaches a resolver; a query that fails
+validation gets a `400` with a standard `{ errors: [...] }` body instead of running:
+
+```ts
+await bootstrapServers({
+  graphql: {
+    graphqlValidation: {
+      maxDepth: 6, // reject a query whose real selection depth exceeds 6 (default: 10)
+      introspection: false, // reject __schema/__type queries outright (default: true)
+    },
+  },
+})
+```
+
+`maxDepth` follows a `FragmentSpread` to its target `FragmentDefinition`'s own depth rather than
+counting the spread as one level, closing off deep (or, via a reused fragment, exponential) nesting
+as a memory/CPU exhaustion vector. `introspection` defaults to `true` since most GraphQL tooling
+(GraphiQL, schema-aware clients/codegen) depends on it — disable it only for a genuinely public API
+that shouldn't expose its schema shape.
 
 ## WebSocket
 
@@ -186,7 +232,7 @@ handshake, not per-message).
 
 > ℹ️ `@Guard`/`@Pipe`/`@Interceptor` only take effect on a `@Socket` class when applied at the
 > **class** level, not on an individual lifecycle method — see
-> [Middlewares](./MIDDLEWARES.md#middleware-on-sockets-class-level-only) for why.
+> [Middlewares](./middlewares.md#middleware-on-sockets-class-level-only) for why.
 
 ### Tracking connections and pushing messages proactively
 
@@ -272,7 +318,7 @@ await bootstrapServers({ ssr: { port: 3000 } })
 This is the right choice for a plain project that wants one or a few hand-written SSR pages without
 adopting a full app-composition layer — the class attributes to the default (`'main'`) Application
 automatically, same as any REST controller with no active `ProgramModule.defineApplication` scope
-(see [Applications](./APPLICATIONS.md#applications)). A larger, composed frontend (routing,
+(see [Applications](./applications.md#applications)). A larger, composed frontend (routing,
 hydration, PWA — `@zanix/space`) instead registers its own `'ssr'` server as a **named app** via
 `@zanix/core`'s `apps` option (`apps.<name>.server.ssr`) — same handler type and same options
 underneath, just mounted through the Application-composition layer instead of directly. See
@@ -440,9 +486,9 @@ overhead per request — enable it only when the handler actually needs per-requ
 
 ## See also
 
-- [Applications](./APPLICATIONS.md) — how a handler's Application is resolved, anchored servers,
+- [Applications](./applications.md) — how a handler's Application is resolved, anchored servers,
   shared ports, boot sessions, and Discovery.
-- [Middlewares](./MIDDLEWARES.md) — guards, pipes, and interceptors that run around these handlers.
-- [Dependency Injection](./DEPENDENCY-INJECTION.md) — how `Interactor` injection and lifecycle work.
-- [Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) — the
+- [Middlewares](./middlewares.md) — guards, pipes, and interceptors that run around these handlers.
+- [Dependency Injection](./dependency-injection.md) — how `Interactor` injection and lifecycle work.
+- [Utilities → Application server-id helpers](./utilities.md#application-server-id-helpers) — the
   shared stable-id plumbing behind the `'admin'`-Application server pattern.

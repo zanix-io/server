@@ -126,7 +126,7 @@ ASCII art readable.
 
 `@zanix/server` itself doesn't scan the filesystem — a class registers as soon as its decorator
 runs, regardless of file name, as long as something imports it. These suffixes (and their resolution
-order, exported as `ZANIX_SERVER_MODULES` — see [Configuration](./docs/CONFIGURATION.md)) matter for
+order, exported as `ZANIX_SERVER_MODULES` — see [Configuration](./docs/configuration.md)) matter for
 tooling that auto-discovers modules by convention, such as `@zanix/core`'s bootstrap.
 
 ---
@@ -135,7 +135,7 @@ tooling that auto-discovers modules by convention, such as `@zanix/core`'s boots
 
 Zanix Server provides an advanced mechanism for managing and tracking errors. For a detailed guide
 on how errors are logged and handled in the system, check out the full documentation
-[here](./docs/ERRORS.md).
+[here](./docs/errors.md).
 
 ## Installation
 
@@ -174,18 +174,18 @@ groups the main exports by category — each links to a guide with full usage ex
 
 | Category                      | Key exports                                                                                                                                                           | Guide                                                                    |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| REST Handlers                 | `Controller`, `Get`, `Post`, `Patch`, `Put`, `Delete`, `Request`, `ZanixController`                                                                                   | [Handlers](./docs/HANDLERS.md)                                           |
-| GraphQL Handlers              | `Resolver`, `Query`, `Mutation`, `GQLRequest`, `ZanixResolver`                                                                                                        | [Handlers](./docs/HANDLERS.md)                                           |
-| WebSocket Handlers            | `Socket`, `ZanixWebSocket`                                                                                                                                            | [Handlers](./docs/HANDLERS.md)                                           |
-| Interactors                   | `Interactor`, `ZanixInteractor`                                                                                                                                       | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md)                   |
-| Connectors                    | `Connector`, `ZanixDatabaseConnector`, `ZanixAsyncmqConnector`, `ZanixCacheConnector`, `ZanixKVConnector`, `RestClient`, `GraphQLClient`, `registerCoreConnectorSlot` | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md)                   |
-| Providers                     | `Provider`, `ZanixProvider`, `ZanixCacheProvider`, `ZanixWorkerProvider`, `dispatchWorkerTask`, `ZanixAsyncMQProvider`, `registerCoreProviderSlot`                    | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md)                   |
-| Middlewares                   | `Guard`, `Pipe`, `Interceptor`, `RequestValidation`, `registerGlobalGuard`, `registerGlobalPipe`, `registerGlobalInterceptor`                                         | [Middlewares](./docs/MIDDLEWARES.md)                                     |
-| Error Handling                | `httpErrorResponse`, `attachGlobalErrorHandlers`, `ErrorLogThrottle`                                                                                                  | [Error Handling](./docs/ERRORS.md)                                       |
-| Constants                     | `GRAPHQL_PORT`, `SOCKET_PORT`, `JSON_CONTENT_HEADER`, and more                                                                                                        | [Configuration](./docs/CONFIGURATION.md)                                 |
-| Server management             | `webServerManager`, `bootstrapServers`                                                                                                                                | [Getting Started](./docs/GETTING-STARTED.md)                             |
-| Application server-id helpers | `resolveApplicationServerId`, `resolvePreviousApplicationServerId`                                                                                                    | [Utilities Reference](./docs/UTILITIES.md#application-server-id-helpers) |
-| Program access                | `ProgramModule`                                                                                                                                                       | [Dependency Injection](./docs/DEPENDENCY-INJECTION.md)                   |
+| REST Handlers                 | `Controller`, `Get`, `Post`, `Patch`, `Put`, `Delete`, `Request`, `ZanixController`                                                                                   | [Handlers](./docs/handlers.md)                                           |
+| GraphQL Handlers              | `Resolver`, `Query`, `Mutation`, `GQLRequest`, `ZanixResolver`                                                                                                        | [Handlers](./docs/handlers.md)                                           |
+| WebSocket Handlers            | `Socket`, `ZanixWebSocket`                                                                                                                                            | [Handlers](./docs/handlers.md)                                           |
+| Interactors                   | `Interactor`, `ZanixInteractor`                                                                                                                                       | [Dependency Injection](./docs/dependency-injection.md)                   |
+| Connectors                    | `Connector`, `ZanixDatabaseConnector`, `ZanixAsyncmqConnector`, `ZanixCacheConnector`, `ZanixKVConnector`, `RestClient`, `GraphQLClient`, `registerCoreConnectorSlot` | [Dependency Injection](./docs/dependency-injection.md)                   |
+| Providers                     | `Provider`, `ZanixProvider`, `ZanixCacheProvider`, `ZanixWorkerProvider`, `dispatchWorkerTask`, `ZanixAsyncMQProvider`, `registerCoreProviderSlot`                    | [Dependency Injection](./docs/dependency-injection.md)                   |
+| Middlewares                   | `Guard`, `Pipe`, `Interceptor`, `RequestValidation`, `registerGlobalGuard`, `registerGlobalPipe`, `registerGlobalInterceptor`                                         | [Middlewares](./docs/middlewares.md)                                     |
+| Error Handling                | `httpErrorResponse`, `attachGlobalErrorHandlers`, `ErrorLogThrottle`                                                                                                  | [Error Handling](./docs/errors.md)                                       |
+| Constants                     | `GRAPHQL_PORT`, `SOCKET_PORT`, `JSON_CONTENT_HEADER`, and more                                                                                                        | [Configuration](./docs/configuration.md)                                 |
+| Server management             | `webServerManager`, `bootstrapServers`                                                                                                                                | [Getting Started](./docs/getting-started.md)                             |
+| Application server-id helpers | `resolveApplicationServerId`, `resolvePreviousApplicationServerId`                                                                                                    | [Utilities Reference](./docs/utilities.md#application-server-id-helpers) |
+| Program access                | `ProgramModule`                                                                                                                                                       | [Dependency Injection](./docs/dependency-injection.md)                   |
 
 ```typescript
 import { Controller, Get, ZanixController } from 'jsr:@zanix/server@[version]'
@@ -216,7 +216,7 @@ await bootstrapServers({ rest: { globalPrefix: '/api' } })
 
 This starts a REST server exposing `GET /api/hello`. For manual control over individual servers —
 without controllers — see
-[Getting Started: manual server control](./docs/GETTING-STARTED.md#advanced-manual-server-control).
+[Getting Started: manual server control](./docs/getting-started.md#advanced-manual-server-control).
 
 ### Health & Readiness
 
@@ -252,28 +252,28 @@ Application's checks are ever silently dropped in favor of another's.
 the auto-discovered ones, each receiving a `providers`/`connectors` getter to reach any registered
 target). Writing your own `@Controller`/`@Get('/health')` at the same path replaces the default
 entirely, no separate flag needed. See [`BootstrapServerOptions.health`](./mod.ts)'s own doc for the
-full shape, and [`docs/APPLICATIONS.md`](./docs/APPLICATIONS.md) for how this plays with multiple
+full shape, and [`docs/applications.md`](./docs/applications.md) for how this plays with multiple
 servers/Applications sharing one port.
 
 ### Special Environment Variables
 
 Zanix Server reads a handful of environment variables to configure SSL and per-server-type ports —
-see the [Configuration](./docs/CONFIGURATION.md#environment-variables) guide for the full list.
+see the [Configuration](./docs/configuration.md#environment-variables) guide for the full list.
 
 ## Documentation
 
-- [Getting Started](./docs/GETTING-STARTED.md) — build and run your first server end to end.
-- [Handlers](./docs/HANDLERS.md) — REST controllers, GraphQL resolvers, WebSocket handlers, SSR
+- [Getting Started](./docs/getting-started.md) — build and run your first server end to end.
+- [Handlers](./docs/handlers.md) — REST controllers, GraphQL resolvers, WebSocket handlers, SSR
   controllers, and request validation.
-- [Applications](./docs/APPLICATIONS.md) — Application composition, anchored servers, shared ports,
+- [Applications](./docs/applications.md) — Application composition, anchored servers, shared ports,
   boot sessions, and Discovery.
-- [Middlewares](./docs/MIDDLEWARES.md) — guards, pipes, interceptors, and global middleware
+- [Middlewares](./docs/middlewares.md) — guards, pipes, interceptors, and global middleware
   registration.
-- [Dependency Injection](./docs/DEPENDENCY-INJECTION.md) — connectors, providers, interactors, and
+- [Dependency Injection](./docs/dependency-injection.md) — connectors, providers, interactors, and
   their lifecycle (`lifetime`/`startMode`).
-- [Configuration](./docs/CONFIGURATION.md) — default ports, constants, and environment variables.
-- [Error Handling](./docs/ERRORS.md) — how errors are logged, serialized, and returned to clients.
-- [Utilities Reference](./docs/UTILITIES.md) — routing, compression, and target-management helpers.
+- [Configuration](./docs/configuration.md) — default ports, constants, and environment variables.
+- [Error Handling](./docs/errors.md) — how errors are logged, serialized, and returned to clients.
+- [Utilities Reference](./docs/utilities.md) — routing, compression, and target-management helpers.
 
 The full API reference (every exported class, decorator, and type, generated from source) is
 published on [jsr.io/@zanix/server](https://jsr.io/@zanix/server/doc). For the broader Zanix
@@ -298,7 +298,7 @@ If you'd like to contribute to this library, please follow these steps:
    `deno test --allow-all` — that already includes the performance regression gate, which fails only
    on a significant slowdown of a critical request-path operation. If you touched the request
    pipeline (routing, middlewares, context or response building), also run `deno task bench` for
-   before/after evidence. See [Benchmarks & Performance Regression](./docs/BENCHMARKS.md) for what
+   before/after evidence. See [Benchmarks & Performance Regression](./docs/benchmarks.md) for what
    the suite measures, and `src/@tests/performance/baseline.ts` for every recorded baseline and why
    each threshold is what it is.
 

@@ -122,7 +122,7 @@ export const resolveGlobalPrefix = (
  * `BootstrapServerOptions[type].id`'s own doc. **A server is anchored if and only if an explicit
  * `id` is given — there is no auto-generated/random anchored id.** This is a routing/obscurity
  * boundary only, not an automatic authentication/authorization/network boundary — see
- * `docs/APPLICATIONS.md`'s "Applications" section for what it does and doesn't protect against.
+ * `docs/applications.md`'s "Applications" section for what it does and doesn't protect against.
  * `previousId` keeps that old id's prefix reachable alongside the current one, for a manual
  * rotation window — see `BootstrapServerOptions[type].previousId`. `onCreate`, when provided, is
  * invoked with the server `id` once that server is created.

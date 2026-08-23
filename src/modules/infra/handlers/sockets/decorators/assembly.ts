@@ -49,7 +49,7 @@ export function defineSocketDecorator(
     // method-level `@Guard`/`@Pipe`/`@Interceptor` on a socket lifecycle method still has no
     // effect either way — a `@Socket` class has exactly one real route (the connection/upgrade
     // itself), not one per lifecycle method, so there's no per-method route key for it to bind to
-    // (see docs/MIDDLEWARES.md's "Middleware on sockets" section) — but leaving the queue
+    // (see docs/middlewares.md's "Middleware on sockets" section) — but leaving the queue
     // undrained here left any such (mistaken) entry sitting around to be incorrectly drained onto
     // whichever *next* `@Controller`/`@Resolver`/`@Socket` class happened to call this function.
     applyMiddlewaresToTarget(Target)

@@ -11,7 +11,7 @@ import type {
 
 import type { ResolvedHealthOptions } from './health.ts'
 
-import { capitalize, cleanRoute, fileExists } from '@zanix/helpers'
+import { capitalize, cleanRoute } from '@zanix/helpers'
 import { getMainHandler, multiplexer } from './helpers/handler.ts'
 import { onErrorListener, onListen } from './helpers/listeners.ts'
 import ProgramModule from 'modules/program/mod.ts'
@@ -20,6 +20,74 @@ import { buildLivenessHandler, buildReadinessHandler } from './health.ts'
 import { getPrefix } from 'utils/routes.ts'
 import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
+
+/**
+ * Env var naming the SSL private key file's path — one half of the `SSL_KEY_PATH`/`SSL_CERT_PATH`
+ * prerequisite pair (see {@link SSL_CERT_PATH_ENV} and `WebServerManager`'s own constructor doc).
+ */
+export const SSL_KEY_PATH_ENV = 'SSL_KEY_PATH'
+
+/**
+ * Env var naming the SSL certificate file's path — see {@link SSL_KEY_PATH_ENV}.
+ */
+export const SSL_CERT_PATH_ENV = 'SSL_CERT_PATH'
+
+/**
+ * Env var naming the shared, type-agnostic default port every web server type falls back to when
+ * its own type-specific port var isn't set — see {@link getPortEnvKey} for the dynamic
+ * `` `${PORT_ENV}_<TYPE>` `` pattern this doubles as the prefix for.
+ */
+export const PORT_ENV = 'PORT'
+
+/**
+ * Builds the type-specific port env var name for one {@link WebServerTypes} — `` `${PORT_ENV}_<TYPE>` ``
+ * (e.g. `'graphql'` -> `PORT_GRAPHQL`, `'rest'` -> `PORT_REST`), read before falling back to
+ * {@link PORT_ENV} itself (see `getEnvPort`). Exported so this dynamic pattern has one documented,
+ * re-callable home instead of being re-interpolated inline at each call site.
+ *
+ * @param type - The web server type this port var is for.
+ * @returns The env var name, e.g. `PORT_SOCKET`.
+ */
+export function getPortEnvKey(type: WebServerTypes): string {
+  return `${PORT_ENV}_${type.toUpperCase()}`
+}
+
+/**
+ * Reads an SSL file (cert or key) referenced by one of {@link SSL_KEY_PATH_ENV}/
+ * {@link SSL_CERT_PATH_ENV}, throwing a descriptive {@link InternalError} — naming the failing env
+ * var, its configured path, and WHY the read failed (missing file vs. unreadable/permission-denied
+ * vs. any other I/O failure) — instead of letting the raw `Deno` error propagate or, worse, being
+ * silently treated as "SSL not configured". See `WebServerManager`'s own constructor doc for why an
+ * incomplete/unreadable SSL pair is never treated as a request for plain HTTP.
+ *
+ * @param path - The file path configured via `envVar`.
+ * @param envVar - The originating env var name ({@link SSL_KEY_PATH_ENV} or
+ * {@link SSL_CERT_PATH_ENV}), used only for the thrown error's own message/meta.
+ * @returns The file's contents.
+ * @throws {InternalError} If the file doesn't exist, isn't readable, or any other read failure occurs.
+ */
+function readSslFile(
+  path: string,
+  envVar: typeof SSL_KEY_PATH_ENV | typeof SSL_CERT_PATH_ENV,
+): string {
+  try {
+    return Deno.readTextFileSync(path)
+  } catch (error) {
+    const reason = error instanceof Deno.errors.NotFound
+      ? 'File does not exist at the configured path.'
+      : error instanceof Deno.errors.PermissionDenied
+      ? 'File exists but is not readable (permission denied).'
+      : 'File could not be read.'
+
+    throw new InternalError(
+      `Failed to load SSL file for "${envVar}" (path: "${path}"): ${reason}`,
+      {
+        cause: error,
+        meta: { source: 'zanix', method: 'WebServerManager', envVar, path, reason },
+      },
+    )
+  }
+}
 
 /**
  * WebServerManager is a utility class for managing web servers with optional SSL support.
@@ -42,7 +110,7 @@ export class WebServerManager {
   // doesn't guarantee that ordering today, so the box is what makes sharing safe regardless.
   #handlers: Record<number, HandlerBox> = {}
   #servers: Partial<ServerManagerData> = {}
-  #sslOptions: { key?: string; cert?: string } = {}
+  #sslOptions?: { key?: string; cert?: string }
   // Ports that already got a liveness default registered — see `create()`'s own health block.
   // Lives alongside `#handlers` for the same reason: a port's real listener, not any one
   // Application, is the unit liveness cares about — it never varies per Application (always the
@@ -62,22 +130,57 @@ export class WebServerManager {
   > = new Map()
 
   /**
-   * Initializes the WebServerManager instance and loads ports and SSL options from environment variables (`SSL_KEY_PATH` and `SSL_CERT_PATH`).
+   * Initializes the WebServerManager instance and loads ports and SSL options from environment
+   * variables (`SSL_KEY_PATH` and `SSL_CERT_PATH`).
+   *
+   * `SSL_KEY_PATH`/`SSL_CERT_PATH` are a prerequisite PAIR, not independent toggles: leaving BOTH
+   * unset is a valid, intentional "serve plain HTTP" configuration and stays silent, exactly as
+   * before. Setting only one of the two, or setting both but pointing at a file that doesn't exist
+   * or can't be read, is always a misconfiguration — never a request for plain HTTP — so it throws
+   * instead of silently falling back, since a silently-downgraded-to-HTTP production server is a
+   * real security surface, not a convenience default.
+   *
+   * `SSL_KEY_PATH`/`SSL_CERT_PATH` always name a local filesystem path — never a URL or a
+   * base64-encoded value — and `ServerOptions.ssl` (see `create`) always takes literal PEM content
+   * directly, never a reference to fetch or decode. Any other source (a certificate downloaded at
+   * boot, one stored in a secrets manager, a base64-encoded blob) must be resolved into one of
+   * those two shapes — a file already on disk, or a raw PEM string — before it reaches
+   * `WebServerManager`; neither the constructor nor `create` resolves anything beyond that.
+   *
+   * @throws {InternalError} If exactly one of `SSL_KEY_PATH`/`SSL_CERT_PATH` is set, or if either
+   * path is set but its file can't be read (missing, permission-denied, or any other read failure).
    */
   constructor() {
     // SSL validation
-    const sslKeyPath = Deno.env.get('SSL_KEY_PATH')
-    const sslCertPath = Deno.env.get('SSL_CERT_PATH')
+    const sslKeyPath = Deno.env.get(SSL_KEY_PATH_ENV)
+    const sslCertPath = Deno.env.get(SSL_CERT_PATH_ENV)
 
-    // TODO: review for downloading ssl files on web using these paths or base64 solution support
-    if (
-      sslKeyPath && sslCertPath && fileExists(sslKeyPath) &&
-      fileExists(sslCertPath)
-    ) {
-      this.#sslOptions = {
-        cert: Deno.readTextFileSync(sslCertPath),
-        key: Deno.readTextFileSync(sslKeyPath),
-      }
+    // Neither is set: plain HTTP is the intentional, unconfigured default — stays silent.
+    if (!sslKeyPath && !sslCertPath) return
+
+    // Exactly one is set: this is always a misconfiguration (a typo'd/half-set env pair), never a
+    // deliberate choice — there's nothing to "select" between, so this fails loudly instead of
+    // silently falling back to plain HTTP.
+    if (!sslKeyPath || !sslCertPath) {
+      throw new InternalError(
+        `Incomplete SSL configuration: "${SSL_KEY_PATH_ENV}" and "${SSL_CERT_PATH_ENV}" must both ` +
+          'be set together, or both left unset to serve plain HTTP.',
+        {
+          cause: `"${sslKeyPath ? SSL_CERT_PATH_ENV : SSL_KEY_PATH_ENV}" is not set.`,
+          meta: {
+            source: 'zanix',
+            method: 'WebServerManager',
+            reason:
+              'A single SSL env var was set without its pair — this is never a valid "choose one" ' +
+              'configuration, only an incomplete one.',
+          },
+        },
+      )
+    }
+
+    this.#sslOptions = {
+      cert: readSslFile(sslCertPath, SSL_CERT_PATH_ENV),
+      key: readSslFile(sslKeyPath, SSL_KEY_PATH_ENV),
     }
   }
 
@@ -99,8 +202,8 @@ export class WebServerManager {
    * @returns
    */
   private getEnvPort = (type: WebServerTypes) => {
-    const portValue = Deno.env.get(`PORT_${type.toUpperCase()}`) ||
-      Deno.env.get('PORT')
+    const portValue = Deno.env.get(getPortEnvKey(type)) ||
+      Deno.env.get(PORT_ENV)
 
     if (!portValue) return
 
@@ -170,7 +273,16 @@ export class WebServerManager {
   ): ServerID {
     const {
       preHandler,
-      server: { onceStop, ssl, gzip, cors, attachRequestToErrors, ...opts } = {},
+      server: {
+        onceStop,
+        ssl,
+        gzip,
+        cors,
+        attachRequestToErrors,
+        maxBodyBytes,
+        graphqlValidation,
+        ...opts
+      } = {},
     } = options
 
     const {
@@ -190,6 +302,8 @@ export class WebServerManager {
         cors,
         gzip,
         attachRequestToErrors,
+        maxBodyBytes,
+        graphqlValidation,
       }),
     } = options
     // `preHandler` wraps whichever `handler` was just resolved (default or caller-supplied) — it
@@ -211,7 +325,7 @@ export class WebServerManager {
 
     // Protocol assignment
     const baseProtocol = type === 'socket' ? 'ws' : 'http'
-    const protocol = this.#sslOptions.cert ? `${baseProtocol}s` : baseProtocol
+    const protocol = this.#sslOptions?.cert ? `${baseProtocol}s` : baseProtocol
 
     // Ssl assignment
     Object.assign(opts, { ...this.#sslOptions })
@@ -244,6 +358,8 @@ export class WebServerManager {
             cors,
             gzip,
             attachRequestToErrors,
+            maxBodyBytes,
+            graphqlValidation,
           },
         ),
       }

@@ -41,16 +41,16 @@ This starts a REST server exposing `GET /api/hello`.
 
 ## 3. Where to go next
 
-- [Handlers](./HANDLERS.md) — full guide to REST, GraphQL, WebSocket, and SSR handlers, including
+- [Handlers](./handlers.md) — full guide to REST, GraphQL, WebSocket, and SSR handlers, including
   request validation with RTOs.
-- [Applications](./APPLICATIONS.md) — Application composition, anchored servers, shared ports, boot
+- [Applications](./applications.md) — Application composition, anchored servers, shared ports, boot
   sessions, and Discovery.
-- [Middlewares](./MIDDLEWARES.md) — guards, pipes, interceptors, and global middleware registration.
-- [Dependency Injection](./DEPENDENCY-INJECTION.md) — connectors, providers, interactors, and how
+- [Middlewares](./middlewares.md) — guards, pipes, interceptors, and global middleware registration.
+- [Dependency Injection](./dependency-injection.md) — connectors, providers, interactors, and how
   their lifecycle (`lifetime`/`startMode`) works.
-- [Configuration](./CONFIGURATION.md) — default ports, constants, and environment variables.
-- [Error Handling](./ERRORS.md) — how errors are logged, serialized, and returned to clients.
-- [Utilities Reference](./UTILITIES.md) — routing, compression, and target-management helpers.
+- [Configuration](./configuration.md) — default ports, constants, and environment variables.
+- [Error Handling](./errors.md) — how errors are logged, serialized, and returned to clients.
+- [Utilities Reference](./utilities.md) — routing, compression, and target-management helpers.
 
 ## Advanced: manual server control
 

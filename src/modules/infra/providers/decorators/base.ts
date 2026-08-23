@@ -33,7 +33,7 @@ export function Provider(type?: ProviderTypes): ZanixClassDecorator
  * allowing customization of lifecycle and initialization behavior.
  *
  * @param {Object} options - Configuration options for the provider.
- * @param {CoreProviders} options.type - The generic provider type (e.g., 'custom'). Defaults to 'custom'
+ * @param {ProviderTypes} options.slot - The generic provider type (e.g., 'custom'). Defaults to 'custom'
  * @param {StartMode} [options.startMode='lazy'] - The instance initialization mode.
  *                                                Determines when the provider instance is started.
  * @param {Lifetime} [options.lifetime='SINGLETON'] - The provider's lifetime scope,

@@ -32,6 +32,10 @@ import { HttpError } from '@zanix/errors'
  *   - If `true`, requests may include cookies or authorization headers.
  *   - When enabled, the response must specify a **specific origin** instead of `"*"`.
  *   - If `false`, `Access-Control-Allow-Origin` may be `"*"`, and no credentials are sent.
+ *   - ⚠️ Fails safe: if `credentials` is `true` (the default) but `origins` is left at its
+ *     `"*"` default (no explicit allowlist), credentials are **not** granted — the guard
+ *     responds as a non-credentialed `"*"` policy instead of reflecting an arbitrary origin.
+ *     Set `origins` explicitly to enable credentialed CORS.
  *
  * @param {string[]} [options.exposedHeaders=["Content-Length", "X-Kuma-Revision"]]
  *   Headers that browsers are allowed to access via `Access-Control-Expose-Headers`.
@@ -65,6 +69,10 @@ import { HttpError } from '@zanix/errors'
  *   - Required when `credentials: true`.
  *   - Can be an array of exact origin strings, a regular expression, or a validation function.
  *   - If `credentials: false`, this option is ignored and `"*"` may be used instead.
+ *   - ⚠️ For `type: 'socket'` specifically, the `"*"` default means **same-origin only**, not
+ *     "any origin" — a WebSocket upgrade has no CORS response headers to fall back on, so this
+ *     Origin check is the only defense against cross-site WebSocket hijacking. Configure `origins`
+ *     explicitly to allow cross-origin WebSocket connections.
  *
  * @param {WebServerTypes} type - Web server types to correct adaptation.
  *
@@ -99,10 +107,14 @@ export const corsGuard = (
     const requestOrigin = ctx.req.headers.get('Origin')
 
     if (requestOrigin) {
-      const isValidOrigin = typeof origins === 'function'
-        ? origins(requestOrigin)
-        : origins === '*'
-        ? true
+      const isValidOrigin = typeof origins === 'function' ? origins(requestOrigin) : origins === '*'
+        // A WebSocket upgrade never gets a CORS preflight/response headers to enforce
+        // same-origin the way a normal request does (see the "Websocket adaptation" branch
+        // below) — its own Origin check IS the only barrier a browser's cross-site page faces
+        // (classic CSWSH). So `origins: '*'` (no explicit allowlist configured) means "same
+        // origin only" here, not "any origin", unlike every other server type. An app that
+        // wants cross-origin WS connections configures `origins` explicitly, same as for CORS.
+        ? (type !== 'socket' || requestOrigin === ctx.url.origin)
         : origins.some((value) =>
           typeof value === 'string' ? value === requestOrigin : value.test(requestOrigin)
         )
@@ -140,8 +152,14 @@ export const corsGuard = (
       'Access-Control-Expose-Headers': exposedHeaders.join(', '),
     }
     if (requestOrigin) {
-      headers['Access-Control-Allow-Origin'] = credentials ? requestOrigin : '*'
-      if (credentials) {
+      // `origins: '*'` (the default) means "no allowlist configured" — it must never be
+      // combined with credentialed responses. Reflecting an arbitrary Origin back with
+      // `Allow-Credentials: true` would let any site make authenticated cross-origin
+      // requests. Only reflect + allow credentials when an explicit origin policy
+      // (array, RegExp, or function) was configured.
+      const allowCredentials = credentials && origins !== '*'
+      headers['Access-Control-Allow-Origin'] = allowCredentials ? requestOrigin : '*'
+      if (allowCredentials) {
         headers['Access-Control-Allow-Credentials'] = 'true'
       }
       headers['Vary'] = 'Origin'

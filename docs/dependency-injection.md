@@ -496,7 +496,7 @@ const sameConnector = ProgramModule.connectors.get(DatabaseConnector)
 | `providers`                       | returns `{ get(ProviderClass \| CoreProviders) }`   | Shorthand for `getProviders()` with no `ctxId`.                                                                        |
 | `connectors`                      | returns `{ get(ConnectorClass \| CoreConnectors) }` | Shorthand for `getConnectors()` with no `ctxId`.                                                                       |
 | `registry`                        | `RegistryContainer`                                 | The underlying DI metadata registry.                                                                                   |
-| `asyncContext`                    | `AsyncContext`                                      | The `AsyncLocalStorage` wrapper used for per-request context (see `enableALS` in [Handlers](./HANDLERS.md#enableals)). |
+| `asyncContext`                    | `AsyncContext`                                      | The `AsyncLocalStorage` wrapper used for per-request context (see `enableALS` in [Handlers](./handlers.md#enableals)). |
 
 There's no `interactors` shorthand: `getInteractors` requires a `ctxId` (interactors default to
 `SCOPED` lifetime, so there's no context-free "global" instance to shortcut to).
@@ -508,6 +508,6 @@ There's no `interactors` shorthand: `getInteractors` requires a `ctxId` (interac
 
 ## See also
 
-- [Handlers](./HANDLERS.md) — how to inject an `Interactor` into a controller, resolver, or socket.
-- [Configuration](./CONFIGURATION.md) — default ports and other constants.
-- [Error Handling](./ERRORS.md) — errors raised when a dependency can't be resolved.
+- [Handlers](./handlers.md) — how to inject an `Interactor` into a controller, resolver, or socket.
+- [Configuration](./configuration.md) — default ports and other constants.
+- [Error Handling](./errors.md) — errors raised when a dependency can't be resolved.

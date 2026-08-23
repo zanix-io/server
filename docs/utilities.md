@@ -65,19 +65,19 @@ sanitizeIdentifier('My Service!!') // 'my_service'
 
 `ZanixDatabaseConnector`'s `defaultDbName` (the default Mongo database name) uses `getServiceId()`
 internally, so a project's database name and its "who am I" identity elsewhere (e.g. a non-default
-Application's server `id` — see [Applications](./APPLICATIONS.md#applications)) stay consistent by
+Application's server `id` — see [Applications](./applications.md#applications)) stay consistent by
 default instead of being derived independently.
 
 ## Target/instance management
 
 These back the dependency-injection system described in
-[Dependency Injection](./DEPENDENCY-INJECTION.md) and are mostly useful for tests or custom
+[Dependency Injection](./dependency-injection.md) and are mostly useful for tests or custom
 bootstrapping code:
 
 | Export                                     | Purpose                                                                                                                                                                                                                                                                                                                                                         |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `getTargetKey(target?)`                    | Returns a stable, unique key for a class constructor (used internally to identify registered targets). Different classes always get different keys, even if they share the same `name`.                                                                                                                                                                         |
-| `getConnectorKey(ConnectorClass)`          | Resolves the DI key a `@Connector`-decorated class was actually registered under, before any instance exists — see [Dependency Injection → `connectorKey`](./DEPENDENCY-INJECTION.md#connectorkey--a-connectors-own-identity).                                                                                                                                  |
+| `getConnectorKey(ConnectorClass)`          | Resolves the DI key a `@Connector`-decorated class was actually registered under, before any instance exists — see [Dependency Injection → `connectorKey`](./dependency-injection.md#connectorkey--a-connectors-own-identity).                                                                                                                                  |
 | `targetInitializations(startMode)`         | Initializes every registered connector/provider/interactor targeted for the given `startMode`, in parallel. Called automatically by `bootstrapServers` for each mode in order (`onSetup` → `onBoot` → `postBoot`).                                                                                                                                              |
 | `closeAllConnections()`                    | Closes every registered connector instance concurrently, then clears the `type:connector` registry — process shutdown, not boot completion, is that registry's true end of life, since this is its only reader afterward. Called automatically on process `unload`.                                                                                             |
 | `cleanupInitializationsMetadata()`         | Resets both `onBoot` and `postBoot` initialization metadata in one call. The normal `bootstrapServers`/`webServerManager` flow clears each mode individually as that stage completes; this function is mainly useful for tests or custom bootstrap scripts that want to reset both at once.                                                                     |
@@ -101,17 +101,17 @@ function/env-var pair. A typical application doesn't call these directly.
 
 | Export                                                  | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `resolveApplicationServerId(application, type)`         | Resolves `` `${id}-${type}` `` from that Application's own stable-id env var — `` `${APPLICATION}_SERVER_ID` `` (e.g. `'admin'` → `ADMIN_SERVER_ID`, `'admin-hub'` → `ADMIN_HUB_SERVER_ID`) — read at call time, not import time, to pass as `bootstrapServers`'s explicit `id`. See [Applications](./APPLICATIONS.md#applications) for why a stable `id` matters. Returns `undefined` when the env var isn't set — there is no random fallback. |
+| `resolveApplicationServerId(application, type)`         | Resolves `` `${id}-${type}` `` from that Application's own stable-id env var — `` `${APPLICATION}_SERVER_ID` `` (e.g. `'admin'` → `ADMIN_SERVER_ID`, `'admin-hub'` → `ADMIN_HUB_SERVER_ID`) — read at call time, not import time, to pass as `bootstrapServers`'s explicit `id`. See [Applications](./applications.md#applications) for why a stable `id` matters. Returns `undefined` when the env var isn't set — there is no random fallback. |
 | `resolvePreviousApplicationServerId(application, type)` | The rotation-window counterpart — resolves `` `${APPLICATION}_SERVER_ID_PREVIOUS` `` (e.g. `ADMIN_SERVER_ID_PREVIOUS`, `ADMIN_HUB_SERVER_ID_PREVIOUS`) to pass as `bootstrapServers`'s `previousId`. `compileRuntime` throws if this resolves to a value while `resolveApplicationServerId` doesn't (nothing to rotate from).                                                                                                                    |
 
 Two independent Application-scoped servers in the same process (e.g. `@zanix/core`'s embedded
 `admin` option alongside `@zanix/admin`'s own `ZanixAdminHub.start()`) each pin their own address
 via their own env var pair, so they can both be anchored at once without colliding on the same
-prefix — see [Applications → Boot sessions](./APPLICATIONS.md#boot-sessions) for how `@zanix/server`
+prefix — see [Applications → Boot sessions](./applications.md#boot-sessions) for how `@zanix/server`
 also keeps their route registration from corrupting each other, even fired without a sequential
 `await` between them.
 
 ## See also
 
-- [Getting Started](./GETTING-STARTED.md) — where `bootstrapServers` orchestrates these internally.
-- [Error Handling](./ERRORS.md) — `httpErrorResponse` and friends, for building error responses.
+- [Getting Started](./getting-started.md) — where `bootstrapServers` orchestrates these internally.
+- [Error Handling](./errors.md) — `httpErrorResponse` and friends, for building error responses.

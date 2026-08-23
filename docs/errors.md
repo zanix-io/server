@@ -119,7 +119,7 @@ new ErrorLogThrottle({
 ```
 
 `ProgramModule.providers` is shorthand for `ProgramModule.getProviders()` with no context (see
-[Dependency Injection](./DEPENDENCY-INJECTION.md#accessing-instances-outside-any-class-programmodule)).
+[Dependency Injection](./dependency-injection.md#accessing-instances-outside-any-class-programmodule)).
 Only `SINGLETON`-lifetime providers/connectors work here (the default for `@Provider`) — the
 throttle count must be shared across every request, and even code paths with no request at all.
 
@@ -234,10 +234,19 @@ const response = httpErrorResponse(error)
 // response.headers.get('Content-Type') === 'application/json'
 ```
 
+`httpErrorResponse`/`getSerializedErrorResponse` both build their JSON body from
+`getPublicErrorResponse`, which narrows the error down to what's actually safe for an external
+caller by default: `id`, `contextId`, `name`, `message`, `code`, `status`, and `userMessage` —
+`meta`/`cause` are only included when the error itself opts in via `@zanix/errors`'
+`ErrorOptions.exposeMeta`/`exposeCause` (both `false`/unset by default), and `stack` is never
+included regardless of any flag. Call `getPublicErrorResponse` directly when you need that same
+narrowed shape without building a full `Response`/JSON string around it.
+
 | Export                                          | Purpose                                                                                                                                                                                                                                                                        |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `httpErrorResponse(error, options?)`            | Builds a JSON `Response` for an error, using its `status.value` (defaults to `400`) and merging in any extra `options.headers`.                                                                                                                                                |
+| `httpErrorResponse(error, options?)`            | Builds a JSON `Response` for an error, using its `status.value` (defaults to `500`) and merging in any extra `options.headers`.                                                                                                                                                |
 | `getSerializedErrorResponse(error, contextId?)` | Serializes an error into the JSON string used by `httpErrorResponse`, without building a `Response`.                                                                                                                                                                           |
+| `getPublicErrorResponse(error, contextId?)`     | The narrowed, client-safe object both of the above serialize — see above for exactly which fields it includes and how `meta`/`cause` opt in.                                                                                                                                   |
 | `getRequestFromError(error)`                    | Reads back the `Request` attached via `attachRequestToErrors` (see [Accessing the original request in `onError`](#accessing-the-original-request-in-onerror)) — `undefined` if the server type never opted in, or the error never went through it.                             |
 | `attachRequestToError(error, request)`          | The lower-level function `attachRequestToErrors: true` uses internally. Only call this yourself when building a fully custom `handler` (bypassing the default route-matching one) and you want the same `onError`-visible-request contract for your own thrown errors.         |
 | `attachGlobalErrorHandlers(self)`               | Registers global handlers for uncaught errors and unhandled promise rejections on the given `Window`-like object, forwarding them into the logging system described above. Called automatically on startup — you generally don't need to call it yourself.                     |
@@ -248,6 +257,6 @@ const response = httpErrorResponse(error)
 
 ## See also
 
-- [Dependency Injection](./DEPENDENCY-INJECTION.md) — the `startMode`/`lifetime` values referenced
+- [Dependency Injection](./dependency-injection.md) — the `startMode`/`lifetime` values referenced
   by `TargetError`.
-- [Middlewares](./MIDDLEWARES.md) — how thrown errors from guards/pipes become HTTP responses.
+- [Middlewares](./middlewares.md) — how thrown errors from guards/pipes become HTTP responses.

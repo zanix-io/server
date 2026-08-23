@@ -53,9 +53,8 @@ export interface SentFrameFacts {
 }
 
 /** A stub standing in for the upgraded connection, recording what the reply wrapper sends.
- * `ZanixWebSocket.socket` is typed as `Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' |
- * 'onmessage'>`, and the wrapper only ever calls `send` — so this is the whole surface the
- * measured path touches. */
+ * `ZanixWebSocket.socket` is typed as `Omit<WebSocket, SocketEvents>`, and the wrapper
+ * only ever calls `send` — so this is the whole surface the measured path touches. */
 function stubSocket(facts: SentFrameFacts): WebSocket {
   return {
     send: (data: string) => {

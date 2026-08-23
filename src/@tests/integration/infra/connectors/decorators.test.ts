@@ -4,7 +4,7 @@ import { assertThrows } from '@std/assert/assert-throws'
 import Program from 'modules/program/mod.ts'
 import { defineConnectorDecorator } from 'modules/infra/connectors/decorators/assembly.ts'
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
-import ConnectorCoreModules from 'modules/infra/connectors/core/all.ts'
+import connectorCoreModules from 'modules/infra/connectors/core/all.ts'
 import { InternalError } from '@zanix/errors'
 
 console.error = () => {}
@@ -54,8 +54,8 @@ const mockCORE_CONNECTORS = {
 Program.targets.defineTarget = mockDefineTarget.defineTarget.bind(
   mockDefineTarget,
 )
-ConnectorCoreModules['cache:local'] = mockCORE_CONNECTORS.cache as any
-ConnectorCoreModules['database'] = mockCORE_CONNECTORS.database as any // Override imported `getTargetKey` (simulate the import)
+connectorCoreModules['cache:local'] = mockCORE_CONNECTORS.cache as any
+connectorCoreModules['database'] = mockCORE_CONNECTORS.database as any // Override imported `getTargetKey` (simulate the import)
 ;(globalThis as any).getTargetKey = mockGetTargetKey
 
 Deno.test('defineConnectorDecorator: registers non-core connector with default settings', () => {
@@ -141,7 +141,7 @@ Deno.test('defineConnectorDecorator: supports short string syntax', () => {
 })
 
 Deno.test('defineConnectorDecorator: throws for an unregistered reserved core slot', () => {
-  // 'kvLocal' is one of the 8 built-in placeholder slots (`ConnectorCoreModules`) — nothing in
+  // 'kvLocal' is one of the 8 built-in placeholder slots (`connectorCoreModules`) — nothing in
   // this test file registers it, so it stays as the non-callable placeholder `Target`.
   class UnregisteredSlotConnector extends ZanixConnector {
     protected override initialize(): Promise<void> | void {}

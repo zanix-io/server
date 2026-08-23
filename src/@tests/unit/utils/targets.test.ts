@@ -1,5 +1,7 @@
 import { assert } from '@std/assert/assert'
 import { assertAlmostEquals } from '@std/assert/assert-almost-equals'
+import { assertMatch } from '@std/assert/assert-match'
+import { assertNotEquals } from '@std/assert/assert-not-equals'
 import {
   closeAllConnections,
   connectorModuleInitialization,
@@ -185,4 +187,37 @@ Deno.test({
       'the raw synthetic subclass name must never leak into meta.connectorName',
     )
   },
+})
+
+Deno.test('getTargetKey for different classes with the same name', () => {
+  // `getTargetKey`'s numeric suffix comes from a module-level counter shared with every other
+  // `getTargetKey` call in this file (see the other tests above) — so its absolute starting value
+  // isn't stable here the way it would be in a freshly loaded module. Assert the actual contract
+  // instead: same-name classes are distinct references and get distinct, memoized keys.
+  class ZanixClass {
+    #v = 0
+  }
+
+  const key1 = getTargetKey(ZanixClass)
+  assertMatch(key1, /^Z\$ZanixClass\$\d+$/)
+
+  const key2 = getTargetKey(
+    class ZanixClass {
+      #v = 0
+    },
+  )
+  const key3 = getTargetKey(
+    class ZanixClass {
+      #v = 0
+    },
+  )
+
+  assertMatch(key2, /^Z\$ZanixClass\$\d+$/)
+  assertMatch(key3, /^Z\$ZanixClass\$\d+$/)
+  assertNotEquals(key1, key2)
+  assertNotEquals(key2, key3)
+  assertNotEquals(key1, key3)
+
+  // Same class reference always resolves back to the same, memoized key.
+  assertEquals(getTargetKey(ZanixClass), key1)
 })

@@ -5,6 +5,7 @@ import { getTargetKey } from 'utils/targets.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
 import { spy } from '@std/testing/mock'
 import logger from '@zanix/logger'
+import { asyncContext } from 'modules/infra/base/storage.ts'
 
 // mocks
 console.error = () => {}
@@ -374,6 +375,72 @@ Deno.test({
     // (empty connectorKey here, since this connector was never `@Connector`-decorated), NOT
     // 'from core' — that label is scoped to the message above only.
     assertEquals(error.meta?.connectorName, ' core')
+
+    logSpy.restore()
+  },
+})
+
+Deno.test({
+  name:
+    'ZanixConnector: the init-failure log carries the ALS-resolved contextId when the connector is constructed inside a request context (e.g. a `postBoot`/`lazy` connector resolved on demand)',
+  fn: async () => {
+    class FailingConnector extends ZanixConnector {
+      public initialize() {
+        throw new Error('boom')
+      }
+      public isHealthy() {
+        return false
+      }
+      public close() {
+        return true
+      }
+    }
+
+    const logSpy = spy(logger, 'error')
+
+    const conn = asyncContext.runWith(
+      'req-context-id',
+      () =>
+        new FailingConnector({
+          autoInitialize: { timeoutConnection: 30, retryInterval: 10 },
+        }),
+    )
+    await conn.isReady.catch(() => {})
+
+    assertEquals(logSpy.calls.length, 1)
+    const [, error] = logSpy.calls[0].args as [string, { contextId?: string }]
+    assertEquals(error.contextId, 'req-context-id')
+
+    logSpy.restore()
+  },
+})
+
+Deno.test({
+  name:
+    'ZanixConnector: the init-failure log has no contextId when constructed outside any AsyncContext (e.g. onSetup/onBoot, boot-time)',
+  fn: async () => {
+    class FailingConnector extends ZanixConnector {
+      public initialize() {
+        throw new Error('boom')
+      }
+      public isHealthy() {
+        return false
+      }
+      public close() {
+        return true
+      }
+    }
+
+    const logSpy = spy(logger, 'error')
+
+    const conn = new FailingConnector({
+      autoInitialize: { timeoutConnection: 30, retryInterval: 10 },
+    })
+    await conn.isReady.catch(() => {})
+
+    assertEquals(logSpy.calls.length, 1)
+    const [, error] = logSpy.calls[0].args as [string, { contextId?: string }]
+    assertEquals(error.contextId, undefined)
 
     logSpy.restore()
   },

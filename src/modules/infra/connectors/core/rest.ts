@@ -244,9 +244,25 @@ export class RestClient extends ZanixConnector {
 
       if (!response.ok) {
         const text = await response.text()
-        throw new Error(
-          `[HTTP ${response.status}] ${response.statusText}\n${text}`,
-        )
+        // `BAD_GATEWAY`, not `BAD_REQUEST` — this client has no domain knowledge of whose fault a
+        // non-2xx upstream response is: it might be OUR caller's bad input (worth a real 4xx), or
+        // it might be a genuine fault in whatever we called (never the caller's fault). Only the
+        // specific consumer of THIS response — the one thing with that context — can tell the
+        // difference; defaulting to "my dependency failed" here is the honest default, not "you
+        // sent something wrong". The real upstream status/body survive structured in `meta`
+        // (`upstreamStatus`/`upstreamStatusText`, not buried in a message string) precisely so a
+        // caller with that context CAN reclassify — see `OAuth2Connector.exchangeCode`'s own doc
+        // for a real example.
+        throw new RestClientError('BAD_GATEWAY', {
+          cause: new Error(`[HTTP ${response.status}]: ${response.statusText}\n${text}`),
+          message: 'Rest Client Http Error',
+          meta: {
+            source: 'zanix',
+            url,
+            upstreamStatus: response.status,
+            upstreamStatusText: response.statusText,
+          },
+        })
       }
 
       if (method === 'HEAD') {
@@ -270,11 +286,18 @@ export class RestClient extends ZanixConnector {
 
       return value as T
     } catch (e) {
-      const error = e as HttpError
-      throw new HttpError('BAD_REQUEST', {
-        cause: error,
+      // Already a well-formed `HttpError` (the `!response.ok` branch above built one, with the
+      // real upstream status structured in its own `meta`) — pass it through unchanged, don't
+      // re-wrap it into a second, less specific layer. Anything else reaching here is a genuine
+      // transport-level failure (`fetch()` itself rejected — DNS, timeout, connection refused) with
+      // no real response to report a status from at all; `BAD_GATEWAY` is the honest default for
+      // that too, same reasoning as above.
+      if (e instanceof HttpError) throw e
+
+      throw new RestClientError('BAD_GATEWAY', {
+        cause: e,
         message: 'Rest Client Http Error',
-        meta: { source: 'zanix', url, status: error.code },
+        meta: { source: 'zanix', url },
       })
     }
   }
@@ -286,5 +309,37 @@ export class RestClient extends ZanixConnector {
   /** Always `true`: a REST client has no connection state to check. */
   public override isHealthy(): boolean {
     return true
+  }
+}
+
+/**
+ * Thrown by {@link RestClient} for any failed call — a non-2xx upstream response, or a genuine
+ * transport-level failure (DNS, timeout, connection refused). `RestClient` itself has no domain
+ * knowledge of whose fault a non-2xx response is — a consumer's own bad input, or a genuine fault
+ * in whatever it called — so it always defaults to `'BAD_GATEWAY'` as the honest status (see
+ * `#http()`'s own doc). The real upstream status, when one exists, survives structured in
+ * `meta.upstreamStatus`/`meta.upstreamStatusText` and is readable directly off the error via
+ * {@link RestClientError.realHttpStatus}, for whichever caller DOES have the context to
+ * reclassify with it.
+ *
+ * @example
+ * ```ts
+ * try {
+ *   await client.http.get('/users/1')
+ * } catch (error) {
+ *   if (error instanceof RestClientError && error.realHttpStatus === 404) {
+ *     // the resource genuinely doesn't exist upstream — not "my dependency is down"
+ *   }
+ * }
+ * ```
+ */
+export class RestClientError extends HttpError {
+  /**
+   * The real HTTP status code the upstream call actually received. `undefined` for a genuine
+   * transport-level failure — no response came back at all, so there's no real status to report.
+   */
+  public get realHttpStatus(): number | undefined {
+    const upstreamStatus = this.meta?.upstreamStatus
+    return typeof upstreamStatus === 'number' ? upstreamStatus : undefined
   }
 }

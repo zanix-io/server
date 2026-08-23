@@ -1,4 +1,9 @@
-import type { HandlerBox, ServerHandler, WebServerTypes } from 'typings/server.ts'
+import type {
+  GraphqlValidationOptions,
+  HandlerBox,
+  ServerHandler,
+  WebServerTypes,
+} from 'typings/server.ts'
 import type { ProcessedRouteDefinition } from 'typings/router.ts'
 import type { HandlerContext } from 'typings/context.ts'
 import type { CorsOptions } from 'typings/middlewares.ts'
@@ -103,6 +108,8 @@ export const getMainHandler = (
     cors?: CorsOptions
     gzip?: GzipOptions
     attachRequestToErrors?: boolean
+    maxBodyBytes?: number
+    graphqlValidation?: GraphqlValidationOptions
   } = {},
 ): ServerHandler => {
   if (type === 'graphql') {
@@ -111,7 +118,7 @@ export const getMainHandler = (
     // (`defineRoute`'s 3rd argument) attributes it correctly regardless.
     ProgramModule.routes.defineRoute('graphql', {
       path: globalPrefix,
-      handler: getGraphqlHandler(application),
+      handler: getGraphqlHandler(application, options.graphqlValidation),
       httpMethod: 'POST',
     }, application)
   }
@@ -130,7 +137,7 @@ export const getMainHandler = (
   const relativeByMethod = bucketRoutesByMethod(relativePaths)
   const catchAllByMethod = bucketRoutesByMethod(catchAllPaths)
 
-  const { cors, gzip, attachRequestToErrors } = options
+  const { cors, gzip, attachRequestToErrors, maxBodyBytes } = options
 
   return (async (req: Request): Promise<Response> => {
     const url = new URL(req.url)
@@ -144,7 +151,15 @@ export const getMainHandler = (
       locals: {},
     } as HandlerContext
 
-    Object.assign(context.payload, { body: await bodyPayloadProperty(req) })
+    try {
+      Object.assign(context.payload, {
+        body: await bodyPayloadProperty(req, context.id, maxBodyBytes),
+      })
+    } catch (error) {
+      throw attachRequestToErrors && error instanceof HttpError
+        ? attachRequestToError(error, req)
+        : error
+    }
 
     // Define a lazy-loaded getters to improve efficiency by computing values only when accessed
     Object.defineProperty(
@@ -182,9 +197,12 @@ export const getMainHandler = (
         throw attachRequestToErrors ? attachRequestToError(error, req) : error
       }
 
+      // `path` is safe to expose in the response: the caller already knows it, it's the one they
+      // requested — see `@zanix/errors`' `ErrorOptions.exposeMeta` doc.
       const error = new HttpError('NOT_FOUND', {
         id: context.id,
         meta: { path },
+        exposeMeta: true,
       })
       throw attachRequestToErrors ? attachRequestToError(error, req) : error
     }
@@ -263,7 +281,7 @@ export function multiplexer(box: HandlerBox) {
 
     if (!handler) {
       return httpErrorResponse(
-        new HttpError('NOT_FOUND', { meta: { path: url.pathname } }),
+        new HttpError('NOT_FOUND', { meta: { path: url.pathname }, exposeMeta: true }),
       )
     }
 

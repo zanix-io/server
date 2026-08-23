@@ -26,7 +26,7 @@ export type CoreProviderSlot = {
  * that package's own `/core` entrypoint registers it here directly instead, at whatever key it
  * chooses — this object is never limited to the keys below.
  */
-export const ProviderCoreModules: Record<CoreProviders, CoreProviderSlot> = {
+export const providerCoreModules: Record<CoreProviders, CoreProviderSlot> = {
   // initialization only — real Target assigned by `./mod.ts`'s `registerCoreProviderSlot` calls
   cache: { key: 'cache', Target: {} as Function },
   asyncmq: { key: 'asyncmq', Target: {} as Function },
@@ -54,7 +54,7 @@ export function registerCoreProviderSlot(
   BaseTarget: Function,
   options: { sourcePackage?: string } = {},
 ): void {
-  const existing = ProviderCoreModules[key]
+  const existing = providerCoreModules[key]
 
   if (existing?.registered && existing.Target !== BaseTarget) {
     throw new InternalError(
@@ -71,7 +71,7 @@ export function registerCoreProviderSlot(
     )
   }
 
-  ProviderCoreModules[key] = {
+  providerCoreModules[key] = {
     key,
     Target: BaseTarget,
     sourcePackage: options.sourcePackage ?? existing?.sourcePackage,
@@ -88,7 +88,7 @@ export function registerCoreProviderSlot(
 export function getCoreProviderSlot(
   key: CoreProviders,
 ): CoreProviderSlot | undefined {
-  const slot = ProviderCoreModules[key]
+  const slot = providerCoreModules[key]
   return slot?.registered ? slot : undefined
 }
 
@@ -121,4 +121,4 @@ export function resolveCoreProviderTargetAlias(
   return targetKeyToCoreProviderKey[targetKey]
 }
 
-export default ProviderCoreModules
+export default providerCoreModules

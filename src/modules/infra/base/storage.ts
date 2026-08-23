@@ -28,7 +28,26 @@ import { AsyncLocalStorage, type AsyncLocalStorageOptions } from 'async_hooks'
  * incorrectly after an exited scope, opened 2026-08-06, still in progress at the time this was
  * written). Anything in this codebase relying on this class for genuinely concurrent/interleaved
  * async chains — not just simple, non-overlapping request handling — is exercising exactly the
- * class of scenario those issues are about. See `ApplicationContainer`'s and
+ * class of scenario those issues are about.
+ *
+ * ### `enableALS`'s default — resolved, with real numbers, not left as a hunch
+ *
+ * The observability audit's own open question ("does defaulting `enableALS` to `true` cost too
+ * much?") is answered: it doesn't. `src/@tests/benchmarks/context.bench.ts`'s own
+ * `context:als:runWith` scenario measures ~7.7µs average (p99 16.3µs) for one `runWith` scope per
+ * request — cheaper than `contextId()`'s own UUID generation (~5.1µs), which every request already
+ * pays unconditionally regardless of `enableALS`, and negligible next to the ~139µs the rest of
+ * per-request context setup already costs before a handler even runs (let alone any real I/O
+ * inside one). Performance is not the blocker.
+ *
+ * The blocker is the correctness caveat directly above: `denoland/deno#36464` is still open (a fix
+ * PR exists, validated against Node's own reference behavior, not yet merged as of this writing).
+ * Flipping `enableALS`'s default to `true` would put every consumer's request handling — not just
+ * the ones that opted in — inside the exact class of concurrent/interleaved scenario that bug
+ * affects. Today, only a consumer that explicitly sets `enableALS: true` knowingly accepts that
+ * risk. **Decision: keep `enableALS` opt-in until `denoland/deno#36464` lands**, then revisit —
+ * at that point the only remaining question is UX (default-on with an opt-out, vs. keeping it
+ * opt-in), not performance or correctness. See `ApplicationContainer`'s and
  * `BootSessionContainer`'s own docs for where this matters most, and
  * `GenericHandlerOptions.enableALS`'s doc for the highest-concurrency consumer (one context per
  * concurrent request).

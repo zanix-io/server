@@ -30,7 +30,7 @@ export class InternalProgram {
 
   /**
    * Application container resolving which Application (composition boundary — see
-   * `docs/APPLICATIONS.md`) a capability being registered right now belongs to.
+   * `docs/applications.md`) a capability being registered right now belongs to.
    * @type {ApplicationContainer}
    */
   public applications: ApplicationContainer = new ApplicationContainer()
@@ -73,7 +73,7 @@ export class InternalProgram {
   public registry: RegistryContainer = new RegistryContainer()
 
   /**
-   * Registry of `DiscoveryProvider`s (see `docs/APPLICATIONS.md`'s "Discovery" section) — read-only
+   * Registry of `DiscoveryProvider`s (see `docs/applications.md`'s "Discovery" section) — read-only
    * `/.well-known/zanix/{resourceType}` snapshots, one bucket per Application.
    * @type {DiscoveryContainer}
    */

@@ -2,6 +2,7 @@ import type { HandlerContext } from './context.ts'
 import type { Middlewares } from './middlewares.ts'
 import type { MetadataTargetSymbols } from './program.ts'
 import type { WebServerTypes } from './server.ts'
+import type { RtoTypes } from '@zanix/types'
 
 /** Any value a route handler may return: raw data, an array, a string, or a full `Response`. */
 export type HandlerResponse =
@@ -81,25 +82,74 @@ export type ProcessedRouteDefinition =
 
 export type ProcessedRoutes = Record<string, ProcessedRouteDefinition>
 
+/**
+ * The static, serializable subset of a registered REST route's metadata — `path`, `httpMethod`,
+ * `application`, and the RTO(s) it validates against, when declared. Everything a build-time
+ * consumer (e.g. an OpenAPI generator) can actually introspect from
+ * `ProgramModule.routes.getRoutes('rest')` without needing, or being able, to invoke anything —
+ * `RouteEntry` (below) is this same shape plus the internal, non-serializable pieces (`handler`,
+ * the middleware arrays) that make it the full registration record.
+ *
+ * @example
+ * ```ts
+ * const routes = ProgramModule.routes.getRoutes('rest') as Record<string, RestRouteEntry> | undefined
+ * for (const [key, route] of Object.entries(routes ?? {})) {
+ *   // key is `${application}:${path}/${httpMethod}`
+ *   console.log(route.path, route.httpMethod, route.rto)
+ * }
+ * ```
+ *
+ * @category routing
+ */
+export type RestRouteEntry = {
+  httpMethod: HttpMethod
+  path: string
+  /**
+   * The Application this route was registered under — persisted, static metadata captured
+   * once at registration time from whichever `ApplicationContainer.define(...)` composition
+   * scope was active (or `DEFAULT_APPLICATION` if none was). Never re-derived afterward.
+   */
+  application: string
+  /**
+   * The RTO(s) this route validates against (`Body`/`Params`/`Search`), when declared via
+   * the method decorator's `rto` option — `undefined` for a route with none. Persisted here
+   * purely for static introspection (e.g. an OpenAPI generator); the runtime validation
+   * pipeline never reads this field — it already captured `rto` directly in its own
+   * validation-pipe closure at decoration time
+   * (`defineControllerMethodDecorator`/`requestValidationPipe`), unaffected by this field.
+   */
+  rto?: RtoTypes
+}
+
+/** One registered route's persisted metadata — `RoutesObject`'s own entry shape, keyed there by
+ * `` `${application}:${path}/${httpMethod}` ``. Internal — `handler` (a live function reference)
+ * and the middleware arrays are never part of `RestRouteEntry`'s public, serializable subset. */
+export type RouteEntry = RestRouteEntry & {
+  handler: RouteDefinition['handler']
+} & Middlewares
+
 export type RoutesObject = Partial<
   Record<
     WebServerTypes,
-    Record<
-      string,
-      & {
-        handler: RouteDefinition['handler']
-        httpMethod: HttpMethod
-        path: string
-        /**
-         * The Application this route was registered under — persisted, static metadata captured
-         * once at registration time from whichever `ApplicationContainer.define(...)` composition
-         * scope was active (or `DEFAULT_APPLICATION` if none was). Never re-derived afterward.
-         */
-        application: string
-      }
-      & Middlewares
-    >
+    Record<string, RouteEntry>
   >
 >
 
 export type RouteDefinitionProps = RouteDefinition & { path?: string }
+
+/**
+ * `ProgramModule.routes`'s own accessor shape — read-only introspection over persisted route
+ * metadata, never mutation (unlike `RouteContainer` itself, which also owns `defineRoute`/
+ * `removeRoutesForTarget`/etc. — framework-internal composition primitives this accessor
+ * deliberately does not expose). See {@link RestRouteEntry}'s own doc/example for the full
+ * contract of what a resolved entry looks like.
+ */
+export interface ZanixRoutesGetter {
+  /**
+   * Returns the persisted route metadata for one {@link WebServerTypes}, keyed by
+   * `` `${application}:${path}/${httpMethod}` `` — `undefined` if nothing has been registered for
+   * that type yet. See {@link RestRouteEntry}'s own doc/example for the full contract of what a
+   * resolved entry looks like.
+   */
+  getRoutes(type: WebServerTypes): Record<string, RestRouteEntry> | undefined
+}

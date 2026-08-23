@@ -15,14 +15,14 @@ export type CoreConnectorSlot = {
 }
 
 /**
- * Open, string-keyed registry of core connector slots — mirrors `ProviderCoreModules`
+ * Open, string-keyed registry of core connector slots — mirrors `providerCoreModules`
  * (`providers/core/all.ts`); see its doc for the full rationale (modeled on
  * `DiscoveryContainer`'s registry, never limited to the keys pre-seeded below).
  */
-export const ConnectorCoreModules: Record<CoreConnectors, CoreConnectorSlot> = {
+export const connectorCoreModules: Record<CoreConnectors, CoreConnectorSlot> = {
   // initialization only — real Target assigned by `./mod.ts`'s `registerCoreConnectorSlot` calls
   'cache:redis': { key: 'cache:redis', Target: {} as Function },
-  'cache:memcached': { key: 'cache:local', Target: Function },
+  'cache:memcached': { key: 'cache:memcached', Target: Function },
   'cache:custom': { key: 'cache:custom', Target: {} as Function },
   'cache:local': { key: 'cache:local', Target: {} as Function },
   kvLocal: { key: 'kvLocal', Target: {} as Function },
@@ -41,7 +41,7 @@ export function registerCoreConnectorSlot(
   BaseTarget: Function,
   options: { sourcePackage?: string } = {},
 ): void {
-  const existing = ConnectorCoreModules[key]
+  const existing = connectorCoreModules[key]
 
   if (existing?.registered && existing.Target !== BaseTarget) {
     throw new InternalError(
@@ -58,7 +58,7 @@ export function registerCoreConnectorSlot(
     )
   }
 
-  ConnectorCoreModules[key] = {
+  connectorCoreModules[key] = {
     key,
     Target: BaseTarget,
     sourcePackage: options.sourcePackage ?? existing?.sourcePackage,
@@ -73,7 +73,7 @@ export function registerCoreConnectorSlot(
 export function getCoreConnectorSlot(
   key: CoreConnectors,
 ): CoreConnectorSlot | undefined {
-  const slot = ConnectorCoreModules[key]
+  const slot = connectorCoreModules[key]
   return slot?.registered ? slot : undefined
 }
 
@@ -96,4 +96,4 @@ export function resolveCoreConnectorTargetAlias(
   return targetKeyToCoreConnectorKey[targetKey]
 }
 
-export default ConnectorCoreModules
+export default connectorCoreModules

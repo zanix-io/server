@@ -95,7 +95,7 @@ export type CoreCacheTypes<K> = {
 export type CoreConnectors = KnownCoreConnectors | (string & {})
 
 /**
- * The connector slot keys `@zanix/server` itself pre-seeds (`ConnectorCoreModules`,
+ * The connector slot keys `@zanix/server` itself pre-seeds (`connectorCoreModules`,
  * `modules/infra/connectors/core/all.ts`) — editor-autocomplete hints only, not an exhaustive or
  * enforced list. `CoreConnectors` still accepts any other string (a slot registered by a package
  * this type doesn't know about), via the `string & {}` widening trick: it's structurally identical

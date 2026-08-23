@@ -131,6 +131,15 @@ Deno.test('Verifying controller api rest welcome service', async () => {
   assertEquals(query.headers.get('global-header'), 'global interceptor header')
 })
 
+// KNOWN FAILING — blocked on a pending `@zanix/utils` publish, not a bug in this package. This
+// package's own `getPublicErrorResponse` correctly omits `cause` from a client-facing response by
+// default now (only included when the error opts in via `ErrorOptions.exposeCause`), and
+// `@zanix/utils`'s own validation module already sets `exposeCause: true` on its validation-error
+// `cause` (real fix, applied and verified locally in `@zanix/utils`) — but this package still
+// resolves `@zanix/validator`/`@zanix/errors` from the published `jsr:@zanix/utils@^2.6.1`, which
+// predates `exposeCause` entirely, so the flag is a no-op until a new version publishes and this
+// package's `deno.jsonc` pin is bumped. Re-run once that happens; this assertion is correct for
+// the eventual, published behavior — do not "fix" it by reverting to the pre-allowlist shape.
 Deno.test('Verifying bad request and not found on api rest welcome service', async () => {
   // email must be valid
   let query = await fetch(`${restUrl}/welcome/iscamgmail.com`)

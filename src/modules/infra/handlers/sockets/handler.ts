@@ -20,10 +20,14 @@ const catcher = async (
     else response = cb
     return response
   } catch (e) {
+    // `ctx.id` is the same correlation id already used for the client-facing response below
+    // (`getSerializedErrorResponse(e, ctx.id)`) — passing it here too keeps this log
+    // correlatable with the rest of the request/connection's logs.
     await logAppError(e, {
       message: 'An error occurred on socket',
       meta: { event: event.type },
       code: 'SOCKET_ERROR',
+      contextId: ctx.id,
     })
     socket.send(getSerializedErrorResponse(e, ctx.id))
   }

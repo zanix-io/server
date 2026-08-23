@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { assertSpyCalls, spy } from '@std/testing/mock'
+import { assertSpyCalls, spy, stub } from '@std/testing/mock'
 import { assertEquals, assertThrows } from '@std/assert'
 
 import logger from '@zanix/logger'
@@ -148,6 +148,54 @@ Deno.test('ZanixWebSocket onmessage wrapper sends a truthy resolved promise resp
   assertSpyCalls(sendSpy, 1)
   assertEquals(sendSpy.calls[0].args[0], JSON.stringify({ reply: 'async' }))
 })
+
+Deno.test(
+  "socketHandler's internal `catcher` passes the connection's own `ctx.id` as `contextId` to `logAppError`",
+  async () => {
+    // A plain `Error` (unlike an RTO-validation `HttpError`, which the throttle in
+    // `shouldNotLogError` deliberately marks `_logged: false` and suppresses below its threshold)
+    // is never suppressed — `isKnownError` is false for it, so `logAppError` always logs it. This
+    // keeps the test about contextId propagation, not about the (unrelated, by-design) throttle.
+    const logSpy = spy(logger, 'error')
+
+    const fakeSocket: any = { send: spy(() => {}) }
+    const upgradeStub = stub(
+      Deno,
+      'upgradeWebSocket',
+      () => ({ socket: fakeSocket, response: new Response(null, { status: 101 }) }) as any,
+    )
+
+    const handlerThis = new TestSocketHandler()
+    handlerThis.onerror = spy(() => {
+      throw new Error('onerror boom')
+    })
+
+    const ctx = {
+      id: 'socket-context-id',
+      req: { headers: new Map([['Upgrade', 'websocket']]) },
+    } as any
+
+    try {
+      const handler = socketHandler(null as never).bind(handlerThis as any)
+      handler(ctx)
+
+      // `socketHandler` wires `fakeSocket.onerror` synchronously before returning.
+      await fakeSocket.onerror(new Event('error'))
+
+      assertSpyCalls(logSpy, 1)
+      const [message, error] = logSpy.calls[0].args as [
+        string,
+        { code?: string; contextId?: string },
+      ]
+      assertEquals(message, 'An error occurred on socket')
+      assertEquals(error.code, 'SOCKET_ERROR')
+      assertEquals(error.contextId, 'socket-context-id')
+    } finally {
+      logSpy.restore()
+      upgradeStub.restore()
+    }
+  },
+)
 
 Deno.test('socketHandler throws HttpError if not websocket upgrade', () => {
   const ctx = {
