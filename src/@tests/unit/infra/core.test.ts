@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertThrows } from '@std/assert'
-import ConnectorCoreModules, { registerCoreConnectorSlot } from 'connectors/core/all.ts'
-import ProviderCoreModules, { registerCoreProviderSlot } from 'providers/core/all.ts'
+import connectorCoreModules, { registerCoreConnectorSlot } from 'connectors/core/all.ts'
+import providerCoreModules, { registerCoreProviderSlot } from 'providers/core/all.ts'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 
 // Mock de Program.targets
@@ -40,9 +40,9 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
 
   const getCoreConnectorsSpy = spy((_key: string, _options: unknown) => {
     switch (_key) {
-      case ConnectorCoreModules.database.key:
+      case connectorCoreModules.database.key:
         return fakeTargets.database
-      case ConnectorCoreModules.search.key:
+      case connectorCoreModules.search.key:
         return fakeTargets.search
       default:
         return null
@@ -51,11 +51,11 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
 
   const getCoreProvidersSpy = spy((_key: string, _options: unknown) => {
     switch (_key) {
-      case ProviderCoreModules.asyncmq.key:
+      case providerCoreModules.asyncmq.key:
         return fakeTargets.asyncmq
-      case ProviderCoreModules.worker.key:
+      case providerCoreModules.worker.key:
         return fakeTargets.worker
-      case ProviderCoreModules.cache.key:
+      case providerCoreModules.cache.key:
         return fakeTargets.cache
       default:
         return null
@@ -89,27 +89,54 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
   }
   // Validate args
   assertEquals(getCoreProvidersSpy.calls[0].args, [
-    ProviderCoreModules.worker.key,
+    providerCoreModules.worker.key,
     ctx,
   ])
   assertEquals(getCoreProvidersSpy.calls[1].args, [
-    ConnectorCoreModules.asyncmq.key,
+    connectorCoreModules.asyncmq.key,
     ctx,
   ])
   assertEquals(getCoreProvidersSpy.calls[2].args, [
-    ProviderCoreModules.cache.key,
+    providerCoreModules.cache.key,
     ctx,
   ])
 
   assertEquals(getCoreConnectorsSpy.calls[0].args, [
-    ConnectorCoreModules.database.key,
+    connectorCoreModules.database.key,
     ctx,
   ])
   assertEquals(getCoreConnectorsSpy.calls[1].args, [
-    ConnectorCoreModules.search.key,
+    connectorCoreModules.search.key,
     ctx,
   ])
 })
+
+Deno.test(
+  "connectorCoreModules: every pre-seeded slot's own `key` field matches its own dictionary key " +
+    "(regression for 'cache:memcached' once pointing its `key` at 'cache:local')",
+  () => {
+    for (const [dictionaryKey, slot] of Object.entries(connectorCoreModules)) {
+      assertEquals(
+        slot.key,
+        dictionaryKey,
+        `connectorCoreModules['${dictionaryKey}'].key should be '${dictionaryKey}', got '${slot.key}'`,
+      )
+    }
+  },
+)
+
+Deno.test(
+  "providerCoreModules: every pre-seeded slot's own `key` field matches its own dictionary key",
+  () => {
+    for (const [dictionaryKey, slot] of Object.entries(providerCoreModules)) {
+      assertEquals(
+        slot.key,
+        dictionaryKey,
+        `providerCoreModules['${dictionaryKey}'].key should be '${dictionaryKey}', got '${slot.key}'`,
+      )
+    }
+  },
+)
 
 Deno.test(
   'registerCoreProviderSlot: throws when re-registering an already-registered slot with a different base class',

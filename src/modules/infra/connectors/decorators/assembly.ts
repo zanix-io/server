@@ -3,7 +3,7 @@ import type { ConnectorTypes, Lifetime, StartMode } from 'typings/program.ts'
 import type { ConnectorAutoInitOptions } from 'typings/targets.ts'
 
 import { ZanixConnector } from 'modules/infra/connectors/base.ts'
-import ConnectorCoreModules, { aliasCoreConnectorTarget } from 'connectors/core/all.ts'
+import connectorCoreModules, { aliasCoreConnectorTarget } from 'connectors/core/all.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { getTargetKey } from 'utils/targets.ts'
 import { InternalError } from '@zanix/errors'
@@ -37,14 +37,14 @@ export function defineConnectorDecorator<L extends Lifetime>(
       )
     }
 
-    // `slot in ConnectorCoreModules` alone isn't enough — the 8 built-in core slots (`database`,
+    // `slot in connectorCoreModules` alone isn't enough — the 8 built-in core slots (`database`,
     // `cache:*`, `kvLocal`, `asyncmq`, `search`) are pre-seeded with a non-callable placeholder
     // `Target` from module load, before their owning package's `registerCoreConnectorSlot` call
     // ever runs. Checking `.registered` distinguishes "genuinely registered" from "reserved name,
     // not registered yet in this module context" — the latter must never reach the `instanceof`
     // check below, since a placeholder `Target` isn't a constructor and throws a confusing
     // `TypeError: Right-hand side of 'instanceof' is not callable` instead of a clear diagnostic.
-    const coreSlot = ConnectorCoreModules[slot]
+    const coreSlot = connectorCoreModules[slot]
 
     if (coreSlot?.registered) {
       key = slot

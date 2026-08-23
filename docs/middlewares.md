@@ -51,14 +51,14 @@ class UsersController extends ZanixController {
 ### `@RequestValidation`
 
 A specialized `Pipe` that validates the request against a set of RTOs (see
-[Handlers](./HANDLERS.md#request-validation-rtos)). It's applied automatically whenever a method
+[Handlers](./handlers.md#request-validation-rtos)). It's applied automatically whenever a method
 decorator (`@Get`, `@Post`, etc.) receives an RTO argument — you rarely need to use it directly.
 
 ## Middleware on sockets: class-level only
 
 `@Guard`, `@Pipe`, and `@Interceptor` register per **route**. REST controllers and GraphQL resolvers
 have one route per decorated method, so applying one of these to a specific method scopes it to that
-method. A [`@Socket`](./HANDLERS.md#websocket)-decorated class has exactly one route — the
+method. A [`@Socket`](./handlers.md#websocket)-decorated class has exactly one route — the
 connection/upgrade itself — regardless of how many lifecycle methods (`onopen`, `onmessage`,
 `onclose`, `onerror`) it overrides. Applying `@Guard`/`@Pipe`/`@Interceptor` at the **class** level
 works as expected and covers every connection to that socket; applying one directly to a lifecycle
@@ -101,6 +101,64 @@ The framework registers a small set of default middlewares out of the box, inclu
 and cookie parsing (splitting user-facing cookies from internal framework cookies). These run
 alongside any guards, pipes, and interceptors you register.
 
+### CORS
+
+Configured via `ServerOptions.cors`, passed per server type to `bootstrapServers`/
+`webServerManager.create()`. The accepted shape narrows by server type:
+
+| Server type | Accepted `cors` shape                                                                                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `rest`      | Full `CorsOptions` (`origins`, `credentials`, `allowedHeaders`, `allowedMethods`, `exposedHeaders`, `preflight`).                                                                          |
+| `graphql`   | `CorsOptions`, with `allowedMethods` narrowed to `'GET' \| 'POST'`.                                                                                                                        |
+| `ssr`       | `CorsOptions` without `allowedMethods` — an SSR server's `GET`/`POST` page routes aren't configurable through `cors`.                                                                      |
+| `socket`    | Only `{ origins }` — no `allowedHeaders`/`allowedMethods`/`exposedHeaders`/`preflight`: a WebSocket upgrade carries no CORS response headers, so `origins` is the only thing that applies. |
+
+Defaults (identical logic across every server type, applied per-property when omitted):
+
+- `credentials: true`
+- `origins: '*'`
+- `allowedHeaders: ['Content-Type']`
+- `allowedMethods`: `['GET', 'POST', 'PUT', 'PATCH', 'DELETE']` for `rest`, `['GET', 'POST']` for
+  `graphql`/`ssr`, `['GET']` for `socket`.
+- `exposedHeaders: ['Content-Length', 'X-Kuma-Revision']`
+- `preflight`: unset — the browser decides its own cache duration for `OPTIONS` requests.
+
+```ts
+await bootstrapServers({
+  rest: {
+    cors: {
+      origins: ['https://app.example.com'],
+      allowedMethods: ['GET', 'POST'],
+      preflight: { maxAge: 3600, optionsSuccessStatus: 204 },
+    },
+  },
+})
+```
+
+`credentials: true` (the default) only grants `Access-Control-Allow-Credentials` when `origins` is
+explicitly set to something other than `'*'` — leaving `origins` at its default responds as a
+non-credentialed `Access-Control-Allow-Origin: *` policy instead of reflecting the caller's
+`Origin`. For `type: 'socket'` specifically, an `origins: '*'` default means same-origin only, not
+any origin, since a WebSocket upgrade has no CORS response headers of its own to fall back on —
+configure `origins` explicitly to allow a cross-origin WebSocket connection. See the
+[CHANGELOG](../CHANGELOG.md) for the security fixes behind both of these defaults.
+
+### Cookie filtering
+
+Before any other guard or handler runs, a built-in `cookiesGuard` parses the incoming request's
+cookies and keeps only the ones whose name starts with the `X-Znx-` prefix — everything else is
+dropped silently, with no error or warning. `ctx.cookies` only ever contains framework-scoped
+cookies as a result; there's no way to read a non-`X-Znx-` cookie from `ctx.cookies` in a guard,
+pipe, interceptor, or handler.
+
+**Practical implication:** if your application or a consumer package sets a custom cookie, its name
+must start with `X-Znx-` or it will never be visible server-side via `ctx.cookies`, even though the
+browser still sends it on every request.
+
+A cookie (or header) that carries a secret needs registering with `@zanix/utils`'s
+`SENSITIVE_KEY_PATTERN`/`redact.extend` so it gets redacted from logs — see that package's own docs
+for the mechanism; it isn't part of `@zanix/server`.
+
 ## Advanced: building your own middleware decorator
 
 > ℹ️ In practice, most applications don't reach for `@Guard`/`@Pipe`/`@Interceptor` directly for
@@ -126,5 +184,5 @@ export function Logged() {
 
 ## See also
 
-- [Handlers](./HANDLERS.md) — how RTOs and `@RequestValidation` fit into a controller/resolver.
-- [Error Handling](./ERRORS.md) — how thrown errors are logged and serialized into responses.
+- [Handlers](./handlers.md) — how RTOs and `@RequestValidation` fit into a controller/resolver.
+- [Error Handling](./errors.md) — how thrown errors are logged and serialized into responses.

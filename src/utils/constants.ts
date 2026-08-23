@@ -22,6 +22,14 @@ export const JSON_CONTENT_HEADER = {
 }
 
 /**
+ * Cap applied to a request body's size when a server's own `maxBodyBytes` option isn't
+ * configured — 1 MiB, generous for ordinary JSON/form payloads while still bounding how much
+ * memory an unauthenticated request can force the server to buffer. Without a cap, `req.json()`/
+ * `req.formData()` read the ENTIRE body into memory before parsing, whatever its size.
+ */
+export const DEFAULT_MAX_BODY_BYTES = 1_048_576
+
+/**
  * Bearer-credential header per `@zanix/auth` auth type: `api` for machine-to-machine (`type:
  * 'api'`) credentials, `user` for end-user sessions. Centralized here — rather than in
  * `@zanix/auth` itself — since `@zanix/server` is already a shared dependency of every package

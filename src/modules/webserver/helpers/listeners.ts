@@ -15,7 +15,17 @@ export const onErrorListener =
     try {
       const response = await currentErrorHandler?.(error)
       if (response) return response
-    } catch { /** ignore */ }
+    } catch (handlerError) {
+      // The consumer's own custom `onError` is itself broken — swallowed on purpose (a broken
+      // consumer error handler must never take the whole server down), but that failure must still
+      // leave a trace for an operator, distinct from the ORIGINAL error it was trying to handle
+      // (already logged above via `logAppError`). Both errors are included: `error` for what was
+      // being handled, `handlerError` for what the consumer's own handler threw in response.
+      logger.error(
+        `The custom 'onError' handler provided for ${serverName} server threw while handling an error`,
+        { originalError: error, handlerError },
+      )
+    }
 
     return httpErrorResponse(error)
   }

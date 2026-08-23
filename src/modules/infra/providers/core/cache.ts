@@ -2,7 +2,7 @@ import type { CoreModules, ZanixCacheConnectorGeneric } from 'typings/targets.ts
 import type { CacheProviderSetOptions, CacheSetOptions } from 'typings/general.ts'
 import type { CoreCacheConnectors, CoreConnectors } from 'typings/program.ts'
 
-import ConnectorCoreModules from 'connectors/core/all.ts'
+import connectorCoreModules from 'connectors/core/all.ts'
 import { ZanixProvider } from '../base.ts'
 import { InternalError } from '@zanix/errors'
 
@@ -50,7 +50,7 @@ export abstract class ZanixCacheProvider<T extends CoreModules = object> extends
   ): ZanixCacheConnectorGeneric<P> {
     const cacheId = `cache:${cache}` as const
     return this.getProviderConnector(
-      ConnectorCoreModules[cacheId].key as CoreConnectors,
+      connectorCoreModules[cacheId].key as CoreConnectors,
       verbose,
     )
   }

@@ -56,7 +56,7 @@ export { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 export { ZanixCacheConnector } from 'connectors/core/cache.ts'
 export { ZanixDatabaseConnector } from 'connectors/core/database.ts'
 export { GraphQLClient } from 'connectors/core/graphql.ts'
-export { RestClient } from 'connectors/core/rest.ts'
+export { RestClient, RestClientError } from 'connectors/core/rest.ts'
 export { ZanixSearchConnector } from 'connectors/core/search.ts'
 export { Connector } from 'connectors/decorators/base.ts'
 export { registerCoreConnectorSlot } from 'connectors/core/all.ts'
@@ -129,7 +129,12 @@ export {
  */
 export { DISCOVERY_PROTOCOL_VERSION } from 'modules/discovery/provider.ts'
 export { getServiceId, sanitizeIdentifier } from 'utils/identity.ts'
-export { resolveApplicationServerId, resolvePreviousApplicationServerId } from 'utils/app-server.ts'
+export {
+  resolveApplicationServerId,
+  resolvePreviousApplicationServerId,
+  SERVER_ID_PREVIOUS_SUFFIX,
+  SERVER_ID_SUFFIX,
+} from 'utils/app-server.ts'
 /**
  * Builds a self-contained `isStarting`/`isRunning` reentry guard for a package's own `start()`/
  * `stop()` pair — shared by `@zanix/core`'s `Zanix.start()` and `@zanix/admin`'s
@@ -147,7 +152,7 @@ export { TargetError } from 'utils/errors/target.ts'
 export { gzipResponse, gzipResponseFromResponse, gzipStreamingResponse } from 'utils/gzip.ts'
 export { ErrorLogThrottle, httpErrorResponse } from 'utils/errors/helper.ts'
 export { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
-export { getSerializedErrorResponse } from 'utils/errors/helper.ts'
+export { getPublicErrorResponse, getSerializedErrorResponse } from 'utils/errors/helper.ts'
 export type { ErrorLogThrottleConfig, ErrorLogThrottleStore } from 'utils/errors/helper.ts'
 export { attachRequestToError, getRequestFromError } from 'utils/errors/request-context.ts'
 export {
@@ -202,6 +207,7 @@ export type {
 export type {
   BootstrapServerOptions,
   CorsAllowedMethods,
+  GraphqlValidationOptions,
   HealthCheckContext,
   HealthCheckFn,
   HealthOptions,
@@ -261,10 +267,17 @@ export type {
   ZanixProvidersGetter,
 } from 'typings/targets.ts'
 export type { GqlOptions, RestFullOptions } from 'typings/clients.ts'
-export type { HandlerFunction, HandlerResponse, HttpMethod } from 'typings/router.ts'
+export type {
+  HandlerFunction,
+  HandlerResponse,
+  HttpMethod,
+  RestRouteEntry,
+  ZanixRoutesGetter,
+} from 'typings/router.ts'
+export type { SocketEvents } from 'typings/sockets.ts'
 /**
  * Implement this to expose a resource under `/.well-known/zanix/{resourceType}` — see
- * `ProgramModule.defineDiscovery` and `docs/APPLICATIONS.md`'s "Discovery" section.
+ * `ProgramModule.defineDiscovery` and `docs/applications.md`'s "Discovery" section.
  */
 export type { DiscoveryProvider } from 'typings/discovery.ts'
 export type {
@@ -282,7 +295,7 @@ export type {
 } from 'typings/decorators.ts'
 /**
  * Re-exported because `GenericHandlerOptions`/`HandlerDecoratorMethodOptions` (above) reference them
- * for RTO-based request validation (`Body`/`Params`/`Search`) — see `docs/HANDLERS.md#request-validation-rtos`.
+ * for RTO-based request validation (`Body`/`Params`/`Search`) — see `docs/handlers.md#request-validation-rtos`.
  */
 export type { RtoTypes } from '@zanix/types'
 /** Re-exported because `RtoTypes` (above) and `HandlerGenericClass`'s own validation reference it. */
@@ -298,7 +311,13 @@ export type { BaseInstancesContainer } from 'modules/program/metadata/targets/in
 export type { RegistryContainer } from 'modules/program/metadata/registry.ts'
 
 // Main
-export { WebServerManager } from 'modules/webserver/manager.ts'
+export {
+  getPortEnvKey,
+  PORT_ENV,
+  SSL_CERT_PATH_ENV,
+  SSL_KEY_PATH_ENV,
+  WebServerManager,
+} from 'modules/webserver/manager.ts'
 export { bootstrapServers, webServerManager } from 'webserver/mod.ts'
 export { compileRuntime } from 'modules/webserver/runtime.ts'
 export type { RuntimeActivation } from 'modules/webserver/runtime.ts'

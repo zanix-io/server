@@ -292,7 +292,17 @@ export const shouldNotLogError = async (e: unknown): Promise<boolean> => {
 }
 
 /**
- * Function to get extended error response
+ * Builds the FULL internal representation of an error — every enumerable property it carries
+ * (`message`, `meta`, `cause`, etc., via `serializeError`'s own spread), plus `id`/`contextId` and
+ * (when present) `userMessage`. Unrestricted by design: this is what {@link logAppError} persists
+ * to the log, and a log needs the complete picture regardless of what's safe to hand an external
+ * caller.
+ *
+ * **Not** what an external HTTP client receives — that's {@link getPublicErrorResponse}, which
+ * narrows this same detail down to an explicit allowlist (`meta`/`cause` only when the error opts
+ * in via `exposeMeta`/`exposeCause`). Reach for this function directly only when building something
+ * else internal-only; for anything response-shaped, use `getPublicErrorResponse` (or
+ * {@link getSerializedErrorResponse}/{@link httpErrorResponse}, which already do).
  *
  * @param {unknown} error - The error object to be processed.
  * @param {string} [contextId] - Optional request context id to be sent with the error.
@@ -310,14 +320,60 @@ export const getExtendedErrorResponse = (
     id: error?.id || generateUUID(),
   }
   if (contextId) props.contextId = contextId
+  if (typeof error?.userMessage === 'string') props.userMessage = error.userMessage
 
-  return Object.assign({}, serializeError(error, { withStackTrace }), props)
+  const response = Object.assign({}, serializeError(error, { withStackTrace }), props)
+  if (typeof response.userMessage !== 'string') delete response.userMessage
+
+  return response
+}
+
+/**
+ * Narrows {@link getExtendedErrorResponse}'s full internal representation down to what's actually
+ * safe to hand an external caller by default: `id`, `contextId`, `name`, `message`, `code`,
+ * `status`, and `userMessage`. `stack` is never included here regardless of any flag — the
+ * internal-only path (`logAppError`, via `getExtendedErrorResponse` directly) is the only one that
+ * ever requests it.
+ *
+ * `meta` and `cause` are included ONLY when the error itself opted in via `@zanix/errors`'
+ * `ErrorOptions.exposeMeta`/`exposeCause` (both default to `false`/unset) — most `meta`/`cause`
+ * values across a real codebase are internal debugging context (a connector name, a driver's raw
+ * error, an internal id) that was never meant to reach whoever called the API. This is a
+ * deliberate, security-motivated narrowing: `getExtendedErrorResponse` itself still includes
+ * everything, unrestricted, since `logAppError` depends on that full detail reaching the log
+ * regardless of what a client is allowed to see — this function is the ONLY place that decision is
+ * made, so use it (directly, or via {@link getSerializedErrorResponse}/{@link httpErrorResponse},
+ * both of which already do) for anything that builds a response an external caller receives.
+ *
+ * @param {unknown} error - The error object to be processed.
+ * @param {string} [contextId] - Optional request context id to be sent with the error.
+ */
+export const getPublicErrorResponse = (
+  // deno-lint-ignore no-explicit-any
+  error: any,
+  contextId?: string,
+  // deno-lint-ignore no-explicit-any
+): Record<string, any> => {
+  const extended = getExtendedErrorResponse(error, contextId, false)
+
+  const response: Record<string, unknown> = { id: extended.id }
+  if ('contextId' in extended) response.contextId = extended.contextId
+  if (typeof extended.name === 'string') response.name = extended.name
+  if (typeof extended.message === 'string') response.message = extended.message
+  if (typeof extended.code === 'string') response.code = extended.code
+  if (extended.status !== undefined) response.status = extended.status
+  if (typeof extended.userMessage === 'string') response.userMessage = extended.userMessage
+  if (error?.exposeMeta && extended.meta !== undefined) response.meta = extended.meta
+  if (error?.exposeCause && extended.cause !== undefined) response.cause = extended.cause
+
+  return response
 }
 
 /**
  * Serializes an error into a format suitable for inclusion in an stringify response.
  * This method prepares the error object by converting it into a structured representation
- * that can be safely sent to the client.
+ * that can be safely sent to the client — see {@link getPublicErrorResponse} for exactly which
+ * fields that includes by default, and how an error opts `meta`/`cause` into it.
  *
  * @param {unknown} error - The error object to be processed.
  * @param {string} [contextId] - Optional request context id to be sent with the error.
@@ -326,21 +382,29 @@ export const getSerializedErrorResponse = (
   error: unknown,
   contextId?: string,
 ): string => {
-  const extendedError = getExtendedErrorResponse(error, contextId)
+  const publicError = getPublicErrorResponse(error, contextId)
 
-  return JSON.stringify(extendedError)
+  return JSON.stringify(publicError)
 }
 
 /**
  * Generates an HTTP Response for an error with an appropriate status code and headers.
  *
- * This function processes an error, formats it using `getSerializedErrorResponse`, and returns an HTTP response.
- * The response status is determined based on the `status` property in the error object. If no status is provided,
- * a default status code of 400 (Bad Request) is used.
- * Additionally, custom headers can be provided, which will be merged with the default headers.
+ * This function processes an error, formats it using `getSerializedErrorResponse` (see
+ * {@link getPublicErrorResponse} for exactly which fields the body includes by default), and
+ * returns an HTTP response. The response status is determined based on the `status` property in
+ * the error object. If no status is provided, a default status code of 500 (Internal Server Error)
+ * is used — `HttpError` is the only class with an explicit `status`; a thrown `ApplicationError`/
+ * `InternalError`/`PermissionDenied`, or a native `Error`/unknown value that reached this far
+ * unwrapped, is far more often a genuine server-side fault than a client mistake (a real client
+ * error is normally modeled with `HttpError` and its own explicit 4xx status in the first place) —
+ * defaulting to 400 here previously reported those as the CALLER's fault instead, masking a real
+ * server-side bug as a bad request in both the response a caller sees and in any monitoring keyed
+ * off the status code. Additionally, custom headers can be provided, which will be merged with the
+ * default headers.
  *
  * @param {unknown} error - The error object to be processed. The error should contain a `status` field with a `value`
- *                           that determines the response status code. If not, a 400 status is used.
+ *                           that determines the response status code. If not, a 500 status is used.
  * @param {Object} [options={}] - Additional response options.
  * @param {Record<string, unknown>} [options.headers={}] - Optional additional headers to be included in the response. These headers
  *                                                 will be merged with the default `JSON_CONTENT_HEADER`.
@@ -361,7 +425,7 @@ export const httpErrorResponse = (
   const { headers, contextId } = options
   return new Response(getSerializedErrorResponse(error, contextId), {
     headers: { ...JSON_CONTENT_HEADER, ...headers },
-    status: getStatusError(error) || 400,
+    status: getStatusError(error) || 500,
   })
 }
 

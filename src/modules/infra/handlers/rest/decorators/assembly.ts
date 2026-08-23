@@ -53,12 +53,13 @@ export function defineControllerDecorator(
     )
 
     methodDecorators.forEach((decorator) => {
-      const { handler, httpMethod, endpoint } = decorator
+      const { handler, httpMethod, endpoint, rto } = decorator
       ProgramModule.routes.setEndpoint({
         Target,
         propertyKey: handler,
         endpoint,
         httpMethod,
+        rto,
       })
       ProgramModule.targets.addProperty({ Target, propertyKey: handler })
     })
@@ -92,7 +93,7 @@ export function defineControllerMethodDecorator(
   return function (method) {
     const handler = method.name.toString()
     ProgramModule.decorators.addDecoratorData(
-      { handler, endpoint, httpMethod },
+      { handler, endpoint, httpMethod, rto },
       'controller',
     )
     if (rto) {

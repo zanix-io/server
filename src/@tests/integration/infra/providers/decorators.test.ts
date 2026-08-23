@@ -107,7 +107,7 @@ Deno.test('defineProviderDecorator: supports short string syntax', () => {
 })
 
 Deno.test('defineProviderDecorator: throws for an unregistered reserved core slot', () => {
-  // 'auth' is one of the 5 built-in placeholder slots (`ProviderCoreModules`) — nothing in this
+  // 'auth' is one of the 5 built-in placeholder slots (`providerCoreModules`) — nothing in this
   // test file registers it, so it stays as the non-callable placeholder `Target`.
   class UnregisteredSlotProvider extends ZanixProvider {}
 

@@ -7,6 +7,123 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-08-22
+
+### Added
+
+- **A registered REST route now persists which RTO(s) it validates against, as static metadata,
+  reachable through a new public `ProgramModule.routes` accessor.** `RestRouteEntry.rto` carries the
+  exact `Body`/`Params`/`Search` RTO class(es) passed to the route's own method decorator, captured
+  once at registration time; `undefined` for a route declared with none. `ProgramModule.routes` (new
+  — `ZanixRoutesGetter`) exposes exactly one method, `getRoutes(type)`: read-only introspection over
+  persisted route metadata, never the underlying `RouteContainer`'s own mutation methods
+  (`defineRoute`/`removeRoutesForTarget`/etc.), which stay framework-internal. Purely for a
+  build-time consumer that needs to introspect the registry without invoking anything (e.g. an
+  OpenAPI generator) — the runtime request-validation pipeline is unaffected, since it already
+  captured `rto` independently in its own validation-pipe closure. See
+  [Handlers: Static route metadata](docs/handlers.md#static-route-metadata).
+- `getPublicErrorResponse(error, contextId?)` — exported narrowing function behind the security fix
+  below; also usable directly when you need that same client-safe shape without building a full
+  `Response`/JSON string around it. See [Error Handling: Utilities](docs/errors.md#utilities).
+- `RestClient` now throws a new exported `RestClientError` (a narrower `HttpError` subclass) for
+  every failed call, with a `realHttpStatus` getter reading the real upstream status out of its
+  structured `meta` — see the corresponding entry under Fixed for the behavior change this replaces.
+- `SERVER_ID_SUFFIX`/`SERVER_ID_PREVIOUS_SUFFIX` (the `_SERVER_ID`/`_SERVER_ID_PREVIOUS`
+  env-var-name suffixes `resolveApplicationServerId`/`resolvePreviousApplicationServerId` already
+  used internally), `PORT_ENV`/`getPortEnvKey(type)` (the `PORT`/`PORT_<TYPE>` env-var naming
+  pattern `WebServerManager` already used internally), and `SSL_KEY_PATH_ENV`/`SSL_CERT_PATH_ENV`
+  are now exported, so a consumer that needs to read/set these env vars programmatically has one
+  documented source instead of re-hardcoding the literal strings. `SocketEvents` (the event-handler
+  names `ZanixWebSocket`'s own `socket` accessor omits) is now exported for the same reason.
+
+### Changed
+
+- `@zanix/utils` (and its `logger`/`helpers`/`validator`/`regex`/`errors`/`types`/`workers`
+  subpaths) is now pinned to `^3.0.0`, up from `^2.6.1` — required for `ErrorOptions.exposeMeta`/
+  `exposeCause` (the new default-narrowing behavior below) and the `deno-zanix-plugin` lint plugin
+  pin fix. The unused `graphql-jit` dependency is also dropped — it was never actually wired into
+  the GraphQL handler.
+
+### Fixed
+
+- **`httpErrorResponse`/`getSerializedErrorResponse` no longer serialize an error's full internal
+  representation (every enumerable property, unrestricted) into the response body sent to an
+  external caller.** They now go through the new `getPublicErrorResponse`, which narrows the body to
+  an explicit allowlist (`id`/`contextId`/`name`/`message`/`code`/`status`/`userMessage`) and only
+  includes `meta`/`cause` when the error itself opts in via `@zanix/errors`'
+  `ErrorOptions.exposeMeta`/`exposeCause` — so an error's `meta` (often internal debugging context:
+  a connector name, a driver's raw error, an internal id) is no longer leaked to clients by default.
+  `stack` is never included in a client response regardless of any flag. The internal-only logging
+  path (`logAppError`) is unaffected — it still receives the full, unrestricted representation,
+  since a log needs the complete picture regardless of what's safe to expose externally.
+- **`httpErrorResponse` now defaults to `500`, not `400`, when an error carries no explicit
+  `status`.** `HttpError` is the only class with an explicit `status`; a thrown `ApplicationError`/
+  `InternalError`/`PermissionDenied`, or a native `Error`/unknown value that reached this far
+  unwrapped, is far more often a genuine server-side fault than a client mistake (a real client
+  error is normally modeled with `HttpError` and its own explicit 4xx status already) — defaulting
+  to `400` previously reported those as the caller's fault instead, masking a real server-side bug
+  in both the response a caller sees and in any monitoring keyed off the status code.
+- `deno lint`'s own `@zanix/utils` plugin (`deno-zanix-plugin`) is now version-pinned (`^3.0.0`),
+  matching every other `@zanix/utils` import in `deno.jsonc` — it used to resolve unpinned, so a
+  lint run could silently pick up a newer, unreviewed plugin version.
+- **`corsGuard()`'s default configuration no longer reflects an arbitrary request `Origin` back with
+  `Access-Control-Allow-Credentials: true`.** With `origins` left at its `'*'` default (i.e. no
+  explicit allowlist configured) and `credentials: true` (also the default), the guard now responds
+  as a non-credentialed `Access-Control-Allow-Origin: *` policy instead of echoing the caller's
+  `Origin` — so an app that never configures `cors` no longer grants every site credentialed
+  cross-origin access. Configuring `origins` explicitly (array, `RegExp`, or function) is unaffected
+  and continues to reflect the matched origin with credentials as before.
+- **`corsGuard()`'s default configuration no longer accepts a cross-site WebSocket `Upgrade`.** With
+  `origins` left at its `'*'` default and `type: 'socket'`, the guard now only accepts a request
+  whose `Origin` matches the server's own — closing the cross-site WebSocket hijacking (CSWSH) gap a
+  same-origin-only socket app would otherwise be exposed to without configuring `origins`
+  explicitly. HTTP requests, and any socket server that configures `origins` explicitly (array,
+  `RegExp`, or function), are unaffected.
+- **A request body is now capped at 1 MiB by default (`ServerOptions.maxBodyBytes`, in bytes).** A
+  JSON or `application/x-www-form-urlencoded` body over the limit is rejected with
+  `413 Payload
+  Too Large` — checked against `Content-Length` up front when present, and against
+  the number of bytes actually read otherwise, so a request with no (or an understated)
+  `Content-Length` can't bypass the cap by streaming past it. Configure `maxBodyBytes` to raise,
+  lower, or (with `Infinity`) remove the cap.
+- **A GraphQL request is now validated before it's executed (`ServerOptions.graphqlValidation`).**
+  `getGraphqlHandler` runs `graphql-js`'s own `validate()` — `specifiedRules` plus a query-depth
+  limit — before ever reaching a resolver; a query that fails validation gets a `400` with a
+  standard `{ errors: [...] }` body instead of running. `graphqlValidation.maxDepth` (default `10`)
+  rejects a query whose real selection depth exceeds it, following fragment spreads to their
+  target's own depth rather than counting a spread as one level — closing off deep/exponential
+  nesting (via fragment reuse) as a memory/CPU exhaustion vector. `graphqlValidation.introspection`
+  (default `true`) can be set to `false` to reject `__schema`/`__type` introspection queries
+  outright, for a server that shouldn't expose its schema.
+- **`WebServerManager` no longer silently falls back to plain HTTP on an incomplete or unreadable
+  SSL configuration.** Previously, setting only one of `SSL_KEY_PATH`/`SSL_CERT_PATH`, or setting
+  both but pointing at a file that doesn't exist or isn't readable (permissions, a typo'd path, an
+  unmounted volume), was indistinguishable from the intentional "no TLS configured" case — the
+  server would just start over plain HTTP with no warning. The constructor now throws an
+  `InternalError` for any of those cases, naming the affected env var, its path, and why the read
+  failed (missing vs. permission-denied vs. other). Leaving BOTH vars unset is unchanged — that
+  remains the valid, silent "serve plain HTTP" default.
+- `@Connector()`'s and `@Provider()`'s object-argument overload JSDoc still documented the option as
+  `options.type`, stale since the field was renamed to `slot` on `ConnectorDecoratorOptions`/
+  `ProviderDecoratorOptions` (deliberately, per that type's own comment: it's only ever a real
+  registration key for a core slot). The `@param` tags now read `options.slot`, and the provider
+  one's type annotation is corrected from `CoreProviders` to the field's real type, `ProviderTypes`.
+- **`RestClient` no longer reports every failed call as a `BAD_REQUEST` (400), and no longer wraps
+  an already-well-formed error in a second, less specific layer.** It now throws the new
+  `RestClientError` defaulting to `BAD_GATEWAY` (502) — `RestClient` itself has no domain knowledge
+  of whose fault a non-2xx upstream response or a transport-level failure (DNS, timeout, connection
+  refused) is, so "my dependency failed" is the honest default, not "you sent something wrong". The
+  real upstream status/body survive structured in `meta.upstreamStatus`/`meta.upstreamStatusText`
+  (readable directly via `RestClientError.realHttpStatus`) instead of being buried in the message
+  string, for whichever caller has the context to reclassify.
+- The `'cache:memcached'` core connector slot's own `key` field was recorded as `'cache:local'`
+  instead of `'cache:memcached'` in `ConnectorCoreModules`'s seed data — corrected; unrelated to the
+  registry's own casing rename (`ConnectorCoreModules`/`ProviderCoreModules` are now
+  `connectorCoreModules`/`providerCoreModules`, internal-only, no public export affected).
+- A custom `onError` handler (`ServerOptions.onError`) that itself throws while handling an error is
+  now logged (with both the original error and the handler's own failure) instead of silently
+  swallowed — the server still falls back to the default error response either way.
+
 ## [3.2.1] - 2026-08-19
 
 ### Fixed
@@ -86,7 +203,7 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   `Headers` costs **0.040 µs**, and building the three `interactors`/`providers`/`connectors`
   getters costs **0.007 µs** — V8 optimizes them away entirely. Making those getters lazy via
   `Object.defineProperties` would have cost **1.181 µs**, roughly **30x more than the work it was
-  meant to avoid**. See `docs/BENCHMARKS.md` for the full record, including why the request
+  meant to avoid**. See `docs/benchmarks.md` for the full record, including why the request
   lifecycle itself was measured and deliberately left alone.
 
 ### Added
@@ -310,13 +427,13 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   `'worker'` provider registered) is caught by the same fallback, instead of throwing before
   `dispatchWorkerTask` even runs. Free functions with no `this` omit it and get a global resolution
   instead. See
-  [Dependency Injection: Dispatching background work](docs/DEPENDENCY-INJECTION.md#dispatching-background-work-dispatchworkertask).
+  [Dependency Injection: Dispatching background work](docs/dependency-injection.md#dispatching-background-work-dispatchworkertask).
 - `ZanixWorkerProvider`'s constructor gains an optional third argument, `permissions` — restricts
   what EVERY worker in that provider's own pool may do (`net`/`read`/`write`/`env`/`run`/
   `ffi`/`sys`), forwarded as-is to the underlying `WorkerManager`'s own new `permissions` option
   (`@zanix/utils`). Fixed for the pool's entire lifetime; omit entirely (the default) for unchanged,
   unrestricted behavior. See
-  [Dependency Injection: Restricting a ZanixWorkerProvider's own permissions](docs/DEPENDENCY-INJECTION.md#restricting-a-zanixworkerproviders-own-permissions).
+  [Dependency Injection: Restricting a ZanixWorkerProvider's own permissions](docs/dependency-injection.md#restricting-a-zanixworkerproviders-own-permissions).
 - `RouteContainer.removeRoutesForApplication(application)` /
   `ProgramModule.unregisterApplicationRoutes(application)` — removes every route registered under
   `application`, across every server type. Narrower than the pre-existing `resetExceptApplications`
@@ -341,7 +458,7 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   are reused as-is, since they carry no server-type of their own. An unanchored `'ssr'` server gets
   no default `globalPrefix` (a page's URL is its own address, not an API endpoint under a
   namespace), and its `cors.allowedMethods` is fixed at `['GET', 'POST']` rather than
-  user-configurable like REST's. See [Handlers → SSR](docs/HANDLERS.md#ssr).
+  user-configurable like REST's. See [Handlers → SSR](docs/handlers.md#ssr).
 - **`preHandler`** (`BootstrapServerOptions[type].preHandler` / `WebServerManager.create`'s own
   `options.preHandler`) — tried on every request _before_ that server's normal dispatch (its route
   table, or a fully custom `handler`); returning `null`/`undefined` falls through to normal dispatch
@@ -349,20 +466,20 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   route matching, on the exact same port/origin as the server's own routes — the reference case is a
   dev-server layered on an SSR server serving build-tool assets before a page route is ever
   considered, something no `guard`/`pipe` can do since those only run once a route has matched. See
-  [Handlers → Intercepting requests before dispatch](docs/HANDLERS.md#intercepting-requests-before-dispatch-prehandler).
+  [Handlers → Intercepting requests before dispatch](docs/handlers.md#intercepting-requests-before-dispatch-prehandler).
 - **`ProgramModule.unregisterRoutes(Target, type?)`** — removes every route entry registered for a
   specific decorated class reference. A route decorator registers its class exactly once (re-running
   it against the same class collides); this is the escape hatch for tooling that reimports a
   decorated module outside the normal boot cycle (a dev-server reloading a page file after a change)
   so the fresh reimport can register cleanly. See
-  [Handlers → Hot-reloading a decorated route](docs/HANDLERS.md#hot-reloading-a-decorated-route).
+  [Handlers → Hot-reloading a decorated route](docs/handlers.md#hot-reloading-a-decorated-route).
 - `registerApplicationMount(application, prefix)` — registers an Application's mount prefix, the
   piece `routeProcessor` inserts between `globalPrefix` and a route's own `controllerPrefix`/
   `methodPath`. Exported publicly because its intended writer (a package building an
   Application-composition layer, e.g. `@zanix/app`'s `AppContainer`) lives in a separate package
   from `@zanix/server`. An Application that never calls this resolves to no mount prefix, preserving
   existing behavior exactly. See
-  [Applications → Mount prefix registration](docs/APPLICATIONS.md#mount-prefix-registration-registerapplicationmount).
+  [Applications → Mount prefix registration](docs/applications.md#mount-prefix-registration-registerapplicationmount).
 - `connectorModuleInitialization(connector)` — the connector `autoInitialize` wait-for-health
   (timeout/retry) routine `targetInitializations` already runs internally for every registered
   connector, now exported so it can be re-run on demand outside the normal boot flow (e.g. after
@@ -372,7 +489,7 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   `gzipResponseFromResponse`). `bootstrapServers` now uses this internally for every `ssr` response
   (see `### Fixed` below); exported publicly for the same reason its buffered siblings are —
   advanced cases building a streaming response outside the normal request flow. See
-  [Utilities → Response compression](docs/UTILITIES.md#response-compression).
+  [Utilities → Response compression](docs/utilities.md#response-compression).
 
 ### Fixed
 
@@ -509,13 +626,13 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   before they were ever bound to a server. A package composing its own multi-call
   `bootstrapServers()` sequence (its own `start()`) should wrap the whole thing in one outer
   `ProgramModule.runBootSession(...)` call so every nested `bootstrapServers()` call shares that
-  session instead of forking its own — see `docs/APPLICATIONS.md#boot-sessions`.
+  session instead of forking its own — see `docs/applications.md#boot-sessions`.
 - **`resolveApplicationServerId(application, type)`/`resolvePreviousApplicationServerId(application, type)`**
   — a generic Application-scoped stable-id resolver, deriving its env var name from the Application
   itself (`` `${APPLICATION}_SERVER_ID}` ``/`` `${APPLICATION}_SERVER_ID_PREVIOUS}` ``, e.g.
   `'admin'` → `ADMIN_SERVER_ID`, `'admin-hub'` → `ADMIN_HUB_SERVER_ID`), so any Application-scoped
   server package gets the same stable-id-across-restarts capability without a hand-written
-  function/env-var pair of its own. See `docs/UTILITIES.md#application-server-id-helpers`.
+  function/env-var pair of its own. See `docs/utilities.md#application-server-id-helpers`.
 
 ### Removed
 
@@ -551,7 +668,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   the ownership axis. `ProgramModule.defineApplication(name, setup)` runs `setup` with `name` as the
   ambient Application every `@Controller`/`@Resolver`/`@Socket` registered inside it belongs to
   (default: `'main'`, when no scope is active) — never a decorator option, resolved automatically
-  from context. See [Applications](docs/APPLICATIONS.md#applications).
+  from context. See [Applications](docs/applications.md#applications).
 - **`BootstrapServerOptions[type].application`** — which Application a given server mounts; only
   capabilities registered under that exact Application are served. Purely an ownership/composition
   boundary — carries no URL-anchoring or exposure meaning of its own (a non-default Application like
@@ -560,7 +677,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   own id doubles as an obscuring URL prefix (a random UUID by default, rotating on every restart)
   instead of a plain `globalPrefix`-based one. Defaults to `false`. This is what `isInternal` used
   to imply automatically for any non-default scope; it's now an explicit, separate decision — see
-  [Applications → Anchored servers](docs/APPLICATIONS.md#anchored-servers). `globalPrefix` alongside
+  [Applications → Anchored servers](docs/applications.md#anchored-servers). `globalPrefix` alongside
   `anchored: true` is additive (`{id}/{globalPrefix}/...`), not a replacement, same as before.
 - **`bootstrapServers` auto-discovers an anchored server's generated id.** When a server type is
   `anchored` and no explicit `id` was given, the random id `webServerManager.create()` picks isn't
@@ -569,7 +686,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   become `_`), e.g. `application: 'billing'`'s `rest` server → `BILLING_REST_SERVER_ID`, the
   built-in `'admin'` Application's own `graphql` server → `ADMIN_GRAPHQL_SERVER_ID`. Skipped
   entirely when the id was explicit (nothing to discover). See
-  [Applications → Anchored servers § Discovering an auto-generated id](docs/APPLICATIONS.md#anchored-servers).
+  [Applications → Anchored servers § Discovering an auto-generated id](docs/applications.md#anchored-servers).
 - **`Runtime`/`compileRuntime`** (`modules/webserver/runtime.ts`) — the one place
   Application/anchoring resolves into a concrete server activation (id validation/normalization,
   multiplexer dispatch key, route-table prefix), entirely before `WebServerManager.create` runs.
@@ -603,7 +720,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   protected. Negotiates its own protocol version via `DISCOVERY_PROTOCOL_HEADER`
   (`X-Znx-Discovery-Protocol`), independent of `/admin/*`'s own protocol so the two can evolve
   separately. `stream()`/pagination for unbounded resources is specified but not built this round —
-  see [Applications → Discovery](docs/APPLICATIONS.md#discovery).
+  see [Applications → Discovery](docs/applications.md#discovery).
 - **`registerCoreProviderSlot(key, BaseTarget, options?)` /
   `registerCoreConnectorSlot(key,
   BaseTarget, options?)`** (new exports) — the mechanism a package
@@ -614,7 +731,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   between two packages. An optional `{ sourcePackage }` names the package expected to own the slot,
   surfaced in the "missing core slot" error below. This is also how you can register your own core
   slot in application code, not just from a library — see
-  [Dependency Injection → Registering your own core slot](docs/DEPENDENCY-INJECTION.md#registering-your-own-core-slot).
+  [Dependency Injection → Registering your own core slot](docs/dependency-injection.md#registering-your-own-core-slot).
 - **`this.providers.get(Class)`/`this.connectors.get(Class)` now resolve the same singleton as
   `get('name')` for any registered core slot** — built-in or custom, via
   `registerCoreProviderSlot`/`registerCoreConnectorSlot` above. If you back a slot with your own
@@ -636,7 +753,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   `@Connector`-decorated class was actually registered under (the slot string for a class aliased to
   a core slot, regardless of subclassing; an auto-generated key otherwise), from the class itself or
   from an instance. See
-  [Dependency Injection → `connectorKey`](docs/DEPENDENCY-INJECTION.md#connectorkey--a-connectors-own-identity).
+  [Dependency Injection → `connectorKey`](docs/dependency-injection.md#connectorkey--a-connectors-own-identity).
 - `CoreProviders`/`CoreConnectors` now suggest, in editor autocomplete, the slot keys
   `@zanix/server` itself pre-seeds — 5 for providers (`'cache'`, `'asyncmq'`, `'worker'`, `'auth'`,
   `'notifications'`) and 8 for connectors (`'cache:redis'`, `'cache:memcached'`, `'cache:custom'`,
@@ -716,7 +833,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   (`ZanixProvidersGetter<T extends CoreModules>`) for the same reason;
   `getProviders`/`getConnectors` (`ProgramModule` and the instance-level accessors) accept an
   explicit type parameter to get a precisely-typed `get` back. See
-  [Dependency Injection → Typing a string-keyed `get` call](docs/DEPENDENCY-INJECTION.md#typing-a-string-keyed-get-call).
+  [Dependency Injection → Typing a string-keyed `get` call](docs/dependency-injection.md#typing-a-string-keyed-get-call).
 
 ### Removed (breaking)
 
@@ -768,14 +885,14 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   there's no per-message header concept once the socket is open. This generalizes what was
   previously a hand-rolled, admin-specific guard/interceptor pair in `@zanix/admin` into reusable
   framework infrastructure — see
-  [Handlers → Protocol version negotiation](docs/HANDLERS.md#protocol-version-negotiation).
+  [Handlers → Protocol version negotiation](docs/handlers.md#protocol-version-negotiation).
 - Added `AUTH_HEADERS`, `SESSION_HEADERS`, `RATE_LIMIT_HEADERS`, `GENERAL_HEADERS`, and
   `ADMIN_PROTOCOL_HEADER` constants — centralizes header-name constants that were previously
   duplicated (in some cases with diverging hardcoded copies) across `@zanix/auth`, `@zanix/core`,
   and `@zanix/notifications`, all of which already depend on `@zanix/server`. Deliberately excludes
   `ADMIN_PROTOCOL_VERSION` (the version _number_, as opposed to the header name) — that lives in
   `@zanix/admin`, since it's expected to change independently of `@zanix/server`. See
-  [Configuration → Auth & admin-protocol headers](docs/CONFIGURATION.md#auth--admin-protocol-headers).
+  [Configuration → Auth & admin-protocol headers](docs/configuration.md#auth--admin-protocol-headers).
 - `getServiceId()`/`sanitizeIdentifier()` (`utils/identity.ts`) — derives a stable service identity
   from the project's own package name, same convention `ZanixDatabaseConnector`'s `defaultDbName`
   already used internally for the default database name (now refactored to reuse this instead of
@@ -821,7 +938,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   `@Guard`/`@Pipe`/`@Interceptor` on a socket lifecycle method still has no effect either way — a
   `@Socket` class has exactly one real route (the connection/upgrade itself), not one per lifecycle
   method, so there's no per-method route for it to bind to (see
-  [Middlewares → Middleware on sockets](docs/MIDDLEWARES.md#middleware-on-sockets-class-level-only))
+  [Middlewares → Middleware on sockets](docs/middlewares.md#middleware-on-sockets-class-level-only))
   — but leaving the queue undrained left any such (mistaken) entry sitting around to be incorrectly
   drained onto whichever _next_ `@Controller`/`@Resolver`/`@Socket` class happened to call this
   function. Found and fixed as a prerequisite for wiring `versionProtocol` (see `Added` above) into
@@ -867,7 +984,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
 - Added the new `search` core connector type for generic search engine and document indexing
   connectors (e.g. Elasticsearch and OpenSearch).
 - Added `ZanixSearchConnector`, the abstract base class for the `search` connector type — see
-  [Built-in connector and provider base classes](docs/DEPENDENCY-INJECTION.md#built-in-connector-and-provider-base-classes).
+  [Built-in connector and provider base classes](docs/dependency-injection.md#built-in-connector-and-provider-base-classes).
   It extends `RestClient` (not `ZanixConnector` directly) since backends in this category are
   consumed over HTTP, the same reasoning `GraphQLClient` already follows, and declares the
   `index`/`bulkIndex` contract every such connector must implement.
@@ -913,7 +1030,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   `@zanix/auth`'s `ZanixAuthProvider` and `@zanix/notifications`'s `NotifierProvider` build on, so
   the framework recognizes them via `this.providers.get('auth'|'notifications')` and
   `@Provider({ type: 'auth'|'notifications' })`. Documented in
-  [Dependency Injection](./docs/DEPENDENCY-INJECTION.md).
+  [Dependency Injection](./docs/dependency-injection.md).
 
 ### Changed
 
@@ -941,12 +1058,12 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   pass a custom `store` to share the count across a fleet of instances (e.g. Redis, Deno KV), raise
   `maxStatus` to also throttle server errors (>= 500, which are otherwise always logged
   unconditionally), or `excludeStatuses` to keep specific codes (e.g. `401`) fully visible while
-  throttling the rest. Documented in [Error Handling](./docs/ERRORS.md#error-log-throttling),
+  throttling the rest. Documented in [Error Handling](./docs/errors.md#error-log-throttling),
   including how to back the store with a Zanix-managed provider/connector via `ProgramModule`.
 - **`ProgramModule.providers`/`ProgramModule.connectors`**: shorthand getters for `getProviders()`/
   `getConnectors()` with no context — the common case for `SINGLETON`-lifetime providers/connectors,
   which ignore `ctxId` in resolution anyway. Documented in
-  [Dependency Injection](./docs/DEPENDENCY-INJECTION.md#accessing-instances-outside-any-class-programmodule).
+  [Dependency Injection](./docs/dependency-injection.md#accessing-instances-outside-any-class-programmodule).
 
 ### Fixed
 
@@ -964,12 +1081,12 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
 
 ### Added
 
-- **New guides in `docs/`**: [Getting Started](./docs/GETTING-STARTED.md),
-  [Handlers](./docs/HANDLERS.md), [Middlewares](./docs/MIDDLEWARES.md),
-  [Dependency Injection](./docs/DEPENDENCY-INJECTION.md), [Configuration](./docs/CONFIGURATION.md),
-  and [Utilities Reference](./docs/UTILITIES.md), linked from the README's new `Documentation`
+- **New guides in `docs/`**: [Getting Started](./docs/getting-started.md),
+  [Handlers](./docs/handlers.md), [Middlewares](./docs/middlewares.md),
+  [Dependency Injection](./docs/dependency-injection.md), [Configuration](./docs/configuration.md),
+  and [Utilities Reference](./docs/utilities.md), linked from the README's new `Documentation`
   section.
-- **Validated `docs/HANDLERS.md`/`docs/MIDDLEWARES.md` against a second real production consumer**
+- **Validated `docs/handlers.md`/`docs/middlewares.md` against a second real production consumer**
   (a WebSocket/RabbitMQ-heavy service), documenting: the `this.socket`/`this.registry` pattern for
   tracking live socket connections and pushing messages to them proactively (outside the
   request/response cycle of `onmessage`); and that `@Guard`/`@Pipe`/`@Interceptor` on `@Socket`
@@ -978,27 +1095,27 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   register one route per decorated method, so there is no per-method route for a method-level
   middleware to attach to. (Traced end-to-end through the route-assembly code before concluding this
   — it is expected behavior given the single-route model, not a bug.)
-- **Validated `docs/DEPENDENCY-INJECTION.md` against a real production consumer**, surfacing the
+- **Validated `docs/dependency-injection.md` against a real production consumer**, surfacing the
   dominant real-world dependency-access patterns that were missing: `ZanixProvider<{ database: X }>`
   named-slot getters (`this.database`/`.cache`/`.worker`/`.asyncmq`/`.kvLocal`) as the idiomatic way
   a provider reaches its connector, and `this.providers.get(X)`/`this.connectors.get(X)`/
   `this.interactors.get(X)` for reaching dependencies beyond the single one declared on
   `@Interactor`/`@Provider`. Also added the `@Post({ Body })` no-path overload example to
-  [Handlers](./docs/HANDLERS.md), a real-practice note to
-  [Middlewares](./docs/MIDDLEWARES.md#advanced-building-your-own-middleware-decorator) about
+  [Handlers](./docs/handlers.md), a real-practice note to
+  [Middlewares](./docs/middlewares.md#advanced-building-your-own-middleware-decorator) about
   building app-level guard packages, and a clarification in the README's
   [file naming conventions](./README.md#file-naming-conventions) that `@zanix/server` itself doesn't
   scan the filesystem — the suffix convention matters for tooling like `@zanix/core`, not for
   `@zanix/server`'s own registration.
 - Documented previously-uncovered public exports: `ProgramModule`'s instance accessors
   (`getConnectors`/`getProviders`/`getInteractors`/`registry`/`asyncContext`) in
-  [Dependency Injection](./docs/DEPENDENCY-INJECTION.md), `GQLRequest` in
-  [Handlers](./docs/HANDLERS.md), `defineMiddlewareDecorator` in
-  [Middlewares](./docs/MIDDLEWARES.md), and the error/routing/compression helper functions
+  [Dependency Injection](./docs/dependency-injection.md), `GQLRequest` in
+  [Handlers](./docs/handlers.md), `defineMiddlewareDecorator` in
+  [Middlewares](./docs/middlewares.md), and the error/routing/compression helper functions
   (`httpErrorResponse`, `getSerializedErrorResponse`, `attachGlobalErrorHandlers`, `TargetError`,
   `cleanRoute`, `processUrlParams`, `gzipResponse`, `gzipResponseFromResponse`, `getTargetKey`,
   `targetInitializations`, `closeAllConnections`, `cleanupInitializationsMetadata`) in
-  [Error Handling](./docs/ERRORS.md) and the new [Utilities Reference](./docs/UTILITIES.md).
+  [Error Handling](./docs/errors.md) and the new [Utilities Reference](./docs/utilities.md).
 - **`@example` blocks** across all REST/GraphQL/Socket handler decorators (`Controller`, `Get`,
   `Post`, `Patch`, `Put`, `Delete`, `Request`, `Resolver`, `Query`, `Mutation`, `Socket`) and the
   `Connector`/`Provider`/`Interactor` class decorators, grounded in real, compiling usage.
@@ -1033,9 +1150,9 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   import typo (the real export is `ZanixAsyncMQProvider`), and a `webServerManager.start('rest')`
   example that passed the server type instead of the `ServerID` returned by `create()`.
 - Final consistency/accuracy pass across `docs/`, verified with independent read-only reviews:
-  `ERRORS.md`'s "Error Concurrency" section had the suppression logic backwards (it described errors
+  `errors.md`'s "Error Concurrency" section had the suppression logic backwards (it described errors
   as suppressed _after_ exceeding the 50/hour threshold, when the real code suppresses them _until_
-  the threshold is hit, then logs once and resets); a `DEPENDENCY-INJECTION.md` claim that the named
+  the threshold is hit, then logs once and resets); a `dependency-injection.md` claim that the named
   connector getters (`this.database`, etc.) are "built on top of" `use()` was false — they call
   `this.connectors.get()`/`this.providers.get()` directly, an unrelated mechanism; the `Lifetime`
   table didn't note that `@Provider` excludes `TRANSIENT` at the type level; the `Interactor`
@@ -1045,7 +1162,7 @@ themselves via `registerCoreProviderSlot`/`registerCoreConnectorSlot` instead.
   heading/anchor/admonition-marker inconsistencies, reworded a heading whose ampersand ("&")
   produced an ambiguous double-hyphen slug on some markdown renderers, and de-duplicated the
   "Special Environment Variables" table that was repeated verbatim in both the README and
-  [Configuration](./docs/CONFIGURATION.md#environment-variables) (README now links to it instead).
+  [Configuration](./docs/configuration.md#environment-variables) (README now links to it instead).
 
 ## [1.4.18] - 2026-07-23
 
@@ -1294,7 +1411,7 @@ GraphQL API clients.
 ### Added
 
 - **Guard Middleware Support**: Added support for middleware decorators and DSLs in
-  [Guard](../src/modules/infra/middlewares/defs/guards.ts).
+  [Guard](src/modules/infra/middlewares/defs/guards.ts).
 
 ## [1.1.2] - 2025-11-11
 

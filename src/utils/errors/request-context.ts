@@ -10,8 +10,9 @@ const REQUEST_PROPERTY = 'request'
  * DOES get its headers printed in full by `console.error`, `Authorization`/`Cookie` included, since
  * Deno's inspector reads an object's own getters for display, unlike `JSON.stringify`. A
  * non-enumerable property sidesteps that entirely, at both layers — confirmed empirically that
- * `getExtendedErrorResponse`/`logAppError` (this package's own real client-response/backend-logging
- * paths) never surface it, only the deliberate {@link getRequestFromError} call does.
+ * `getPublicErrorResponse`/`httpErrorResponse` (this package's own real client-facing paths) and
+ * `logAppError` (its backend-logging path) never surface it, only the deliberate
+ * {@link getRequestFromError} call does.
  *
  * **This is obscurity, not a hard access boundary — know the limits.** Non-enumerable only hides
  * the property from APIs that specifically respect enumerability. `Object.getOwnPropertyNames`/

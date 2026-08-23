@@ -109,15 +109,15 @@ Deno.test('Verifying bad request on resolver gql Hello query', async () => {
 
   const response = await query.json()
 
+  // Rejected at validation time (`ValuesOfCorrectType`, part of `specifiedRules`) before the
+  // resolver ever runs — a validation failure never carries a `data`/`path`, only `errors`.
   assertEquals(response, {
     errors: [
       {
-        message: 'Argument "data" has invalid value {}.',
+        message: 'Field "InputData.name" of required type "String!" was not provided.',
         locations: [{ line: 3, column: 21 }],
-        path: ['hello'],
       },
     ],
-    data: { hello: null },
   })
 })
 

@@ -1,6 +1,7 @@
 import type { SocketPrototype, ZanixInteractorGeneric } from 'typings/targets.ts'
 import type { RegistryContainer } from 'modules/program/metadata/registry.ts'
 import type { HandlerContext } from 'typings/context.ts'
+import type { SocketEvents } from 'typings/sockets.ts'
 
 import { HandlerGenericClass } from '../generic.ts'
 
@@ -77,18 +78,15 @@ export abstract class ZanixWebSocket<
   }
 
   /** WebSocket connection, excluding the default events */
-  #socket!: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>
+  #socket!: Omit<WebSocket, SocketEvents>
 
   /** The underlying WebSocket connection, excluding the default event handlers. */
-  protected get socket(): Omit<
-    WebSocket,
-    'onclose' | 'onerror' | 'onopen' | 'onmessage'
-  > {
+  protected get socket(): Omit<WebSocket, SocketEvents> {
     return this.#socket
   }
 
   protected set socket(
-    value: Omit<WebSocket, 'onclose' | 'onerror' | 'onopen' | 'onmessage'>,
+    value: Omit<WebSocket, SocketEvents>,
   ) {
     this.#socket = value
   }

@@ -207,6 +207,13 @@ export const targetInitializations = async (
     await Promise.all(
       keys.map((key) =>
         Promise.resolve(targetModuleInit(key)).catch((error) =>
+          // No `contextId` here by design, not an oversight: `postBoot` initialization is a
+          // background, boot-time process — it runs once, outside any specific request's
+          // `AsyncContext.runWith` scope (see `webserver/mod.ts`'s own call site) — so there is no
+          // request to correlate this failure with. `asyncContext.getId()` would only ever resolve
+          // to `undefined` at this call site, unlike `connectors/base.ts`'s own `logAppError` call,
+          // which can genuinely run inside a request's context for a `postBoot`/`lazy` connector
+          // resolved on-demand.
           logAppError(error, {
             message: `A 'postBoot' target failed to initialize.`,
             code: 'POSTBOOT_INIT_ERROR',

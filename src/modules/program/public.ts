@@ -4,6 +4,7 @@ import type { TargetBaseClass } from 'modules/infra/base/target.ts'
 import type { DiscoveryProvider } from 'typings/discovery.ts'
 import type { MiddlewareGuard } from 'typings/middlewares.ts'
 import type { WebServerTypes } from 'typings/server.ts'
+import type { ZanixRoutesGetter } from 'typings/router.ts'
 import type {
   ClassConstructor,
   CoreModules,
@@ -310,6 +311,25 @@ export class Program {
   }
 
   /**
+   * Read-only introspection over persisted route metadata — the same static metadata a route
+   * decorator (`@Controller`/`@SsrController`/`@Resolver`) wrote at registration time. Never
+   * mutates anything, and reflects composition-time state only: safe to call before, during, or
+   * after a real boot, including from a process that only composed metadata (e.g. `@zanix/core`'s
+   * `Zanix.compose()`) and never actually started a server — the intended use case for a static
+   * analysis tool (e.g. an OpenAPI generator) that needs to read what routes exist without being
+   * able to invoke anything.
+   *
+   * @example
+   * const routes = ProgramModule.routes.getRoutes('rest')
+   * for (const [key, route] of Object.entries(routes ?? {})) {
+   *   console.log(route.path, route.httpMethod, route.rto)
+   * }
+   */
+  public get routes(): ZanixRoutesGetter {
+    return { getRoutes: (type) => ProgramModule.routes.getRoutes(type) }
+  }
+
+  /**
    * Provides access to the internal `RegistryContainer` used by the dependency
    * injection system.
    *
@@ -333,7 +353,7 @@ export class Program {
   }
 
   /**
-   * Runs `setup` with `name` as the Application (see `docs/APPLICATIONS.md`'s "Applications" section)
+   * Runs `setup` with `name` as the Application (see `docs/applications.md`'s "Applications" section)
    * that every route/resolver/socket registered inside it (via `@Controller`/`@Resolver`/`@Socket`)
    * belongs to — composition-time only, resolved once per capability at the instant it registers
    * and persisted onto its own metadata as an ordinary field; never consulted again once a server
@@ -359,7 +379,7 @@ export class Program {
   /**
    * Registers `provider` as the read-only source of truth for `resourceType`, exposed under
    * `/.well-known/zanix/{resourceType}` once a REST server for the current Application activates
-   * (see `docs/APPLICATIONS.md`'s "Discovery" section). Attributed to whichever `defineApplication(...)`
+   * (see `docs/applications.md`'s "Discovery" section). Attributed to whichever `defineApplication(...)`
    * scope is active the instant this call runs, the same way `RouteContainer.defineRoute` resolves
    * a route's Application — call it inside the same scope as the routes/controllers it accompanies.
    *

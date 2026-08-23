@@ -1,5 +1,6 @@
-import { assertEquals } from '@std/assert/assert-equals'
-import { processScopedPayload } from 'utils/context.ts'
+import { assertEquals, assertMatch } from '@std/assert'
+import { UUID_REGEX } from '@zanix/regex'
+import { contextId, processScopedPayload } from 'utils/context.ts'
 
 Deno.test('processScopedPayload: body accessor reads from the payload body by key', () => {
   const scoped = processScopedPayload({
@@ -9,4 +10,8 @@ Deno.test('processScopedPayload: body accessor reads from the payload body by ke
   } as never)
 
   assertEquals((scoped.body as (key: string) => unknown)('name'), 'ismael')
+})
+
+Deno.test('contextId should return a correct uuid', () => {
+  assertMatch(contextId(), UUID_REGEX)
 })

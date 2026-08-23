@@ -6,6 +6,7 @@ import type { MetadataTargetSymbols } from 'typings/program.ts'
 import type { HttpMethod, RouteDefinitionProps, RoutesObject } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { ClassConstructor } from 'typings/targets.ts'
+import type { RtoTypes } from '@zanix/types'
 
 import { BaseContainer } from './base.ts'
 import { InternalError } from '@zanix/errors'
@@ -36,7 +37,7 @@ export class RouteContainer extends BaseContainer {
     const { endpoint: prefix } = this.getEndpoint({ Target })
 
     for (const propertyKey of propertyKeys) {
-      const { endpoint, httpMethod = 'GET' } = this.getEndpoint({
+      const { endpoint, httpMethod = 'GET', rto } = this.getEndpoint({
         Target,
         propertyKey,
       })
@@ -96,6 +97,7 @@ export class RouteContainer extends BaseContainer {
         pipes: Array.from(pipes),
         guards: Array.from(guards),
         application,
+        rto,
       }
     }
   }
@@ -169,7 +171,7 @@ export class RouteContainer extends BaseContainer {
   }
 
   /**
-   * Retreives all Routes Object associated with a specific server type
+   * Retrieves all Routes Object associated with a specific server type
    */
   public getRoutes(type: WebServerTypes): RoutesObject[keyof RoutesObject] {
     return this.getData<RoutesObject>(this.#routesKey)?.[type]
@@ -284,14 +286,15 @@ export class RouteContainer extends BaseContainer {
    *  Function to set an endpoint to a specified target or property
    */
   public setEndpoint(
-    { Target, propertyKey, endpoint, httpMethod }: MetadataTargetSymbols & {
+    { Target, propertyKey, endpoint, httpMethod, rto }: MetadataTargetSymbols & {
       endpoint?: string
       httpMethod?: HttpMethod
+      rto?: RtoTypes
     },
   ) {
-    const data = { endpoint: endpoint ?? propertyKey ?? '', httpMethod }
+    const data = { endpoint: endpoint ?? propertyKey ?? '', httpMethod, rto }
 
-    this.setData<{ endpoint: string; httpMethod?: HttpMethod }>(
+    this.setData<{ endpoint: string; httpMethod?: HttpMethod; rto?: RtoTypes }>(
       this.#endpointsKey(propertyKey),
       data,
       Target,
@@ -303,8 +306,8 @@ export class RouteContainer extends BaseContainer {
    */
   public getEndpoint(
     { Target, propertyKey }: MetadataTargetSymbols,
-  ): { endpoint: string; httpMethod?: HttpMethod } {
-    return this.getData<{ endpoint: string; httpMethod?: HttpMethod }>(
+  ): { endpoint: string; httpMethod?: HttpMethod; rto?: RtoTypes } {
+    return this.getData<{ endpoint: string; httpMethod?: HttpMethod; rto?: RtoTypes }>(
       this.#endpointsKey(propertyKey),
       Target,
     ) || { endpoint: '' }

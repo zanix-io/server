@@ -102,9 +102,11 @@ export type GenericHandlerOptions = {
    * This ensures each request gets its own context, preventing shared state in singleton scenarios.
    * Defaults to `false`
    *
-   * ⚠️ Enabling this feature may increase overload by managing multiple contexts simultaneously,
-   * especially if many data points are associated with each request, potentially adding more
-   * processing overhead.
+   * Per-request cost is measured, not a guess: `src/@tests/benchmarks/context.bench.ts`'s
+   * `context:als:runWith` scenario puts one `asyncContext.runWith` scope at ~7.7µs average
+   * (p99 16.3µs) — cheaper than the UUID generation every request already pays regardless of this
+   * flag. Not a meaningful cost for the vast majority of routes; only worth a second look under
+   * genuinely extreme request volume.
    *
    * ⚠️ This is the highest-concurrency consumer of `AsyncContext` in the whole codebase — one
    * context per concurrent request, not just per composition-time call. `AsyncContext` is backed
@@ -113,7 +115,9 @@ export type GenericHandlerOptions = {
    * but it is still actively hardening, with real correctness fixes as recent as 2026-06 and an
    * issue open as of 2026-08 about context propagation across concurrent/interleaved async work).
    * Enabling `enableALS` is safe and intended, not a workaround to avoid — just be aware this
-   * option's correctness rests on that same, still-maturing foundation.
+   * option's correctness rests on that same, still-maturing foundation. See `AsyncContext`'s own
+   * doc (`modules/infra/base/storage.ts`) for why this stays opt-in rather than the framework's
+   * default, and the concrete condition that changes that.
    */
   enableALS?: boolean
   /** Interactor class injected and made available as `this.interactor`. */
@@ -227,7 +231,7 @@ export type ResolverRequestOptions = {
 export type DecoratorTypes = HandlerTypes | MiddlewareTypes | 'generic'
 
 export type DecoratorsData<T extends DecoratorTypes> = T extends 'controller'
-  ? { handler: string; endpoint?: string; httpMethod: HttpMethod }
+  ? { handler: string; endpoint?: string; httpMethod: HttpMethod; rto?: RtoTypes }
   : T extends 'resolver' ? {
       handler: Function
       name: string

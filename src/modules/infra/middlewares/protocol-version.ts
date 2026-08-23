@@ -81,19 +81,30 @@ export function createProtocolVersionGuard(
     const version = declared === null ? options.version : Number(declared)
 
     if (!options.supportedVersions.includes(version)) {
+      // `meta` here is exactly the case `exposeMeta` exists for: `declared`/`supported` are
+      // directly actionable for whoever called with a version this handler doesn't accept, not
+      // internal-only diagnostic detail — see `@zanix/errors`' `ErrorOptions.exposeMeta` doc.
+      // Set via `Object.assign` after construction, not as a constructor option: the published
+      // `@zanix/errors` this file currently resolves against may still lag behind the local,
+      // not-yet-published `exposeMeta` field, in which case the constructor itself wouldn't apply
+      // it — `getPublicErrorResponse` only ever reads the property off the instance, so this reaches
+      // the same result either way. Simplify back to a plain constructor option once the version
+      // pin catches up.
+      const error = Object.assign(
+        new HttpError('BAD_REQUEST', {
+          message: `Unsupported ${options.header} version.`,
+          meta: {
+            source: 'zanix',
+            method: 'protocolVersionGuard',
+            declared,
+            supported: options.supportedVersions,
+          },
+        }),
+        { exposeMeta: true },
+      )
+
       return {
-        response: httpErrorResponse(
-          new HttpError('BAD_REQUEST', {
-            message: `Unsupported ${options.header} version.`,
-            meta: {
-              source: 'zanix',
-              method: 'protocolVersionGuard',
-              declared,
-              supported: options.supportedVersions,
-            },
-          }),
-          { contextId: ctx.id },
-        ),
+        response: httpErrorResponse(error, { contextId: ctx.id }),
       }
     }
 

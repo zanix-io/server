@@ -157,9 +157,9 @@ is optimistic by construction.
 
 ## See also
 
-- [Utilities Reference](./UTILITIES.md) — the routing and compression helpers several of these
+- [Utilities Reference](./utilities.md) — the routing and compression helpers several of these
   scenarios measure directly.
-- [Middlewares](./MIDDLEWARES.md) — the guard/pipe/interceptor pipeline whose phases are measured
+- [Middlewares](./middlewares.md) — the guard/pipe/interceptor pipeline whose phases are measured
   with zero and with three declared middlewares.
-- [Error Handling](./ERRORS.md) — the error-serialization path behind the `response:error:*`
+- [Error Handling](./errors.md) — the error-serialization path behind the `response:error:*`
   scenarios.

@@ -171,6 +171,30 @@ export type CorsAllowedMethods<Methods extends HttpMethod> =
     allowedMethods?: Extract<HttpMethod, Methods>[]
   }
 
+/** Options controlling GraphQL request validation (`type: 'graphql'` servers only) — see
+ * `getGraphqlHandler`'s own doc (`handlers/graphql/handler.ts`) for the validation pipeline this
+ * feeds into. */
+export type GraphqlValidationOptions = {
+  /**
+   * Rejects a query whose REAL selection depth — following a `FragmentSpread` to its target
+   * `FragmentDefinition`'s own depth, not just what's literally written at the spread site —
+   * exceeds this many levels, before the query is ever executed. A deeply (or, via a reused
+   * fragment, exponentially) nested query is a real memory/CPU exhaustion vector; `graphql-js`
+   * enforces no depth limit of its own.
+   *
+   * @default 10
+   */
+  maxDepth?: number
+  /**
+   * Whether introspection queries (`__schema`/`__type`) are allowed. Enabled by default — most
+   * GraphQL tooling (GraphiQL, schema-aware clients/codegen) depends on it — but a genuinely
+   * public API that doesn't want its schema shape freely discoverable can disable it.
+   *
+   * @default true
+   */
+  introspection?: boolean
+}
+
 /**
  * Configuration options for the server.
  *
@@ -190,7 +214,14 @@ export type ServerOptions<K extends WebServerTypes = never> =
   & {
     onceStop?: () => void
     /**
-     * SSL certificate keyPair values
+     * SSL certificate keyPair values, supplied directly instead of via the `SSL_KEY_PATH`/
+     * `SSL_CERT_PATH` environment variables.
+     *
+     * That env-var pair takes precedence: when both are set, `WebServerManager` loads TLS
+     * material from those files at construction time and this option is ignored. This option
+     * only takes effect when the env-var pair is left unset — the first `create()` call that
+     * supplies it configures TLS for every server the same `WebServerManager` instance manages
+     * from then on, since only the first bind's own options apply to the real socket.
      */
     ssl?: { key: string; cert: string }
     /**
@@ -242,6 +273,23 @@ export type ServerOptions<K extends WebServerTypes = never> =
      * @default false
      */
     attachRequestToErrors?: boolean
+    /**
+     * Rejects a request (`413 Payload Too Large`) once its body exceeds this many bytes, before
+     * it ever reaches a route handler. Enforced by counting bytes as the body stream itself
+     * arrives — not by trusting the `Content-Length` header alone, which a client can omit, lie
+     * about, or exceed under `Transfer-Encoding: chunked` — so this holds even against a request
+     * that doesn't declare its real size upfront. Without a cap, an unauthenticated client could
+     * force the server to buffer an arbitrarily large body in memory before parsing it at all.
+     *
+     * @default 1_048_576 (1 MiB)
+     */
+    maxBodyBytes?: number
+    /**
+     * Validation applied to every GraphQL request before it's ever executed — depth limit and
+     * introspection control. Only meaningful for a `type: 'graphql'` server; ignored otherwise.
+     * See {@linkcode GraphqlValidationOptions}.
+     */
+    graphqlValidation?: GraphqlValidationOptions
   }
 
 /**
@@ -305,7 +353,7 @@ export type BootstrapServerOptions =
          */
         onCreate?: (id: ServerID) => void
         /**
-         * The Application (see `docs/APPLICATIONS.md`'s "Applications" section) whose routes/resolvers/
+         * The Application (see `docs/applications.md`'s "Applications" section) whose routes/resolvers/
          * sockets this server mounts — only capabilities registered under this exact Application are
          * served; a capability never leaks onto a server built for a different one. Defaults to the
          * default Application (`'main'`) when omitted. `bootstrapServers` resolves this into a

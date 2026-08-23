@@ -9,7 +9,7 @@ import {
 
 console.error = () => {}
 
-Deno.test('routerInterceptor: catches handler errors and returns an error response', async () => {
+Deno.test('routerInterceptor: no status on the error defaults the response to 500', async () => {
   const context = {
     id: 'ctx-1',
     url: new URL('http://localhost/route'),
@@ -25,7 +25,10 @@ Deno.test('routerInterceptor: catches handler errors and returns an error respon
     handler,
   })
 
-  assertEquals((response as Response).status, 400)
+  // A plain `Error` with no `.status` defaults to 500, not 400 — it's far more likely an
+  // unhandled server-side fault than a genuine client mistake (a real client error is normally
+  // thrown as `HttpError` with its own explicit 4xx status in the first place).
+  assertEquals((response as Response).status, 500)
 })
 
 Deno.test(

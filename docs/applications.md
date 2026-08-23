@@ -9,7 +9,7 @@ code — the overwhelming common case — never needs to know this exists: every
 in `'main'` automatically.
 
 `bootstrapServers`'s own per-type `application` option (`BootstrapServerOptions[type].application` —
-see [Getting Started](./GETTING-STARTED.md)) decides which Application a given server mounts: a
+see [Getting Started](./getting-started.md)) decides which Application a given server mounts: a
 server bootstrapped with `application: 'admin'` mounts **only** routes/resolvers/sockets registered
 under `'admin'`, and a server bootstrapped without it (the default) mounts only the default
 Application's ones. A route never leaks between two Applications.
@@ -65,7 +65,7 @@ requires passing `{ finalize: false }` to every call except the last one: `postB
 the shared route/pending-resolver registries by default, and an earlier call finalizing would wipe
 routes/resolvers a later call in the same sequence still needs to read. See `bootstrapServers`'s own
 doc comment for the full mechanism, and
-[Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) for
+[Utilities → Application server-id helpers](./utilities.md#application-server-id-helpers) for
 `resolveApplicationServerId()` — the rest of the plumbing `@zanix/core`/`@zanix/admin` share for
 this same pattern.
 
@@ -132,7 +132,7 @@ await bootstrapServers({
 
 `id` is forwarded to `WebServerManager.create`'s `runtime` parameter (compiled via `compileRuntime`)
 and validated at runtime against `[a-z0-9_-]+` (it anchors the URL path prefix routes are dispatched
-under) — see [Utilities → Identity helpers](./UTILITIES.md#identity-helpers) for
+under) — see [Utilities → Identity helpers](./utilities.md#identity-helpers) for
 `getServiceId()`/`sanitizeIdentifier()`.
 
 `globalPrefix` still works alongside an anchored server — it's appended as an extra path segment
@@ -169,7 +169,7 @@ is nothing to rotate _from_), and **isn't supported for a `graphql` server**: bu
 handler for the previous prefix would compile an empty stub schema instead of the real one (see
 `handlers/graphql/schema.ts`'s `defineSchema`, which consumes its Query/Mutation accumulator once a
 schema is built). Rotate a `graphql` Application's `rest`/`socket` servers instead. See
-[Utilities → Application server-id helpers](./UTILITIES.md#application-server-id-helpers) for
+[Utilities → Application server-id helpers](./utilities.md#application-server-id-helpers) for
 `resolvePreviousApplicationServerId()`, the built-in rotation runbook any Application-scoped server
 (admin or otherwise) can use.
 
@@ -307,11 +307,11 @@ breaking change to `DiscoveryProvider`'s own shape.
 
 ## See also
 
-- [Handlers](./HANDLERS.md) — REST, GraphQL, WebSocket, and SSR handlers that register into an
+- [Handlers](./handlers.md) — REST, GraphQL, WebSocket, and SSR handlers that register into an
   Application.
-- [Getting Started](./GETTING-STARTED.md) — where `bootstrapServers`'s per-type options are
+- [Getting Started](./getting-started.md) — where `bootstrapServers`'s per-type options are
   introduced.
-- [Configuration](./CONFIGURATION.md) — the shared-port relaxation and protocol-version headers
+- [Configuration](./configuration.md) — the shared-port relaxation and protocol-version headers
   mentioned above.
-- [Utilities Reference](./UTILITIES.md) — the `resolveApplicationServerId`/`getServiceId` helpers an
+- [Utilities Reference](./utilities.md) — the `resolveApplicationServerId`/`getServiceId` helpers an
   anchored server's stable `id` is typically built from.

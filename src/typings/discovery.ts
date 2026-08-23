@@ -2,7 +2,7 @@ import type { MiddlewareGuard, MiddlewareInterceptor } from './middlewares.ts'
 
 /**
  * A read-only source of truth for one resource kind (e.g. templates, triggers), exposed under
- * `/.well-known/zanix/{resourceType}` — see `docs/APPLICATIONS.md`'s "Discovery" section. Deliberately
+ * `/.well-known/zanix/{resourceType}` — see `docs/applications.md`'s "Discovery" section. Deliberately
  * has no knowledge of HTTP, versioning, pagination, or auth: a module implementing this only
  * answers "what do I currently have," never how that gets addressed or transported.
  *
@@ -14,7 +14,7 @@ export interface DiscoveryProvider<T> {
   /**
    * Full materialization of the resource's current state. Fine for resources confirmed to stay
    * small (dozens–low thousands of items) — large/unbounded resources are an explicitly deferred
-   * capability (`stream()`), not designed yet; see `docs/APPLICATIONS.md`.
+   * capability (`stream()`), not designed yet; see `docs/applications.md`.
    */
   snapshot(): Promise<T[]>
 

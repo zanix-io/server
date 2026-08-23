@@ -15,9 +15,25 @@ function toEnvKey(application: string): string {
 }
 
 /**
+ * Suffix appended to an Application's own env-key (see `toEnvKey`) to name its stable-id env var —
+ * `` `${toEnvKey(application)}${SERVER_ID_SUFFIX}` `` (e.g. `'admin'` -> `ADMIN_SERVER_ID`). See
+ * {@link resolveApplicationServerId}. Exported (rather than a fixed list of vars) because the
+ * Application name itself is arbitrary — this documents the PATTERN, not one var per Application.
+ */
+export const SERVER_ID_SUFFIX = '_SERVER_ID'
+
+/**
+ * Suffix appended to an Application's own env-key to name its retiring-id env var —
+ * `` `${toEnvKey(application)}${SERVER_ID_PREVIOUS_SUFFIX}` `` (e.g. `'admin'` ->
+ * `ADMIN_SERVER_ID_PREVIOUS`). See {@link resolvePreviousApplicationServerId} and
+ * {@link SERVER_ID_SUFFIX}.
+ */
+export const SERVER_ID_PREVIOUS_SUFFIX = `${SERVER_ID_SUFFIX}_PREVIOUS`
+
+/**
  * Resolves the explicit `id` to pass to `bootstrapServers({..., application})`/
  * `webServerManager.create()` for one Application's server type, from that Application's own
- * stable-id env var — `` `${toEnvKey(application)}_SERVER_ID` `` (e.g. `'admin'` ->
+ * stable-id env var — `` `${toEnvKey(application)}${SERVER_ID_SUFFIX}` `` (e.g. `'admin'` ->
  * `ADMIN_SERVER_ID`, `'admin-hub'` -> `ADMIN_HUB_SERVER_ID`) — read at call time (not import time),
  * so a caller/test setting the env var right before starting is still observed.
  *
@@ -39,13 +55,14 @@ export function resolveApplicationServerId(
   application: string,
   type: WebServerTypes,
 ): string | undefined {
-  const id = Deno.env.get(`${toEnvKey(application)}_SERVER_ID`)
+  const id = Deno.env.get(`${toEnvKey(application)}${SERVER_ID_SUFFIX}`)
   return id ? `${id}-${type}` : undefined
 }
 
 /**
  * Resolves the `previousId` to pass alongside {@link resolveApplicationServerId}'s own result,
- * from that Application's own retiring-id env var — `` `${toEnvKey(application)}_SERVER_ID_PREVIOUS` ``
+ * from that Application's own retiring-id env var —
+ * `` `${toEnvKey(application)}${SERVER_ID_PREVIOUS_SUFFIX}` ``
  * — the manual rotation runbook: set both this and a new stable id in one redeploy, so every
  * replica serves both prefixes simultaneously and callers still using the old address keep working
  * while they're updated to the new one; drop this env var in a later redeploy to close the window.
@@ -60,6 +77,6 @@ export function resolvePreviousApplicationServerId(
   application: string,
   type: WebServerTypes,
 ): string | undefined {
-  const id = Deno.env.get(`${toEnvKey(application)}_SERVER_ID_PREVIOUS`)
+  const id = Deno.env.get(`${toEnvKey(application)}${SERVER_ID_PREVIOUS_SUFFIX}`)
   return id ? `${id}-${type}` : undefined
 }

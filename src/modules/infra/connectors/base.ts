@@ -3,6 +3,7 @@ import type { ConnectorOptions } from 'typings/targets.ts'
 import { logAppError } from 'utils/errors/helper.ts'
 import { ContextualBaseClass } from '../base/contextual.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
+import { asyncContext } from '../base/storage.ts'
 
 /**
  * Abstract base class for implementing service connectors in the Zanix framework.
@@ -107,6 +108,14 @@ export abstract class ZanixConnector extends ContextualBaseClass {
                 method: 'initialize',
                 attempts,
               },
+              // Same fallback `ProgramModule`'s own `getConnector`/`getProvider`/`getInteractor`
+              // use (`modules/program/metadata/targets/main.ts`): `this.contextId` is whatever was
+              // explicitly passed to the constructor (rare for a connector), `asyncContext.getId()`
+              // is the ALS-resolved id of whichever request is CURRENTLY on the call stack, if any
+              // — real only for a `postBoot`/`lazy` connector resolved on-demand from inside a
+              // request's async context; for `onSetup`/`onBoot` (always boot-time, never inside a
+              // request) this correctly resolves to `undefined`.
+              contextId: this.contextId || asyncContext.getId(),
             })
             // Handle initialization failure if needed
             reject(error)
