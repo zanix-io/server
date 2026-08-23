@@ -4,12 +4,12 @@ import type { Lifetime, ProviderTypes } from 'typings/program.ts'
 import { defineProviderDecorator } from 'providers/decorators/assembly.ts'
 
 /**
- * Class decorator for defining core or general interactors with a specific provider type.
+ * Class decorator for defining core or general providers with a specific provider type.
  *
  * When called with a simple provider type string, this decorator registers
- * the interactor with that core provider type.
+ * the provider with that core provider type.
  *
- * @param {ProviderTypes} type - The type of the interactor provider.
+ * @param {ProviderTypes} type - The type of the provider.
  *
  * Defaults: `type`='custom', `startMode`='lazy', `lifetime`='SINGLETON'
  *
@@ -27,7 +27,7 @@ import { defineProviderDecorator } from 'providers/decorators/assembly.ts'
  */
 export function Provider(type?: ProviderTypes): ZanixClassDecorator
 /**
- * Class decorator for defining Provider or Client interactors with detailed provider options.
+ * Class decorator for defining Provider or Client providers with detailed provider options.
  *
  * This overload accepts a configuration object for generic providers,
  * allowing customization of lifecycle and initialization behavior.

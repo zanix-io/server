@@ -95,6 +95,11 @@ turn takes precedence over the constant defaults above. `PORT_SSR` only applies 
 create an `'ssr'` server via `webServerManager` — `bootstrapServers` doesn't start one
 automatically.
 
+A package that needs these names programmatically instead of hardcoding the strings above can use
+`PORT_ENV` (`'PORT'`), `getPortEnvKey(type)` (builds the type-specific name, e.g.
+`getPortEnvKey('socket')` → `'PORT_SOCKET'`), and `SSL_KEY_PATH_ENV`/`SSL_CERT_PATH_ENV`
+(`'SSL_KEY_PATH'`/`'SSL_CERT_PATH'`) instead of re-interpolating the pattern inline.
+
 `SSL_KEY_PATH`/`SSL_CERT_PATH` are a prerequisite pair, not independent toggles: leaving BOTH unset
 is a valid, intentional configuration and serves plain HTTP silently, same as always. Setting only
 one of the two, or setting both but pointing at a file that doesn't exist or can't be read, is

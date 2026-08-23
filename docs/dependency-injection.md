@@ -369,6 +369,27 @@ falls back to the `Map` transparently; once a connector _is_ resolved, though, i
 `'cache:local'` connector whose own `get`/`set` throws will fail the request, same as any other
 connector misbehaving inside a method it owns.
 
+### `RestClient`'s unified error handling
+
+Every failed call — a non-2xx upstream response or a genuine transport-level failure (DNS, timeout,
+connection refused) — throws a `RestClientError`. `RestClient` has no domain knowledge of whose
+fault a non-2xx response is, so it always defaults to `'BAD_GATEWAY'` as the honest status; the real
+upstream status, when one exists, survives structured in `meta.upstreamStatus`/
+`meta.upstreamStatusText` and is readable directly off the error via
+`RestClientError.realHttpStatus` for whichever caller does have the context to reclassify it:
+
+```ts
+import { RestClientError } from 'jsr:@zanix/server@[version]'
+
+try {
+  await client.http.get('/users/1')
+} catch (error) {
+  if (error instanceof RestClientError && error.realHttpStatus === 404) {
+    // the resource genuinely doesn't exist upstream — not "my dependency is down"
+  }
+}
+```
+
 ### Restricting a `ZanixWorkerProvider`'s own permissions
 
 `ZanixWorkerProvider`'s constructor takes an optional third argument, `permissions`, forwarded as-is

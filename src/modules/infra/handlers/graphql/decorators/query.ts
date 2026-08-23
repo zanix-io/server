@@ -11,7 +11,7 @@ import { defineResolverRequestDecorator } from './assembly.ts'
  * ℹ️ Only takes effect when the decorated method belongs to a class also decorated with
  * `@Resolver`; otherwise the resolver metadata is collected but never registered.
  *
- * @param {ResolverRequestOptions} options - Configuration object for the query resolver.
+ * @param {ResolverRequestOptions} [options] - Configuration object for the query resolver.
  * @param {string} [options.name] - The name of the GraphQL query. If omitted, the method name is used.
  * @param {string | Record<string, string>} [options.input] - The input type or input fields schema for the query.
  * @param {string} [options.output] - The return type of the query.

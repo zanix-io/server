@@ -4,12 +4,12 @@ import type { ConnectorTypes, Lifetime } from 'typings/program.ts'
 import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
 
 /**
- * Class decorator for defining core or general interactors with a specific connector type.
+ * Class decorator for defining core or general connectors with a specific connector type.
  *
  * When called with a simple connector type string, this decorator registers
- * the interactor with that core connector type.
+ * the connector with that core connector type.
  *
- * @param {ConnectorTypes} type - The type of the interactor connector.
+ * @param {ConnectorTypes} type - The type of the connector.
  *
  * Defaults: `type`='custom', `startMode`='postBoot', `lifetime`='SINGLETON, `autoInitialize`=true
  *
@@ -36,7 +36,7 @@ import { defineConnectorDecorator } from 'connectors/decorators/assembly.ts'
  */
 export function Connector(type?: ConnectorTypes): ZanixClassDecorator
 /**
- * Class decorator for defining Provider or Client interactors with detailed connector options.
+ * Class decorator for defining Provider or Client connectors with detailed connector options.
  *
  * This overload accepts a configuration object for generic connectors,
  * allowing customization of lifecycle and initialization behavior.

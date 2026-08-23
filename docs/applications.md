@@ -286,9 +286,9 @@ ProgramModule.defineDiscovery('templates', templatesProvider, {
 responsibility, not something enforced silently.
 
 Every Discovery response negotiates its own protocol version via `DISCOVERY_PROTOCOL_HEADER`
-(`X-Znx-Discovery-Protocol`) — the same negotiation mechanism `/admin/*`'s `versionProtocol` option
-uses internally, with its own distinct header/version so the two protocols can evolve independently.
-The response envelope:
+(`X-Znx-Discovery-Protocol`), currently `DISCOVERY_PROTOCOL_VERSION` (`1`) — the same negotiation
+mechanism `/admin/*`'s `versionProtocol` option uses internally, with its own distinct
+header/version so the two protocols can evolve independently. The response envelope:
 
 ```json
 {
