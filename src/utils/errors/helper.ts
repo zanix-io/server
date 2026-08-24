@@ -65,7 +65,10 @@ export const defaultErrorLogThrottleStore: ErrorLogThrottleStore = {
   },
 }
 
-let errorLogThrottleStore: ErrorLogThrottleStore = defaultErrorLogThrottleStore
+// Exported (not just re-read through a getter) so `uncaught-error-monitor.ts` shares the exact
+// same live binding — including whatever backend `setErrorLogThrottleStore` installs — instead of
+// duplicating its own separate counter/store abstraction for a conceptually identical need.
+export let errorLogThrottleStore: ErrorLogThrottleStore = defaultErrorLogThrottleStore
 
 /**
  * Overrides the store used to track error occurrences, e.g. to share the

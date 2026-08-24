@@ -209,15 +209,21 @@ export const getMainHandler = (
 
     const { route, match } = processedRoute
 
-    // Case-preserved mirror of `fullPath`, computed lazily only when this route actually declares
-    // a catch-all — every other route never pays for it. `cleanRoute` applies the IDENTICAL
-    // structural transform either way (trim, `\`→`/`, collapse `//`, drop trailing slash) and
-    // differs only in the final `.toLowerCase()`, so character OFFSETS in `path` (lowercased, what
-    // `match`/`match.indices` were computed against) line up exactly with the same offsets in this
-    // case-preserved string — no re-matching needed, just a direct slice by those same indices (see
-    // `payloadAccessorDefinition`'s own doc).
-    const rawFullPath = route.catchAllParam
-      ? `${cleanRoute(url.pathname, true)}/${req.method}`
+    // A THUNK, not a pre-computed string — building it here is just capturing `url`/`req.method`
+    // in a closure, essentially free. The actual `cleanRoute()` call only happens if/when
+    // `payloadAccessorDefinition`'s own getter invokes this thunk, which itself only happens on
+    // the FIRST real read of `ctx.payload.params` (and never again — cached from then on). Given
+    // for any route that declares at least one `:param` (ordinary or catch-all) — a route with
+    // none (`absoluteRoute`, handled above via its own early `return`) never reaches this line at
+    // all. `cleanRoute` applies the IDENTICAL structural transform either way (trim, `\`→`/`,
+    // collapse `//`, drop trailing slash) and differs only in the final `.toLowerCase()`, so
+    // character OFFSETS in `path` (lowercased, what `match`/`match.indices` were computed against)
+    // line up exactly with the same offsets in this case-preserved string — no re-matching needed,
+    // just a direct slice by those same indices, for EVERY param, not just a catch-all (see
+    // `payloadAccessorDefinition`'s own doc). A handler that never reads `params` at all — however
+    // many the route declares — never pays for this string work either.
+    const getRawFullPath = route.params.length
+      ? () => `${cleanRoute(url.pathname, true)}/${req.method}`
       : undefined
 
     // Define a lazy-loaded getter to improve efficiency by computing values only when accessed
@@ -227,8 +233,7 @@ export const getMainHandler = (
       payloadAccessorDefinition(
         match,
         route.params,
-        route.catchAllParam,
-        rawFullPath,
+        getRawFullPath,
       ),
     )
 

@@ -20,6 +20,8 @@ import { buildLivenessHandler, buildReadinessHandler } from './health.ts'
 import { getPrefix } from 'utils/routes.ts'
 import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
+import { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
+import { closeAllConnections } from 'utils/targets.ts'
 
 /**
  * Env var naming the SSL private key file's path — one half of the `SSL_KEY_PATH`/`SSL_CERT_PATH`
@@ -128,6 +130,12 @@ export class WebServerManager {
     number,
     Map<string, Record<string, HealthCheckFn>>
   > = new Map()
+  // Guards `attachGlobalErrorHandlers` to run at most once per instance. `#start` installs it
+  // lazily, the first time a server actually binds a real listener — see its own call site below.
+  // A consumer that only imports `@zanix/server` for a type, a decorator, or a connector, or that
+  // only calls `create()` to register a dispatch entry without ever starting it, gets no global
+  // `onerror`/`unhandledrejection` handlers installed on its behalf.
+  #globalErrorHandlersAttached = false
 
   /**
    * Initializes the WebServerManager instance and loads ports and SSL options from environment
@@ -192,6 +200,21 @@ export class WebServerManager {
   #start(id: ServerID) {
     const server = this.#servers[id]
     if (!server || server.addr) return
+
+    // The first real listener bind is where global error handlers install — see
+    // `#globalErrorHandlersAttached`'s own doc for the consumer this protects. The uncaught-error
+    // monitor's own drain callback is wired in right here too, injected the same way `self` is
+    // (never imported) — see `AttachGlobalErrorHandlersOptions`'s own doc for why.
+    if (!this.#globalErrorHandlersAttached) {
+      this.#globalErrorHandlersAttached = true
+      attachGlobalErrorHandlers(self, {
+        onUncaughtErrorThresholdExceeded: async () => {
+          await this.stopAll()
+          await closeAllConnections()
+        },
+      })
+    }
+
     server._start()
   }
 
@@ -576,6 +599,18 @@ export class WebServerManager {
     if (typeof id === 'string') return this.#servers[id]?.stop()
 
     await Promise.all(id.map((key) => this.#servers[key]?.stop()))
+  }
+
+  /**
+   * Stops every server currently registered on this instance — every real `Deno.serve()` listener
+   * this instance bound (or reused, per `create()`'s own port-sharing remarks), regardless of
+   * `type`/Application/anchoring. The one entry point that doesn't require a caller to track its
+   * own `ServerID[]` across every `create()` call — `#servers`' own keys are already that list.
+   *
+   * @returns {Promise<void>} A promise that resolves once every registered server has stopped.
+   */
+  public async stopAll(): Promise<void> {
+    await this.stop(Object.keys(this.#servers) as ServerID[])
   }
 
   /**

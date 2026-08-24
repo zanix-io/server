@@ -68,9 +68,10 @@ export type ProcessedRouteDefinition =
      * The name of `params`' own trailing catch-all entry (`:name*`), if this route declares one —
      * always `params`'s own last entry when present (registration-time validation guarantees a
      * catch-all can only ever be the last segment). `undefined` for an ordinary route (no catch-all
-     * at all). Used by `payloadAccessorDefinition` to know which single param, if any, must read
-     * its value from the request's ORIGINAL, case-preserved pathname instead of the (always
-     * lowercase-matched) capture — every other param is unaffected either way.
+     * at all). Used by `routeProcessor`/`getMainHandler` to file this route into the catch-all
+     * bucket, tried only after every ordinary `:param` route. `payloadAccessorDefinition` treats
+     * every entry in `params` identically regardless of this field — catch-all or not, each reads
+     * its value from the request's original, case-preserved pathname the same way.
      */
     catchAllParam?: string
     /**

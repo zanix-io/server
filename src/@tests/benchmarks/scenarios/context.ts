@@ -16,6 +16,7 @@ import { asyncContext } from 'modules/infra/base/storage.ts'
 import { searchParamsPropertyDescriptor } from '@zanix/helpers'
 
 import {
+  CATCHALL_PARAMS_MATCH_FIXTURE,
   COOKIE_HEADER,
   makeContext,
   makeRequest,
@@ -43,7 +44,19 @@ export function createContextScenarios(): Scenario[] {
   const getRequest = makeRequest(REQUEST_PATH)
 
   const searchUrl = new URL(REQUEST_URL)
-  const { match, params } = PARAMS_MATCH_FIXTURE
+  const { match, params, rawPath } = PARAMS_MATCH_FIXTURE
+
+  // Built and primed ONCE, outside the measured region — the cached-read scenario below must
+  // measure only the cache-hit property lookup, never the object construction, `defineProperty`
+  // call, or first-read case-preservation work `context:params:accessor` already measures on its
+  // own. Reusing one already-primed payload across every iteration is what actually isolates that.
+  const cachedParamsPayload = {} as Record<string, unknown>
+  Object.defineProperty(
+    cachedParamsPayload,
+    'params',
+    payloadAccessorDefinition(match, params, () => rawPath),
+  )
+  ;(cachedParamsPayload.params as Record<string, string>).memberId // Primes the cache once.
 
   const scenarios: Scenario[] = [
     {
@@ -92,13 +105,55 @@ export function createContextScenarios(): Scenario[] {
       },
     },
     {
+      // The realistic shape: `getMainHandler` builds this accessor's `getRawPath` thunk for any
+      // route with at least one param, ordinary or catch-all. First-read cost here includes the
+      // ONE case-preserved-path lookup this scenario's own `rawPath` stands in for (pre-built
+      // here — the thunk itself is a trivial closure returning it; the router's real thunk instead
+      // calls `cleanRoute(url.pathname, true)` per request, whose own cost is attributed
+      // separately by the `context:control:url-parse`-adjacent scenarios in this suite, not
+      // duplicated here).
       key: 'context:params:accessor',
-      name: 'payloadAccessorDefinition() — 3 route params, first read',
+      name: 'payloadAccessorDefinition() — 3 route params, case-preserved, first read',
       group: 'context-setup',
       run: () => {
         const payload = {} as Record<string, unknown>
-        Object.defineProperty(payload, 'params', payloadAccessorDefinition(match, params))
+        Object.defineProperty(
+          payload,
+          'params',
+          payloadAccessorDefinition(match, params, () => rawPath),
+        )
         return (payload.params as Record<string, string>).memberId
+      },
+    },
+    {
+      // The cached (second+) read — costs only a plain property lookup (`_computedParams` already
+      // populated on `cachedParamsPayload`, primed once above, outside this measured region),
+      // proving the "compute once" contract actually holds once real case-preservation work (the
+      // scenario above) is involved, not just when it's a no-op.
+      key: 'context:params:accessor:cached',
+      name: 'payloadAccessorDefinition() — 3 route params, case-preserved, cached (second) read',
+      group: 'context-setup',
+      run: () => (cachedParamsPayload.params as Record<string, string>).memberId,
+    },
+    {
+      // The catch-all (`:name*`) shape of the same mechanism, measured directly — a trailing
+      // catch-all and an ordinary `:param` share the exact same case-preservation code path in
+      // `payloadAccessorDefinition`, so this scenario's cost should track the one above closely.
+      key: 'context:params:accessor:catchall',
+      name: 'payloadAccessorDefinition() — catch-all param, case-preserved, first read',
+      group: 'context-setup',
+      run: () => {
+        const payload = {} as Record<string, unknown>
+        Object.defineProperty(
+          payload,
+          'params',
+          payloadAccessorDefinition(
+            CATCHALL_PARAMS_MATCH_FIXTURE.match,
+            CATCHALL_PARAMS_MATCH_FIXTURE.params,
+            () => CATCHALL_PARAMS_MATCH_FIXTURE.rawPath,
+          ),
+        )
+        return (payload.params as Record<string, string>).path
       },
     },
     {

@@ -7,6 +7,60 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-08-23
+
+### Added
+
+- **`UncaughtErrorMonitor`** (`uncaughtErrorRateCheck`, `resetUncaughtErrorHealth`) — tracks
+  `attachGlobalErrorHandlers`'s two uncaught-error codes (`UNCAUGHT_ERROR`/
+  `UNHANDLED_PROMISE_REJECTION`) against a configurable `threshold`/`windowMs`, the same
+  constructor-as-config-setter idiom `ErrorLogThrottle` already establishes, and reuses that exact
+  same pluggable store (`errorLogThrottleStore`, now exported) under a synthetic key that can never
+  collide with a real HTTP status. `uncaughtErrorRateCheck` is a ready-made `HealthCheckFn` — plug
+  it into `HealthOptions.checks` to make `/ready` report `degraded` once the threshold is crossed;
+  never wired in automatically. `exitOnThreshold` (default `false`) additionally drains
+  (`WebServerManager.stopAll()` + `closeAllConnections()`) and calls `Deno.exit(1)` once crossed, so
+  an external supervisor can restart the process instead of it running indefinitely in a possibly
+  corrupted state.
+- **`WebServerManager.stopAll()`** — stops every server this instance currently has registered,
+  without the caller tracking its own `ServerID[]` across every `create()` call.
+- `attachGlobalErrorHandlers(self, options?)` — new optional second parameter,
+  `AttachGlobalErrorHandlersOptions.onUncaughtErrorThresholdExceeded`, the drain hook
+  `UncaughtErrorMonitor`'s `exitOnThreshold` uses internally.
+
+### Fixed
+
+- **`attachGlobalErrorHandlers` (the global `onerror`/`unhandledrejection` handlers behind
+  `ErrorLogThrottle`'s logging) installed as a side effect of merely importing `@zanix/server` —
+  even for a consumer that only imported a type, a decorator, or a connector, and never started a
+  server.** Every value import from the root `mod.ts` transitively evaluated `webserver/mod.ts`,
+  which ran `attachGlobalErrorHandlers(self)` unconditionally at module-eval time. Moved to
+  `WebServerManager`'s own `#start()`, guarded to install at most once, the first time a server
+  actually binds a real listener — `create()` alone (registering a dispatch entry without starting
+  it) doesn't trigger it either. A bare import, or a `create()`-only caller, now gets no global
+  handlers installed on its behalf.
+
+- **An ordinary (non-catch-all) `:param`'s own VALUE — the actual URL segment a caller sent — was
+  silently lowercased before reaching `ctx.payload.params`, even though the param's own NAME/KEY was
+  already correctly case-preserved (the `3.2.0` fix, "A route param's own NAME was silently
+  lowercased", above/earlier in this file). This is the other half of that same underlying gap (name
+  vs. value): a `GET /triggers/:serviceId/:model` route hit with `/triggers/Billing/Invoice`
+  returned `params.model === 'invoice'`, not `'Invoice'`, silently corrupting any lookup keyed on
+  the real value (e.g. a case-sensitive model/resource name). Root cause: `getMainHandler`
+  (`webserver/helpers/handler.ts`) only ever computed a case-preserved mirror of the request path
+  when the matched route declared a catch-all (`:name*`) — every ordinary `:param` read its value
+  straight from the always-lowercased regex match instead. Fixed by extending that same existing
+  mechanism (the catch-all's own `match.indices`-based offset-slicing into a case-preserved raw
+  path, already used for the catch-all's value) to run for ANY route with at least one param,
+  ordinary or catch-all — `payloadAccessorDefinition` (`utils/context.ts`) treats every param
+  identically regardless of `catchAllParam`, slicing each one's value out of the same case-preserved
+  raw path uniformly. Route MATCHING stays entirely case-insensitive: `/Triggers/Billing/Invoice`
+  still matches a route registered as `/triggers/:serviceId/:model` — only the EXTRACTED VALUES are
+  case-preserved, not which route matches. `getMainHandler` passes this raw path as a
+  lazily-evaluated thunk, invoked at most once, only on the first actual read of
+  `ctx.payload.params` — a route with zero params never reaches this at all, and a route with params
+  whose handler never reads them pays nothing extra either.
+
 ## [3.3.0] - 2026-08-22
 
 ### Added

@@ -320,9 +320,29 @@ export async function readFirstChunk(response: Response): Promise<Uint8Array | u
 }
 
 /** A pre-built regex match + param-name list for the `payloadAccessorDefinition` scenario —
- * produced by the SAME `pathToRegex` the router uses, against a three-param route. */
-export const PARAMS_MATCH_FIXTURE: { match: RegExpExecArray; params: string[] } = (() => {
-  const regex = pathToRegex('/orgs/:orgId/teams/:teamId/members/:memberId/GET')
-  const match = regex.exec('/orgs/acme/teams/core/members/42/GET') as RegExpExecArray
-  return { match, params: ['orgId', 'teamId', 'memberId'] }
+ * produced by the SAME `pathToRegex` the router uses, against a three-param route.
+ *
+ * `rawPath` is the case-preserved mirror of the SAME request path `match` was produced against —
+ * `getMainHandler` builds a thunk over an equivalent path for any route with at least one param,
+ * ordinary or catch-all, so this fixture exercises that same case-preserving branch. */
+export const PARAMS_MATCH_FIXTURE: { match: RegExpExecArray; params: string[]; rawPath: string } =
+  (() => {
+    const regex = pathToRegex('/orgs/:orgId/teams/:teamId/members/:memberId/GET')
+    const match = regex.exec('/orgs/acme/teams/core/members/42/GET') as RegExpExecArray
+    const rawPath = '/orgs/Acme/teams/Core/members/42/GET'
+    return { match, params: ['orgId', 'teamId', 'memberId'], rawPath }
+  })()
+
+/** The same shape as {@linkcode PARAMS_MATCH_FIXTURE}, for a trailing catch-all (`:name*`) route —
+ * `payloadAccessorDefinition` applies the identical case-preservation mechanism to both shapes, so
+ * this fixture lets the benchmark suite exercise that mechanism against a catch-all directly. */
+export const CATCHALL_PARAMS_MATCH_FIXTURE: {
+  match: RegExpExecArray
+  params: string[]
+  rawPath: string
+} = (() => {
+  const regex = pathToRegex('/assets/:path*/GET')
+  const match = regex.exec('/assets/icons/products/logo.svg/GET') as RegExpExecArray
+  const rawPath = '/assets/Icons/Products/Logo.svg/GET'
+  return { match, params: ['path'], rawPath }
 })()

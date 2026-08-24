@@ -150,11 +150,18 @@ export {
 // Utils
 export { TargetError } from 'utils/errors/target.ts'
 export { gzipResponse, gzipResponseFromResponse, gzipStreamingResponse } from 'utils/gzip.ts'
-export { ErrorLogThrottle, httpErrorResponse } from 'utils/errors/helper.ts'
+export { ErrorLogThrottle, errorLogThrottleStore, httpErrorResponse } from 'utils/errors/helper.ts'
 export { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
+export type { AttachGlobalErrorHandlersOptions } from 'utils/errors/process.ts'
 export { getPublicErrorResponse, getSerializedErrorResponse } from 'utils/errors/helper.ts'
 export type { ErrorLogThrottleConfig, ErrorLogThrottleStore } from 'utils/errors/helper.ts'
 export { attachRequestToError, getRequestFromError } from 'utils/errors/request-context.ts'
+export {
+  resetUncaughtErrorHealth,
+  UncaughtErrorMonitor,
+  uncaughtErrorRateCheck,
+} from 'utils/errors/uncaught-error-monitor.ts'
+export type { UncaughtErrorMonitorConfig } from 'utils/errors/uncaught-error-monitor.ts'
 export {
   cleanupInitializationsMetadata,
   closeAllConnections,

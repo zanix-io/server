@@ -253,13 +253,70 @@ Deno.test(
 )
 
 Deno.test(
-  'getMainHandler: an ordinary :param (no catch-all involved) is still lowercased exactly as ' +
-    'before — the case-preservation fix is scoped to the catch-all capture only',
+  "getMainHandler: an ordinary :param (no catch-all involved) preserves the request's own " +
+    'casing for its VALUE, while matching itself stays case-insensitive — /files/README → ' +
+    "params.name === 'README', not 'readme'",
   async () => {
     const captured: { params?: unknown } = {}
     Program.routes.defineRoute('rest', {
-      path: '/files/:name',
+      path: '/FILES/:name',
       handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    // Neither the route's own declared casing nor the request's matches the other — matching
+    // itself is still case-insensitive (unchanged), only the CAPTURED VALUE preserves the
+    // request's own casing.
+    const response = await handler(
+      new Request('http://localhost/files/README'),
+    )
+
+    assertEquals(await response.text(), 'ok')
+    assertEquals(captured.params, { name: 'README' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: EVERY ordinary :param in a multi-param route independently preserves its own ' +
+    'real casing, alongside its own case-preserved NAME',
+  async () => {
+    const captured: { params?: unknown } = {}
+    Program.routes.defineRoute('rest', {
+      path: '/triggers/:serviceId/:model',
+      handler: paramsCapturingHandler(captured, 'ok') as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    // Matches case-insensitively (the route was declared lowercase) — only the two extracted
+    // VALUES, each with its own distinct real casing, must come back untouched.
+    const response = await handler(
+      new Request('http://localhost/Triggers/Billing/Invoice'),
+    )
+
+    assertEquals(await response.text(), 'ok')
+    assertEquals(captured.params, { serviceId: 'Billing', model: 'Invoice' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  "getMainHandler: a :param route whose handler never reads ctx.payload.params doesn't crash — " +
+    'the case-preserved raw-path computation is a lazy thunk, tolerated even if never invoked',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/files/:name',
+      handler: (() => 'ok') as never, // Never touches `ctx.payload.params`.
     })
 
     const handler = getMainHandler(
@@ -272,7 +329,36 @@ Deno.test(
     )
 
     assertEquals(await response.text(), 'ok')
-    assertEquals(captured.params, { name: 'readme' })
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a route with zero params (an absolute/static route) never even reaches the ' +
+    'case-preserved raw-path thunk construction — no params getter is defined at all for it',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/no-params-here',
+      handler: ((ctx: { payload: Record<string, unknown> }) => {
+        // `params` is never defined via `payloadAccessorDefinition` for an absolute route —
+        // `getMainHandler` returns via the `absoluteRoute` early branch, before the case-preserved
+        // raw-path thunk (or the params getter that would read it) is ever built.
+        assertEquals(Object.prototype.hasOwnProperty.call(ctx.payload, 'params'), false)
+        return 'ok'
+      }) as never,
+    })
+
+    const handler = getMainHandler(
+      'rest',
+      undefined,
+      '',
+    ) as unknown as TestHandler
+    const response = await handler(
+      new Request('http://localhost/no-params-here'),
+    )
+
+    assertEquals(await response.text(), 'ok')
 
     Program.routes.resetContainer()
   },

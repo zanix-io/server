@@ -145,6 +145,89 @@ new ErrorLogThrottle({ excludeStatuses: [401, 403] })
 
 ---
 
+## Uncaught Error Monitoring
+
+Where [Error Log Throttling](#error-log-throttling) suppresses log noise from repeated _HTTP_
+errors, `UncaughtErrorMonitor` tracks a different, always-more-serious signal: real uncaught errors
+and unhandled promise rejections captured by `attachGlobalErrorHandlers` (see the
+[Utilities](#utilities) table below) — the two `UNCAUGHT_ERROR`/`UNHANDLED_PROMISE_REJECTION` codes.
+It reuses the exact same pluggable store `ErrorLogThrottle` installs (the default in-memory one, or
+whatever backend you passed via `ErrorLogThrottle`'s own `store` option /
+`setErrorLogThrottleStore`) under a synthetic key that can never collide with a real HTTP status —
+there's no separate storage to wire up for this.
+
+Occurrences are counted automatically the moment `attachGlobalErrorHandlers` installs (which itself
+happens automatically the first time a server actually binds its listener — see the
+`attachGlobalErrorHandlers` row below). There's nothing to opt into for the counting itself; what IS
+opt-in is what happens once the count crosses the threshold within the rolling window:
+
+- By default (`threshold: 10`, `windowMs: 5` minutes, `exitOnThreshold: false`), crossing the
+  threshold only affects readiness — and only if you've explicitly wired `uncaughtErrorRateCheck`
+  into your own `HealthOptions.checks` (see below). The process itself keeps running either way.
+- With `exitOnThreshold: true`, crossing the threshold ALSO makes the framework's own
+  automatically-installed handler drain — `WebServerManager.stopAll()` (every server this package's
+  own `webServerManager` singleton registered, regardless of `type`/Application/ anchoring) followed
+  by closing every registered connection — and then call `Deno.exit(1)`, so an external supervisor
+  (systemd/PM2/a container orchestrator's restart policy) restarts the process instead of leaving it
+  running indefinitely in a possibly-corrupted state. This drain step is internal to that automatic
+  installation; it isn't currently configurable by a consumer.
+
+Once `windowMs` passes with no further crossing, the readiness signal self-heals back to healthy on
+its own next read — no manual action needed.
+
+### Setting the threshold and window
+
+Instantiate `UncaughtErrorMonitor` once during application startup, e.g. right before
+`bootstrapServers` — the same "constructor-as-config-setter" idiom `ErrorLogThrottle` itself uses.
+Only the options you pass are changed; anything omitted keeps its current value (the built-in
+defaults, if this is the first call):
+
+```ts
+import { bootstrapServers, UncaughtErrorMonitor } from 'jsr:@zanix/server@[version]'
+
+// Only degrade readiness after 25 uncaught errors/unhandled rejections within 15 minutes,
+// instead of the built-in default of 10 within 5 minutes.
+new UncaughtErrorMonitor({ threshold: 25, windowMs: 15 * 60_000 })
+
+await bootstrapServers({ rest: { globalPrefix: '/api' } })
+```
+
+### Reflecting it in readiness only (`uncaughtErrorRateCheck`)
+
+Plug the ready-made `uncaughtErrorRateCheck` check into `HealthOptions.checks` — `health` is a
+sibling of `rest`/`graphql`/`socket`/`ssr` in `bootstrapServers()`'s options, not nested under any
+one of them:
+
+```ts
+import { bootstrapServers, uncaughtErrorRateCheck } from 'jsr:@zanix/server@[version]'
+
+await bootstrapServers({
+  health: {
+    checks: { uncaughtErrors: uncaughtErrorRateCheck },
+  },
+})
+```
+
+`/ready` now reports this check as failing once the monitor's own threshold is crossed within its
+window, same as any other custom `HealthOptions.checks` entry — only readiness is affected, never
+liveness (`/health`). Never wired in automatically: the framework never assumes uncaught-error state
+should affect your own readiness contract, so this only takes effect once you add it yourself.
+
+### Exiting once the threshold is crossed
+
+```ts
+import { bootstrapServers, UncaughtErrorMonitor } from 'jsr:@zanix/server@[version]'
+
+new UncaughtErrorMonitor({ exitOnThreshold: true })
+
+await bootstrapServers({ rest: { globalPrefix: '/api' } })
+```
+
+In practice this fires once: the process exits as soon as the threshold is first crossed, before
+another uncaught error could cross it again.
+
+---
+
 ## Accessing the original request in `onError`
 
 `onError` (passed per server type, e.g. `bootstrapServers({ rest: { onError } })`) only ever
@@ -242,18 +325,22 @@ caller by default: `id`, `contextId`, `name`, `message`, `code`, `status`, and `
 included regardless of any flag. Call `getPublicErrorResponse` directly when you need that same
 narrowed shape without building a full `Response`/JSON string around it.
 
-| Export                                          | Purpose                                                                                                                                                                                                                                                                        |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `httpErrorResponse(error, options?)`            | Builds a JSON `Response` for an error, using its `status.value` (defaults to `500`) and merging in any extra `options.headers`.                                                                                                                                                |
-| `getSerializedErrorResponse(error, contextId?)` | Serializes an error into the JSON string used by `httpErrorResponse`, without building a `Response`.                                                                                                                                                                           |
-| `getPublicErrorResponse(error, contextId?)`     | The narrowed, client-safe object both of the above serialize — see above for exactly which fields it includes and how `meta`/`cause` opt in.                                                                                                                                   |
-| `getRequestFromError(error)`                    | Reads back the `Request` attached via `attachRequestToErrors` (see [Accessing the original request in `onError`](#accessing-the-original-request-in-onerror)) — `undefined` if the server type never opted in, or the error never went through it.                             |
-| `attachRequestToError(error, request)`          | The lower-level function `attachRequestToErrors: true` uses internally. Only call this yourself when building a fully custom `handler` (bypassing the default route-matching one) and you want the same `onError`-visible-request contract for your own thrown errors.         |
-| `attachGlobalErrorHandlers(self)`               | Registers global handlers for uncaught errors and unhandled promise rejections on the given `Window`-like object, forwarding them into the logging system described above. Called automatically on startup — you generally don't need to call it yourself.                     |
-| `new ErrorLogThrottle(options?)`                | Configures the [error log throttling](#error-log-throttling) threshold, window, and/or storage backend described above. See that section for examples.                                                                                                                         |
-| `ErrorLogThrottleStore` (type)                  | The `{ increment(status, windowMs), reset(status) }` contract a custom `store` passed to `ErrorLogThrottle` must implement.                                                                                                                                                    |
-| `ErrorLogThrottleConfig` (type)                 | The `{ threshold?, windowMs?, maxStatus?, excludeStatuses? }` shape accepted by `ErrorLogThrottle`.                                                                                                                                                                            |
-| `TargetError`                                   | Internal factory used by connectors/providers/interactors to build a lifecycle-aware error (`InternalError` outside `'lazy'` start mode, `HttpError` otherwise). Mentioned here for completeness; application code should prefer the standard error types from `@zanix/utils`. |
+| Export                                          | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `httpErrorResponse(error, options?)`            | Builds a JSON `Response` for an error, using its `status.value` (defaults to `500`) and merging in any extra `options.headers`.                                                                                                                                                                                                                                                                                                                                                                                |
+| `getSerializedErrorResponse(error, contextId?)` | Serializes an error into the JSON string used by `httpErrorResponse`, without building a `Response`.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `getPublicErrorResponse(error, contextId?)`     | The narrowed, client-safe object both of the above serialize — see above for exactly which fields it includes and how `meta`/`cause` opt in.                                                                                                                                                                                                                                                                                                                                                                   |
+| `getRequestFromError(error)`                    | Reads back the `Request` attached via `attachRequestToErrors` (see [Accessing the original request in `onError`](#accessing-the-original-request-in-onerror)) — `undefined` if the server type never opted in, or the error never went through it.                                                                                                                                                                                                                                                             |
+| `attachRequestToError(error, request)`          | The lower-level function `attachRequestToErrors: true` uses internally. Only call this yourself when building a fully custom `handler` (bypassing the default route-matching one) and you want the same `onError`-visible-request contract for your own thrown errors.                                                                                                                                                                                                                                         |
+| `attachGlobalErrorHandlers(self)`               | Registers global handlers for uncaught errors and unhandled promise rejections on the given `Window`-like object, forwarding them into the logging system described above. Called automatically the first time a server actually binds its listener (via `bootstrapServers()` or a direct `webServerManager.start()` call), so you generally don't need to call it yourself. Merely importing `@zanix/server`, or registering a server via `WebServerManager.create()` without starting it, never triggers it. |
+| `new ErrorLogThrottle(options?)`                | Configures the [error log throttling](#error-log-throttling) threshold, window, and/or storage backend described above. See that section for examples.                                                                                                                                                                                                                                                                                                                                                         |
+| `ErrorLogThrottleStore` (type)                  | The `{ increment(status, windowMs), reset(status) }` contract a custom `store` passed to `ErrorLogThrottle` must implement.                                                                                                                                                                                                                                                                                                                                                                                    |
+| `ErrorLogThrottleConfig` (type)                 | The `{ threshold?, windowMs?, maxStatus?, excludeStatuses? }` shape accepted by `ErrorLogThrottle`.                                                                                                                                                                                                                                                                                                                                                                                                            |
+| `new UncaughtErrorMonitor(options?)`            | Configures the [uncaught-error monitoring](#uncaught-error-monitoring) threshold, window, and/or `exitOnThreshold` described above. See that section for examples.                                                                                                                                                                                                                                                                                                                                             |
+| `uncaughtErrorRateCheck`                        | Ready-made `HealthCheckFn` reflecting the uncaught-error monitor's own state — plug it into `HealthOptions.checks` to make `/ready` report it as failing once the configured threshold is crossed. See [Reflecting it in readiness only](#reflecting-it-in-readiness-only-uncaughterrorratecheck).                                                                                                                                                                                                             |
+| `UncaughtErrorMonitorConfig` (type)             | The `{ threshold?, windowMs?, exitOnThreshold? }` shape accepted by `UncaughtErrorMonitor`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `WebServerManager.stopAll()`                    | Stops every server registered on a `WebServerManager` instance (e.g. this package's own `webServerManager` singleton) — what the framework's own automatic handler calls, alongside closing every registered connection, right before `Deno.exit(1)` once `exitOnThreshold` is crossed (see [Uncaught Error Monitoring](#uncaught-error-monitoring)). Also usable directly for a full manual shutdown outside that flow.                                                                                       |
+| `TargetError`                                   | Internal factory used by connectors/providers/interactors to build a lifecycle-aware error (`InternalError` outside `'lazy'` start mode, `HttpError` otherwise). Mentioned here for completeness; application code should prefer the standard error types from `@zanix/utils`.                                                                                                                                                                                                                                 |
 
 ## See also
 

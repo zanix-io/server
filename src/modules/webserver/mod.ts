@@ -7,7 +7,6 @@ import ProgramModule from 'modules/program/mod.ts'
 import { WebServerManager } from './manager.ts'
 import { compileRuntime } from './runtime.ts'
 import { type ResolvedHealthOptions, resolveHealthOptions } from './health.ts'
-import { attachGlobalErrorHandlers } from 'utils/errors/process.ts'
 import { compileDiscoveryContract } from 'modules/discovery/provider.ts'
 import {
   buildDiscoveryHandler,
@@ -21,9 +20,6 @@ import {
  *
  * @module webServer
  */
-
-/** Attach global errors */
-attachGlobalErrorHandlers(self)
 
 /** Disconnect all current connectors */
 self.addEventListener('unload', async () => {

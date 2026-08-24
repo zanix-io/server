@@ -98,3 +98,43 @@ Deno.test(
     )
   },
 )
+
+Deno.test(
+  'WebServerManager.stopAll: stops every registered server without the caller tracking any ServerID itself',
+  async () => {
+    const manager = new WebServerManager()
+
+    const id1 = manager.create('rest', {
+      handler: (() => new Response('ok')) as never,
+      server: { port: 4470 },
+    })
+    const id2 = manager.create('rest', {
+      handler: (() => new Response('ok')) as never,
+      server: { port: 4471 },
+    })
+    manager.start([id1, id2])
+
+    assert(manager.info(id1).addr, 'server 1 actually bound its port')
+    assert(manager.info(id2).addr, 'server 2 actually bound its port')
+
+    await manager.stopAll()
+
+    // Real closure, not just bookkeeping — a fresh manager can bind the exact same ports again,
+    // which only succeeds if `stopAll()` actually released both underlying `Deno.serve()` listeners.
+    const reboundManager = new WebServerManager()
+    const reboundId1 = reboundManager.create('rest', {
+      handler: (() => new Response('ok')) as never,
+      server: { port: 4470 },
+    })
+    const reboundId2 = reboundManager.create('rest', {
+      handler: (() => new Response('ok')) as never,
+      server: { port: 4471 },
+    })
+    reboundManager.start([reboundId1, reboundId2])
+
+    assert(reboundManager.info(reboundId1).addr, 'port 4470 was genuinely released')
+    assert(reboundManager.info(reboundId2).addr, 'port 4471 was genuinely released')
+
+    await reboundManager.stopAll()
+  },
+)

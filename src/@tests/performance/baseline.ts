@@ -89,10 +89,10 @@ export type GateRationale =
 /** The full reasoning behind each {@linkcode GateRationale}, kept in one place rather than
  * repeated on all 59 entries. */
 export const RATIONALES: Record<GateRationale, string> = {
-  stable: 'Spread across ten runs stayed within 15% of the baseline, so a 25% margin sits ' +
-    'comfortably below normal noise while still catching a ~1.35× regression.',
-  moderateSpread: 'Spread across ten runs reached 15–30%, so the margin is widened to 40%. The ' +
-    'floor still catches a ~1.7× regression, which is the size of the regressions this gate ' +
+  stable: 'Spread across ten runs stayed within 15% of the baseline, so a 35% margin sits ' +
+    'comfortably below normal noise while still catching a ~1.55× regression.',
+  moderateSpread: 'Spread across ten runs reached 15–30%, so the margin is widened to 45%. The ' +
+    'floor still catches a ~1.8× regression, which is the size of the regressions this gate ' +
     'exists for.',
   wideSpread: 'Spread across ten runs exceeded 30% — wider than most regressions worth catching. ' +
     'Thresholding it would either fire on noise or sit so low it protects nothing, so it is ' +
@@ -174,7 +174,10 @@ const METRICS: Record<string, string> = {
     'WHATWG URL parsing (the runtime primitive getMainHandler starts from)',
   'context:cookies:guard': 'cookie parsing plus X-Znx- filtering, on every request',
   'context:id': 'per-request context id generation, on every request',
-  'context:params:accessor': 'lazy route-param extraction on first access',
+  'context:params:accessor': 'lazy, case-preserved route-param extraction on first access',
+  'context:params:accessor:cached': 'route-param extraction on a cached (second+) access',
+  'context:params:accessor:catchall':
+    'lazy, case-preserved catch-all param extraction on first access',
   'context:prefix': 'multiplexer path-prefix extraction, on every shared-port request',
   'context:search:lazy': 'lazy query-string accessor on first access',
   'lifecycle:absolute': 'the whole request lifecycle for a static route — the runtime’s floor',
@@ -271,7 +274,9 @@ const RECORDED: Record<
   'context:control:url-parse': [2980000, 2820000, 5.4, 98.3, null, 'runtimePrimitive'],
   'context:cookies:guard': [1410000, 1360000, 3.5, 24.1, 0.45, 'inSuiteMargin'],
   'context:id': [18320000, 18050000, 1.5, 40.0, 0.35, 'stable'],
-  'context:params:accessor': [2750000, 2630000, 4.4, 68.1, null, 'inSuiteUnstable'],
+  'context:params:accessor': [2700000, 2570000, 4.8, 40.1, 0.35, 'stable'],
+  'context:params:accessor:cached': [168500000, 158900000, 5.7, 28.2, 0.35, 'stable'],
+  'context:params:accessor:catchall': [3080000, 2850000, 7.5, 42.1, 0.35, 'stable'],
   'context:prefix': [3010000, 2830000, 6.0, 46.7, 0.35, 'stable'],
   'context:search:lazy': [857300, 823200, 4.0, 25.1, 0.35, 'stable'],
   'lifecycle:absolute': [46600, 43600, 6.4, 68.8, 0.35, 'stable'],

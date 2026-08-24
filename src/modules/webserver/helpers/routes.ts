@@ -84,8 +84,11 @@ export const routeProcessor = (
     // `payloadAccessorDefinition` (`utils/context.ts`) zips `route.params[i]` with the regex
     // match's `i`-th group by ARRAY INDEX — so swapping in a case-preserved name here changes
     // nothing about which request matches which route, only what key its params end up under.
-    // Does NOT fix a `:paramName`'s VALUE (the actual URL segment a caller sent) also being
-    // lowercased — that's a separate, deeper concern this fix deliberately doesn't touch.
+    // Only about the param's own NAME, at route-DEFINITION time — a `:paramName`'s VALUE (the
+    // actual URL segment a caller sends) is a separate, per-REQUEST concern: `getMainHandler`
+    // builds its own case-preserved mirror of the REQUEST path, which
+    // `payloadAccessorDefinition` (`utils/context.ts`) uses to recover every param's value
+    // case-preserved, uniformly across ordinary and catch-all params alike.
     const mountedPathRaw = mountPrefix ? cleanRoute(`${mountPrefix}${path}`, true) : path
     const fullPathRaw = takesGlobalPrefixBranch
       ? cleanRoute(`/${globalPrefix}${mountedPathRaw}`, true)
