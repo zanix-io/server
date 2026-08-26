@@ -5,7 +5,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [4.0.0] - 2026-08-25
+
+### Changed (BREAKING)
+
+- **GraphQL's own `ZanixResolver`/`Resolver`/`Query`/`Mutation`/`Request` (previously `GQLRequest`
+  at the root) moved to a new `@zanix/server/graphql` subpath — no longer exported from the root `.`
+  barrel (`mod.ts`).** The root barrel's single `exports: {"."}` entry bundled GraphQL's handler
+  code together with every other base class/decorator, so any consumer touching the root for any
+  reason (a REST-only app, `@zanix/datamaster`'s base connector classes) forced
+  `nodeModulesDir: "auto"` to npm-install-materialize the real `graphql` (`graphql-js`) package,
+  whether or not that consumer ever builds a GraphQL server. Migration: replace
+  `import { ZanixResolver, Resolver, Query, Mutation, GQLRequest } from '@zanix/server'` with
+  `import { ZanixResolver, Resolver, Query, Mutation, Request } from '@zanix/server/graphql'` (the
+  decorator formerly aliased `GQLRequest` at the root is just `Request` at its own subpath — no
+  rename needed there since nothing else in that subpath collides with the name). See
+  `docs/handlers.md`'s "GraphQL" section and `src/modules/infra/handlers/graphql/mod.ts`'s own doc.
+
+### Added
+
+- **`ZanixCacheProvider`'s `redis`/`memcached` convenience getters can now be typed as a concrete
+  connector class, declared once at the class level, instead of resolving to the loose
+  `ZanixCacheConnectorGeneric<'redis' | 'memcached'>` default** (whose own `getClient` falls back to
+  `CoreCacheTypes<K>['redis' | 'memcached']` — `Promise<unknown>`/`object`, see that type's own
+  doc). One new optional, object-shaped generic parameter, `Connectors` (see the new
+  `ZanixCacheProviderConnectors` type, `typings/targets.ts`) — the same style `CoreModules` already
+  uses elsewhere in this package, one key per shortcut getter instead of one class-level generic
+  parameter per cache backend, so a future backend only needs a new key, not a new generic parameter
+  — defaulting to today's loose type (fully backward compatible — an existing
+  `ZanixCacheProvider<T>` subclass is unaffected):
+  ```ts
+  class MyCacheProvider
+    extends ZanixCacheProvider<MyModules, { redis: ZanixRedisConnector<MyKey, MyValue> }> {
+    async example() {
+      const client = await this.redis.getClient() // RedisClientType, not unknown
+    }
+  }
+  ```
+  Only the keys you actually narrow need declaring — omitting `memcached` above leaves
+  `this.memcached` at the loose default. A `memcached` convenience getter (mirroring `redis`/
+  `local`, previously missing) is added at the same time — `memcached` has the same "real external
+  client, no concrete type by default" shape `redis` does. `local`/`custom` are unaffected:
+  `local`'s client (`CoreCacheTypes<K>['local']`, an in-process `Map`) is already concrete with
+  nothing external involved, and `custom` is intentionally `any` (a user-defined slot) with no
+  convenience getter to begin with. An equivalent, no-code-change alternative already available
+  today for any of these: declare the connector via the `CoreModules` generic on the owning
+  `Interactor`/`Provider` and resolve it with `this.connectors.get('cache:redis')` instead of
+  `this.redis` — see `ZanixConnectorsGetter`'s own doc.
+
+### Fixed
+
+- **`typings/program.ts`'s inline `import type { RedisClientType } from 'npm:redis@^5.9.0'`** — a
+  literal npm specifier embedded directly in source, invisible to a `deno.jsonc` grep, reached from
+  nearly every corner of this package (`typings/targets.ts`, `typings/decorators.ts`,
+  `typings/router.ts`, `modules/program/mod.ts`, and therefore the root barrel). Replaced with a
+  plain `Promise<unknown>` — `CoreCacheTypes<K>['redis']` never needed the real shape (it's only
+  ever `ZanixCacheConnector.getClient`'s default generic parameter, always overridden by a real
+  Redis connector with the real `RedisClientType` imported directly from `redis`). Un-breaks the new
+  `@zanix/server/graphql` subpath above, which would otherwise have transitively re-introduced the
+  same `redis` materialization via `typings/program.ts`.
 
 ## [3.4.0] - 2026-08-23
 

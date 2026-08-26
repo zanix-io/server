@@ -1,7 +1,7 @@
 import type { MessageQueue, QueueMessageOptions, ScheduleOptions } from 'typings/queues.ts'
 import type { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 import type { CoreModules } from 'typings/targets.ts'
-import type { ScopedContext } from '@zanix/server'
+import type { ScopedContext } from 'typings/context.ts'
 
 import ProgramModule from 'modules/program/mod.ts'
 import { ZanixProvider } from '../base.ts'

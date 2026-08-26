@@ -33,12 +33,6 @@ export { Delete } from 'handlers/rest/decorators/delete.ts'
 export { Put } from 'handlers/rest/decorators/put.ts'
 export { Request } from 'handlers/rest/decorators/request.ts'
 
-export { ZanixResolver } from 'handlers/graphql/base.ts'
-export { Resolver } from 'handlers/graphql/decorators/base.ts'
-export { Query } from 'handlers/graphql/decorators/query.ts'
-export { Mutation } from 'handlers/graphql/decorators/mutation.ts'
-export { Request as GQLRequest } from 'handlers/graphql/decorators/request.ts'
-
 export { ZanixWebSocket } from 'handlers/sockets/base.ts'
 export { Socket } from 'handlers/sockets/decorators/base.ts'
 
@@ -262,6 +256,7 @@ export type {
   HandlerPrototype,
   SocketPrototype,
   ZanixCacheConnectorGeneric,
+  ZanixCacheProviderConnectors,
   ZanixConnectorClass,
   ZanixConnectorGeneric,
   ZanixConnectorsGetter,

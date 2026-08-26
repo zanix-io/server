@@ -74,6 +74,21 @@ export type ZanixCacheConnectorGeneric<P extends CoreCacheConnectors> = ZanixCac
   P
 >
 
+/**
+ * The shape `ZanixCacheProvider`'s own `Connectors` generic accepts — one optional key per
+ * convenience getter it exposes (`redis`, `memcached`), each narrowable to a concrete connector
+ * class. A single object-shaped generic parameter, same style `CoreModules` already uses for
+ * `ZanixProvider`/`ZanixConnector`/`ZanixInteractor`, rather than one class-level generic parameter
+ * per cache backend — adding a getter for a new backend only needs a new key here, not a new
+ * generic parameter on `ZanixCacheProvider` itself. `local` has no key here: its client
+ * (`CoreCacheTypes<K>['local']`, an in-process `Map`) is already concrete, with nothing external to
+ * narrow.
+ */
+export type ZanixCacheProviderConnectors = Partial<{
+  redis: ZanixCacheConnectorGeneric<'redis'>
+  memcached: ZanixCacheConnectorGeneric<'memcached'>
+}>
+
 /** Represent the generic Zanix Interactor */
 export type ZanixInteractorGeneric = ZanixInteractor<any>
 

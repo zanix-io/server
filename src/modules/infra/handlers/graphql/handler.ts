@@ -5,6 +5,7 @@ import type { SelectionSetNode, ValidationRule } from 'graphql'
 
 import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import { defineSchema } from './schema.ts'
+import { registerGraphqlHandlerFactory } from './registry.ts'
 import {
   execute,
   GraphQLError,
@@ -176,3 +177,9 @@ export const getGraphqlHandler: (
     return new Response(JSON.stringify(response), currentResponse)
   }
 }
+
+// Registers this module's own `getGraphqlHandler` into `registry.ts`'s slot the moment this file
+// evaluates — see `registerGraphqlHandlerFactory`'s own doc for why `getMainHandler`
+// (`webserver/helpers/handler.ts`) reads it through that indirection instead of importing this
+// file directly.
+registerGraphqlHandlerFactory(getGraphqlHandler)

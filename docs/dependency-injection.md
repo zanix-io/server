@@ -221,6 +221,39 @@ own class is the one reliable way to get full typing for a string key.
 > context id yourself here (unlike the `ProgramModule` accessors below, which are for use _outside_
 > a handler/interactor/provider instance and do require one).
 
+### Typing `ZanixCacheProvider`'s `redis`/`memcached` convenience getters
+
+`ZanixCacheProvider`'s `this.redis`/`this.memcached` shortcut getters resolve to the loose
+`ZanixCacheConnectorGeneric<'redis' | 'memcached'>` type by default — its own `getClient()` falls
+back to an opaque placeholder (`Promise<unknown>`/`object`), since `@zanix/server` doesn't own
+Redis's or Memcached's real client types. Declare your own concrete connector class(es) once, on
+`ZanixCacheProvider`'s second generic parameter — a single object with one optional key per shortcut
+getter you want to narrow (`redis`/`memcached`), the same object-shaped-generic style `CoreModules`
+already uses elsewhere in this package — to get it back from `this.redis`/`this.memcached`
+everywhere in your subclass:
+
+```ts
+import { ZanixCacheProvider } from 'jsr:@zanix/server@[version]'
+import { ZanixRedisConnector } from '@zanix/datamaster'
+
+class MyCacheProvider
+  extends ZanixCacheProvider<MyModules, { redis: ZanixRedisConnector<MyKey, MyValue> }> {
+  async example() {
+    const client = await this.redis.getClient() // typed as the real Redis client, not `unknown`
+  }
+}
+```
+
+Only the keys you actually narrow need declaring — omitting `memcached` above leaves
+`this.memcached` at the loose default, exactly as if the second generic were never supplied at all;
+narrowing one shortcut never requires declaring the other. `local` has no key here — its client (an
+in-process `Map`) is already concrete, with nothing external involved. This object-shaped generic
+and the `CoreModules` approach in the previous section solve the same problem for two different call
+shapes: use the `CoreModules` generic (on the owning `Interactor`/`Provider`) plus
+`this.connectors.get('cache:redis')` when a concrete type is only needed at a few call sites; use
+`ZanixCacheProvider`'s own `Connectors` generic when `this.redis`/`this.memcached` themselves should
+be concretely typed everywhere in one subclass.
+
 ## Registering your own core slot
 
 `registerCoreProviderSlot`/`registerCoreConnectorSlot` let you give your **own** provider/connector

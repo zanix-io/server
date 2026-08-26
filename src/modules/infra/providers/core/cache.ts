@@ -1,4 +1,8 @@
-import type { CoreModules, ZanixCacheConnectorGeneric } from 'typings/targets.ts'
+import type {
+  CoreModules,
+  ZanixCacheConnectorGeneric,
+  ZanixCacheProviderConnectors,
+} from 'typings/targets.ts'
 import type { CacheProviderSetOptions, CacheSetOptions } from 'typings/general.ts'
 import type { CoreCacheConnectors, CoreConnectors } from 'typings/program.ts'
 
@@ -18,10 +22,35 @@ import { InternalError } from '@zanix/errors'
  *
  * Extend this class to create custom cache providers implementations suited to your application's needs.
  *
+ * @template T Core/custom modules this provider can resolve through `use`/`getProviderConnector` —
+ * see {@link ZanixProvider}.
+ * @template Connectors Narrows `this.redis`/`this.memcached` to a concrete connector class —
+ * declare the ones you need, once, on this single object-shaped generic (see
+ * {@link ZanixCacheProviderConnectors}), instead of the loose `ZanixCacheConnectorGeneric<'redis' |
+ * 'memcached'>` default, whose own `getClient` falls back to `CoreCacheTypes<K>['redis' |
+ * 'memcached']` (`Promise<unknown>`/`object` — see that type's own doc for why). Example:
+ * ```ts
+ * class MyCacheProvider extends ZanixCacheProvider<MyModules, { redis: ZanixRedisConnector<MyKey, MyValue> }> {
+ *   async example() {
+ *     const client = await this.redis.getClient() // RedisClientType, not unknown
+ *   }
+ * }
+ * ```
+ * Only the keys you actually narrow need declaring — `memcached` keeps resolving to the loose
+ * default above if omitted, same as if `Connectors` were never supplied at all. `local` has no key
+ * here: its client (`CoreCacheTypes<K>['local']`, an in-process `Map`) is already concrete, with
+ * nothing external to narrow. An equivalent, no-code-change alternative already available today:
+ * declare the connector per-Interactor/Provider via the `CoreModules` generic and resolve it with
+ * `this.connectors.get('cache:redis')` instead of `this.redis` — see `ZanixConnectorsGetter`'s own
+ * doc for that mechanism. `Connectors` exists purely for the `this.redis`/`this.memcached`
+ * convenience-shortcut path.
  * @abstract
  * @extends ZanixProvider
  */
-export abstract class ZanixCacheProvider<T extends CoreModules = object> extends ZanixProvider<T> {
+export abstract class ZanixCacheProvider<
+  T extends CoreModules = object,
+  Connectors extends ZanixCacheProviderConnectors = ZanixCacheProviderConnectors,
+> extends ZanixProvider<T> {
   /**
    * **Note**: Use `this` to access the instance instead.
    */
@@ -58,13 +87,17 @@ export abstract class ZanixCacheProvider<T extends CoreModules = object> extends
   /**
    * Retrieves the Redis cache connector for the current context.
    *
-   * @returns {ZanixCacheConnectorGeneric} - The Redis cache connector instance.
+   * @returns The Redis cache connector instance, typed as `Connectors['redis']` (see this class's
+   * own doc) when a subclass declares one there, or the loose `ZanixCacheConnectorGeneric<'redis'>`
+   * otherwise.
    *
    * @remarks
    * This getter provides a direct access to the Redis cache connector.
    */
-  public get redis(): ZanixCacheConnectorGeneric<'redis'> {
-    return this.use('redis')
+  public get redis(): Connectors['redis'] extends ZanixCacheConnectorGeneric<'redis'>
+    ? NonNullable<Connectors['redis']>
+    : ZanixCacheConnectorGeneric<'redis'> {
+    return this.use('redis') as never
   }
 
   /**
@@ -73,10 +106,29 @@ export abstract class ZanixCacheProvider<T extends CoreModules = object> extends
    * @returns {ZanixCacheConnectorGeneric} - The local cache connector instance.
    *
    * @remarks
-   * This getter provides a direct access to the local cache connector.
+   * This getter provides a direct access to the local cache connector. Unlike `redis`/`memcached`,
+   * `local` has no per-subclass generic: its client (`CoreCacheTypes<K>['local']`, an in-process
+   * `Map`) is already concrete with no external package involved, so there's no loose type to
+   * narrow.
    */
   public get local(): ZanixCacheConnectorGeneric<'local'> {
     return this.use('local')
+  }
+
+  /**
+   * Retrieves the Memcached cache connector for the current context.
+   *
+   * @returns The Memcached cache connector instance, typed as `Connectors['memcached']` (see this
+   * class's own doc) when a subclass declares one there, or the loose
+   * `ZanixCacheConnectorGeneric<'memcached'>` otherwise.
+   *
+   * @remarks
+   * This getter provides a direct access to the Memcached cache connector.
+   */
+  public get memcached(): Connectors['memcached'] extends ZanixCacheConnectorGeneric<'memcached'>
+    ? NonNullable<Connectors['memcached']>
+    : ZanixCacheConnectorGeneric<'memcached'> {
+    return this.use('memcached') as never
   }
 
   /**

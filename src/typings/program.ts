@@ -1,4 +1,3 @@
-import type { RedisClientType } from 'npm:redis@^5.9.0'
 import type { ClassConstructor } from './targets.ts'
 
 /**
@@ -63,8 +62,38 @@ export type CoreCacheConnectors =
 
 /** Maps each `CoreCacheConnectors` value to the concrete client type it resolves to. */
 export type CoreCacheTypes<K> = {
-  /** The connected Redis client, resolved once the connector finishes initializing. */
-  redis: Promise<RedisClientType>
+  /**
+   * The connected Redis client, resolved once the connector finishes initializing —
+   * intentionally `unknown`, not `redis`'s own `RedisClientType`. `@zanix/server` doesn't own (and
+   * must never re-declare a stand-in for) another package's contract, and importing the real type
+   * directly from `redis` here isn't safe either: `nodeModulesDir: "auto"` npm-install-materializes
+   * any `npm:`-specifier reachable from a file's own module graph the instant that file is loaded
+   * to resolve so much as a TYPE — `import type` included, regardless of whether the resolved
+   * symbol itself is ever actually used — and `typings/program.ts` is reached from nearly every
+   * corner of this package
+   * (`typings/targets.ts`, `typings/decorators.ts`, `typings/router.ts`, `modules/program/mod.ts`,
+   * ...), so a real `redis` import here would drag `redis` into every consumer of `@zanix/server`,
+   * whether or not it ever touches caching at all. This is only ever
+   * `ZanixCacheConnector.getClient`'s DEFAULT generic parameter, and ONLY on the untyped `getClient<T
+   * = CoreCacheTypes<K>[P]>()` call itself — it does NOT collapse the real type everywhere `redis`
+   * is actually configured/extended. A concrete connector's own OVERRIDE of `getClient` supplies
+   * its own default independently (TypeScript resolves a generic parameter's default from the
+   * STATIC type the method is called through, so a call site typed as the concrete subclass always
+   * uses the subclass's own override, never this abstract default). As a concrete example,
+   * `@zanix/datamaster`'s `ZanixRedisConnector.getClient<T = Promise<RedisClientType>>()`
+   * (`modules/cache/providers/redis/connector/mod.ts`) already declares the REAL `RedisClientType`
+   * (imported directly from `redis`, which `@zanix/datamaster` already depends on natively) as ITS
+   * OWN default, entirely unaffected by this `unknown` placeholder. Only a caller working through
+   * the loose, unparameterized ABSTRACT base type (never narrowed to the concrete connector class)
+   * sees this `unknown` default instead — the same "no ambient/global fallback, opt in via an
+   * explicit generic to get real typing" trade-off `typings/targets.ts`'s own `CoreModules` design
+   * already makes deliberately elsewhere in this package, not a new or worse one introduced here.
+   * `typings/targets.ts`'s own `ZanixCacheProviderConnectors` reaches that same concrete-class
+   * narrowing through `ZanixCacheProvider`'s `this.redis`/`this.memcached` getters directly — a more
+   * ergonomic alternative to declaring a per-class `CoreModules` generic just to call
+   * `this.connectors.get('cache:redis')`, without changing anything about this field's own default.
+   */
+  redis: Promise<unknown>
   /** An in-process `Map` used as the local cache store. */
   // deno-lint-ignore no-explicit-any
   local: Map<K, any>

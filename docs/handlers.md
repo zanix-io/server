@@ -149,7 +149,9 @@ Extend `ZanixResolver` and decorate the class with `@Resolver`. Decorate its met
 or `@Mutation`, describing the operation's input/output types for the generated schema.
 
 ```ts
-import { Mutation, Query, Resolver, ZanixResolver } from 'jsr:@zanix/server@[version]'
+// `graphql`'s own npm dependency lives only behind this `/graphql` subpath — a REST/Socket/SSR-only
+// consumer never pulls it in by depending on `@zanix/server`'s root for base classes/decorators.
+import { Mutation, Query, Resolver, ZanixResolver } from 'jsr:@zanix/server@[version]/graphql'
 import type { HandlerContext } from 'jsr:@zanix/server@[version]'
 
 @Resolver('users')
@@ -171,14 +173,22 @@ class UsersResolver extends ZanixResolver {
 [Application](./applications.md#applications) has its fields added to a separate schema/root-value
 bucket, never merged into the default one.
 
-`@Query`/`@Mutation` are shorthands for the generic `@GQLRequest(type)` decorator, useful when the
-operation type needs to be resolved dynamically:
+> ⚠️ Something in your composition must import from `@zanix/server/graphql` before
+> `bootstrapServers`/`webServerManager.create('graphql', ...)` runs — decorating at least one
+> resolver with `@Resolver`/`@Query`/`@Mutation`/`@Request` already does this. Skipping it entirely
+> (a GraphQL server with zero resolvers) throws a clear `InternalError` instead of silently building
+> an empty stub schema — this keeps `graphql`'s own npm dependency out of a REST/Socket/SSR-only
+> consumer's dependency graph even through `@zanix/server`'s SHARED server-dispatch code.
+
+`@Query`/`@Mutation` are shorthands for the generic `@Request(type)` decorator (exported from
+`@zanix/server/graphql`, same as `@Resolver`/`@Query`/`@Mutation`), useful when the operation type
+needs to be resolved dynamically:
 
 ```ts
-import { GQLRequest } from 'jsr:@zanix/server@[version]'
+import { Request } from 'jsr:@zanix/server@[version]/graphql'
 
 class UsersResolver extends ZanixResolver {
-  @GQLRequest('Query') // equivalent to @Query()
+  @Request('Query') // equivalent to @Query()
   public user(payload: { id: string }, ctx: HandlerContext) {
     return { id: payload.id, name: 'John Doe' }
   }

@@ -1,7 +1,7 @@
 import type { HandlerFunction } from 'typings/router.ts'
 import type { ZanixWebSocket } from './base.ts'
 import type { RtoTypes } from '@zanix/types'
-import type { HandlerContext } from '@zanix/server'
+import type { HandlerContext } from 'typings/context.ts'
 
 import { getSerializedErrorResponse, logAppError } from 'utils/errors/helper.ts'
 import { cleanUpPipe, contextSettingPipe } from 'middlewares/defaults/context.pipe.ts'

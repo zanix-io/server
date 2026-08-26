@@ -1,6 +1,12 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertSpyCalls, spy } from '@std/testing/mock'
-import { assert, assertEquals, assertRejects, assertStrictEquals } from '@std/assert'
+import {
+  assert,
+  assertEquals,
+  assertRejects,
+  assertStrictEquals,
+  assertStringIncludes,
+} from '@std/assert'
 import { HttpError } from '@zanix/errors'
 import { resetRestClientEtagCache, RestClient } from 'modules/infra/connectors/core/rest.ts'
 import ProgramModule from 'modules/program/mod.ts'
@@ -472,14 +478,25 @@ Deno.test(
   },
 )
 
-Deno.test('RestClient: invalid url', () => {
+Deno.test('RestClient: invalid url', async () => {
   const client = new MyApiClient({ baseUrl: undefined })
 
-  assertRejects(
+  // Awaited (not a fire-and-forget dangling promise): an un-awaited `assertRejects` reports this
+  // test as passing immediately, and only surfaces a real assertion failure later, as an
+  // "uncaught error" that tears down the whole file instead of a normal, attributable test
+  // failure.
+  //
+  // Checked against the same generic `'Rest Client Http Error'` label every other `HttpError`
+  // this class throws uses (see the sibling `assertRejects` above) — `rest.ts`'s own `#http`
+  // deliberately keeps `.message` a consistent, generic label across every error site, and puts
+  // the real diagnostic detail (`'[RestClient]: invalid url'`) in `.cause`/`.meta` instead, not in
+  // `.message`.
+  const error = await assertRejects(
     () => client.http.get('/test'),
     HttpError,
-    'invalid url',
+    'Rest Client Http Error',
   )
+  assertStringIncludes(String(error.cause), 'invalid url')
 })
 
 Deno.test('HEAD makes a request with correct method and returns response metadata', async () => {

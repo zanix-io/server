@@ -137,6 +137,10 @@ Deno.test({
 
     assert(resolved instanceof TestMemcachedOnlyConnector)
     assert(!(resolved instanceof TestLocalOnlyConnector))
+
+    // The `memcached` convenience getter (same shortcut shape as `redis`/`local`) delegates to the
+    // same `use('memcached')` call, not a separate lookup.
+    assert(provider.memcached instanceof TestMemcachedOnlyConnector)
   },
 })
 

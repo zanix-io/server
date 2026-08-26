@@ -17,7 +17,7 @@ import {
   getPrefix,
 } from 'utils/routes.ts'
 import { contextId, payloadAccessorDefinition } from 'utils/context.ts'
-import { getGraphqlHandler } from 'handlers/graphql/handler.ts'
+import { getGraphqlHandlerFactory } from 'handlers/graphql/registry.ts'
 import { cleanRoute, searchParamsPropertyDescriptor } from '@zanix/helpers'
 import { asyncContext } from 'modules/infra/base/storage.ts'
 import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
@@ -25,7 +25,7 @@ import ProgramModule from 'modules/program/mod.ts'
 import { routeProcessor } from './routes.ts'
 import { httpErrorResponse } from 'utils/errors/helper.ts'
 import { attachRequestToError } from 'utils/errors/request-context.ts'
-import { HttpError } from '@zanix/errors'
+import { HttpError, InternalError } from '@zanix/errors'
 import {
   routerGuard,
   routerInterceptor,
@@ -99,6 +99,10 @@ const mainProcess = (options: {
  * `WebServerManager.create`'s `dispatchKey`, which the multiplexer uses to pick which handler to
  * invoke in the first place.
  * @returns {ServerHandler}
+ * @throws {InternalError} For `type: 'graphql'`, if nothing has imported `@zanix/server/graphql`
+ * (directly or transitively, e.g. by decorating a resolver with `Resolver`/`Query`/`Mutation`/
+ * `Request`) anywhere in composition before this runs — see `handlers/graphql/registry.ts`'s own
+ * doc for the registration mechanism this depends on.
  */
 export const getMainHandler = (
   type: WebServerTypes,
@@ -113,12 +117,31 @@ export const getMainHandler = (
   } = {},
 ): ServerHandler => {
   if (type === 'graphql') {
+    // `getGraphqlHandlerFactory()` reads a plain runtime slot (`registry.ts`) instead of this file
+    // statically importing `handlers/graphql/handler.ts` directly — that file's own module reaches
+    // the real `graphql` (`graphql-js`) npm package, and this function is shared by every server
+    // type (REST/Socket/SSR too), so a static import here would force `graphql` into every
+    // consumer's dependency graph regardless of whether it ever builds a GraphQL server. The
+    // factory registers itself the moment anything reaches `handler.ts` — every
+    // `@zanix/server/graphql` decorator (`Resolver`/`Query`/`Mutation`/`Request`) already imports
+    // it for `getRootValueBucket`/`RequestContext`, so decorating a single resolver is enough; a
+    // consumer building a GraphQL server necessarily does this already (see `docs/handlers.md`).
+    const graphqlHandlerFactory = getGraphqlHandlerFactory()
+    if (!graphqlHandlerFactory) {
+      throw new InternalError(
+        'No GraphQL handler is registered. Import "@zanix/server/graphql" (its ' +
+          '`Resolver`/`Query`/`Mutation`/`Request` decorators) somewhere in your composition ' +
+          'before creating a GraphQL server, so its handler registers itself.',
+        { meta: { source: 'zanix', serverType: type } },
+      )
+    }
+
     // Registered lazily here, at Runtime-activation time rather than composition time (no
     // `ApplicationContainer.define(...)` scope is active this late) — `applicationOverride`
     // (`defineRoute`'s 3rd argument) attributes it correctly regardless.
     ProgramModule.routes.defineRoute('graphql', {
       path: globalPrefix,
-      handler: getGraphqlHandler(application, options.graphqlValidation),
+      handler: graphqlHandlerFactory(application, options.graphqlValidation),
       httpMethod: 'POST',
     }, application)
   }

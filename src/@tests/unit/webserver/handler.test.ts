@@ -1,9 +1,14 @@
 import type { HttpError } from '@zanix/errors'
 
 import { assertEquals, assertExists } from '@std/assert'
+import { InternalError } from '@zanix/errors'
 import { getMainHandler, multiplexer } from 'modules/webserver/helpers/handler.ts'
 import { getRequestFromError } from 'utils/errors/request-context.ts'
 import Program from 'modules/program/mod.ts'
+import {
+  getGraphqlHandlerFactory,
+  registerGraphqlHandlerFactory,
+} from 'handlers/graphql/registry.ts'
 
 type TestHandler = (req: Request) => Promise<Response>
 
@@ -30,6 +35,55 @@ Deno.test('multiplexer: dispatches to the handler matching the request prefix', 
 
   assertEquals(await (response as Response).text(), 'api-response')
 })
+
+// Runs before anything else in this file (or, transitively, in this test FILE's own module
+// graph — `deno test` gives each test file its own isolated module instances, confirmed via a real
+// repro) ever imports `handlers/graphql/handler.ts` — that's the only thing that populates
+// `registry.ts`'s slot (see `registerGraphqlHandlerFactory`'s own doc), so this genuinely observes
+// the "nothing registered yet" state, not an artifact of test ordering.
+Deno.test(
+  'getMainHandler: type "graphql" throws a clear InternalError, synchronously at call time (not ' +
+    'from the returned handler), when nothing has registered a handler factory yet (no ' +
+    '@zanix/server/graphql import anywhere in composition)',
+  () => {
+    assertEquals(getGraphqlHandlerFactory(), undefined)
+
+    let thrown: unknown
+    try {
+      getMainHandler('graphql', undefined, '')
+    } catch (error) {
+      thrown = error
+    }
+
+    assertExists(thrown)
+    assertEquals(thrown instanceof InternalError, true)
+    assertEquals(
+      (thrown as InternalError).message.includes('@zanix/server/graphql'),
+      true,
+    )
+  },
+)
+
+Deno.test(
+  'getMainHandler: type "graphql" defines the GraphQL route (via the registered factory) once ' +
+    'one is registered — the same registration `handlers/graphql/handler.ts` performs as its own ' +
+    'side effect',
+  () => {
+    registerGraphqlHandlerFactory(() => () => new Response('graphql-response'))
+
+    // A non-empty `globalPrefix` — `defineRoute`'s raw `{ path, handler }` form (no decorated
+    // `Target`, the escape hatch this branch uses) only stores the route when `path` is truthy;
+    // `''` is what an anchored server would pass, never a realistic default for this call (see
+    // `bootstrapServerType`'s own `defaultPrefix: 'graphql'`).
+    getMainHandler('graphql', undefined, 'graphql')
+
+    const routes = Program.routes.getRoutes('graphql')
+    assertExists(routes)
+    assertEquals(Object.keys(routes ?? {}).length, 1)
+
+    Program.routes.resetContainer()
+  },
+)
 
 Deno.test(
   "getMainHandler: doesn't attach the request to a NOT_FOUND error by default",
