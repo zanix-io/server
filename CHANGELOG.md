@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-08-28
+
+### Added
+
+- **`WebServerManager.refreshRoutes(id)`** — recompiles an already-`create()`d server's own
+  route-table handler from `ProgramModule`'s current route registry and swaps it into its port's
+  shared `HandlerBox`, atomically, with zero downtime and without touching the real `Deno.serve()`
+  listener. Previously, `getMainHandler` only ever compiled a server's route table once, at
+  `create()` time — a route registered afterward (a dev server discovering a newly added page file,
+  for instance) had no way to reach an already-serving handler short of restarting the whole
+  process. A no-op for a server built with a fully custom `options.handler` (nothing framework-owned
+  to recompile) or for an id that was never registered/already `unmount()`-ed. A
+  `previousDispatchKey` rotation-window entry (see `create()`'s own remarks) is deliberately left
+  untouched — a short-lived, frozen snapshot for a manual id-rotation window, not something a route
+  registry change should reach into.
+
+- **`ProgramModule.routes.hasRoutesForTarget(Target, type?)`** — a plain, read-only check for
+  whether a decorated class currently owns at least one live route entry. Lets a caller with its own
+  "did I already register this class" bookkeeping (a dev server's re-import cache, for instance)
+  tell a still-correct registration apart from one removed by something else since (an unrelated
+  `unregisterRoutes`/`unregisterApplicationRoutes` call). Returns `false`, never throws, for a
+  `Target` that was never registered or was fully removed since.
+
+### Fixed
+
+- **A `socket` server with gzip enabled crashed every WebSocket handshake from a real browser** —
+  `TypeError: Response with null body status cannot have body`. A WebSocket upgrade response
+  (`Deno.upgradeWebSocket()`, status `101`) has `body === null` by Fetch API spec, but
+  `gzipResponseFromResponse` (`utils/gzip.ts`) never checked for that before constructing a new
+  `Response` from it — `maybeGzip` always returns SOME body value, even an empty one, and the Fetch
+  API forbids constructing any null-body-status response with a body at all, regardless of size. A
+  real browser's WS handshake request ordinarily carries `Accept-Encoding: gzip` like any other
+  request, so this fired on the very first connection. Fixed by returning a null-body response
+  untouched, the same guard its sibling `gzipStreamingResponse` already had.
+
+- **`routeProcessor` (`helpers/routes.ts`) recomputed and re-logged EVERY route on every call,
+  including a `WebServerManager.refreshRoutes()` rebuild where nothing about that route actually
+  changed** — real, visible log spam (and wasted recompute of `mountedPath`/`fullPath`/`regex`/param
+  extraction) on every dev-mode file save once a file watcher started calling `refreshRoutes()` only
+  for the pages that actually needed it. Fixed with a `WeakMap`-keyed memoization cache, keyed by
+  each route's own registry record object reference (never by path/method string):
+  `RouteContainer.defineRoute` only ever writes a brand-new record object when a route is
+  (re)registered, so an unchanged route's record keeps the exact same reference across a rebuild —
+  free, no-new-signal proof that nothing needs recomputing or relogging for it — while a genuinely
+  changed route's new record object is always a cache miss and gets reprocessed and relogged
+  normally. Purely internal to `routeProcessor`; no signature changed anywhere.
+
 ## [4.0.0] - 2026-08-25
 
 ### Changed (BREAKING)

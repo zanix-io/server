@@ -1,9 +1,11 @@
 import { assert, assertEquals, assertExists, assertFalse, assertThrows } from '@std/assert'
+import { assertSpyCalls, spy } from '@std/testing/mock'
 import { TargetBaseClass } from 'modules/infra/base/target.ts'
 import { routeProcessor } from 'modules/webserver/helpers/routes.ts'
 import Program from 'modules/program/mod.ts'
 import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import { InternalError } from '@zanix/errors'
+import logger from '@zanix/logger'
 
 //Mocks
 console.info = () => {}
@@ -362,3 +364,70 @@ Deno.test('routeProcessor should not duplicate global prefix when route matches 
   assertExists(absolutePaths['/api/GET'])
   assertEquals(absolutePaths['/api/api/GET'], undefined)
 })
+
+Deno.test(
+  'routeProcessor: logs a route registration only once, never again on a later rebuild of the ' +
+    'SAME route (e.g. WebServerManager.refreshRoutes recompiling from scratch)',
+  () => {
+    Program.routes.resetContainer()
+    Program.routes.defineRoute('rest', {
+      path: '/route-logging-dedup-test',
+      handler: () => '' as never,
+    })
+
+    const logSpy = spy(logger, 'info')
+    try {
+      routeProcessor('rest')
+      assertSpyCalls(logSpy, 1)
+
+      // A second call for the IDENTICAL, already-registered route — exactly what
+      // `WebServerManager.refreshRoutes` does on every dev-mode reload, whether or not anything
+      // actually changed — must never log it again; only a genuinely new route should.
+      routeProcessor('rest')
+      assertSpyCalls(logSpy, 1)
+
+      Program.routes.defineRoute('rest', {
+        path: '/route-logging-dedup-test-2',
+        handler: () => '' as never,
+      })
+      routeProcessor('rest')
+      assertSpyCalls(logSpy, 2)
+    } finally {
+      logSpy.restore()
+    }
+  },
+)
+
+Deno.test(
+  'routeProcessor: a genuinely changed route (a new object at the SAME storage key) is always ' +
+    'reprocessed and relogged — the cache must never suppress a real change',
+  () => {
+    Program.routes.resetContainer()
+    Program.routes.defineRoute('rest', {
+      path: '/route-logging-change-test',
+      handler: () => 'v1' as never,
+    })
+
+    const logSpy = spy(logger, 'info')
+    try {
+      const { absolutePaths: v1 } = routeProcessor('rest')
+      assertSpyCalls(logSpy, 1)
+      assertEquals(v1['/route-logging-change-test/GET'].handler({} as never), 'v1' as never)
+
+      // Re-registering the SAME path (no `removeRoutesForTarget` needed — this is the raw
+      // path+handler escape hatch, which `RouteContainer.defineRoute` always overwrites
+      // unconditionally) writes a BRAND-NEW record object at the identical storage key. The cache
+      // is keyed by that record's own object identity, never by path/method string, so this must
+      // be a cache MISS — reprocessed and relogged — even though nothing about the path changed.
+      Program.routes.defineRoute('rest', {
+        path: '/route-logging-change-test',
+        handler: () => 'v2' as never,
+      })
+      const { absolutePaths: v2 } = routeProcessor('rest')
+      assertSpyCalls(logSpy, 2)
+      assertEquals(v2['/route-logging-change-test/GET'].handler({} as never), 'v2' as never)
+    } finally {
+      logSpy.restore()
+    }
+  },
+)

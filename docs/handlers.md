@@ -358,6 +358,30 @@ This is not part of ordinary application composition — a route decorator alrea
 correctly the first time. It's a framework-internal/tooling escape hatch for lazy re-registration
 flows only.
 
+Reimporting only updates route metadata, though — it has no effect on an already-serving handler.
+`create()` compiles a server's route table exactly once, at activation time; a route registered
+afterward (this reimport flow, or an entirely new page file the dev server just discovered) needs
+`webServerManager.refreshRoutes(id)` to actually become reachable. It recompiles that server's route
+table from the current registry and swaps it in atomically — an in-flight request still sees either
+the fully-old or fully-new table, never a partial one — without rebinding the real `Deno.serve()`
+listener, so requests for routes that didn't change never see any downtime. It's a no-op for a
+server created with a fully custom `handler` (nothing framework-owned to recompile) or for an id
+that's unknown/already `unmount()`-ed:
+
+```ts
+import { ProgramModule, webServerManager } from 'jsr:@zanix/server@[version]'
+
+const previous = await import(pageFilePath)
+ProgramModule.unregisterRoutes(previous.default)
+await import(`${pageFilePath}?t=${Date.now()}`) // re-runs its decorators cleanly
+webServerManager.refreshRoutes(serverId) // make the already-serving handler see the fresh route
+```
+
+`ProgramModule.routes.hasRoutesForTarget(Target, type?)` is a read-only companion for this same
+flow: a plain existence check a dev-server's own "did I already register this class" bookkeeping can
+use to tell a still-correct registration apart from one removed by something else since (an
+unrelated hot-uninstall via `unregisterApplicationRoutes`, below, for instance).
+
 ### Hot-uninstalling an Application
 
 `unregisterRoutes` above works per decorated class — the right granularity for reloading one page or

@@ -2,6 +2,7 @@ import type { HandlerContext } from './context.ts'
 import type { Middlewares } from './middlewares.ts'
 import type { MetadataTargetSymbols } from './program.ts'
 import type { WebServerTypes } from './server.ts'
+import type { ClassConstructor } from './targets.ts'
 import type { RtoTypes } from '@zanix/types'
 
 /** Any value a route handler may return: raw data, an array, a string, or a full `Response`. */
@@ -153,4 +154,16 @@ export interface ZanixRoutesGetter {
    * resolved entry looks like.
    */
   getRoutes(type: WebServerTypes): Record<string, RestRouteEntry> | undefined
+  /**
+   * Whether `Target` currently owns at least one live route entry — a plain, read-only existence
+   * check. Lets a caller that tracks its own "did I already register this class" bookkeeping (a
+   * dev-server's re-import cache, for instance) tell a still-correct registration apart from one
+   * that was removed by something else since (e.g. a hot-uninstall the caller has no other way to
+   * observe).
+   *
+   * @param type - Restricts the check to one {@link WebServerTypes}; every type is checked when
+   * omitted.
+   * @returns `false` for a `Target` with no routes registered at all — never throws.
+   */
+  hasRoutesForTarget(Target: ClassConstructor, type?: WebServerTypes): boolean
 }

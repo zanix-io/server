@@ -58,6 +58,21 @@ Deno.test({
   },
 })
 
+Deno.test('gzipResponseFromResponse: leaves a bodyless (null-body-status) response untouched', async () => {
+  // Real regression coverage, not a hypothetical: a WebSocket upgrade handshake's own response
+  // (`Deno.upgradeWebSocket()`, status 101) has `body === null` — the exact same signal
+  // `gzipStreamingResponse`'s own bodyless test below already covers. Before this guard, a socket
+  // server with gzip enabled crashed on every real browser's WS handshake (which sends
+  // `Accept-Encoding: gzip` like any other request) with `TypeError: Response with null body
+  // status cannot have body`, since `maybeGzip` always returns SOME body value, even an empty one,
+  // and the Fetch API forbids constructing any of these statuses with a body at all.
+  const original = new Response(null, { status: 204 })
+
+  const response = await gzipResponseFromResponse(original)
+
+  assertEquals(response, original)
+})
+
 Deno.test('gzipStreamingResponse: leaves a non-compressible response completely untouched', () => {
   const original = new Response(new Uint8Array([1, 2, 3]), {
     headers: { 'content-type': 'image/png' },

@@ -49,6 +49,13 @@ function maybeGzip(
  * @param {number} [options.threshold=1024] - Minimum body size, in bytes, required for compression to apply.
  * @returns {Promise<Response>} A new `Response` with the same status/statusText, gzip-compressed when applicable.
  *
+ * A response whose status forbids a body at all (e.g. `101` — a WebSocket upgrade handshake, the
+ * real case this guards: `Deno.upgradeWebSocket()`'s own returned `Response`) is returned
+ * completely untouched — `response.body` is `null` for exactly these statuses, the same signal
+ * {@link gzipStreamingResponse} already checks. Attempting to construct a new `Response` for one
+ * of these with any body value at all (even an empty buffer) throws `TypeError: Response with null
+ * body status cannot have body`, regardless of whether the body ends up compressed.
+ *
  * @example
  * ```ts
  * const response = await fetch('https://example.com/data.json')
@@ -59,6 +66,8 @@ export async function gzipResponseFromResponse(
   response: Response,
   options: { threshold?: number } = {},
 ): Promise<Response> {
+  if (!response.body) return response
+
   const { threshold = 1024 } = options
   const clone = response.clone()
   const bodyBuffer = new Uint8Array(await clone.arrayBuffer())
