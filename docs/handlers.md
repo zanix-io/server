@@ -218,6 +218,27 @@ as a memory/CPU exhaustion vector. `introspection` defaults to `true` since most
 (GraphiQL, schema-aware clients/codegen) depends on it — disable it only for a genuinely public API
 that shouldn't expose its schema shape.
 
+### Reading back the compiled schema
+
+`getSchema(application?)` returns the `GraphQLSchema` this process actually compiled for an
+Application — the same object `defineSchema` last built for it, including through a
+`WebServerManager.refreshRoutes()` dev-mode rebuild:
+
+```ts
+import { getSchema } from 'jsr:@zanix/server@[version]/graphql'
+import { printSchema } from 'graphql'
+
+const schema = getSchema('main') // omit the argument for the default Application
+if (schema) console.log(printSchema(schema))
+```
+
+A pure cache read — it never triggers a compile of its own, so it is safe to call any number of
+times, in any order, relative to a real server starting. It returns `undefined` until a GraphQL
+server has actually been created for that Application in this process
+(`webServerManager.create(
+'graphql', ...)`/`bootstrapServers({ graphql: {...} })`), the same
+precondition `ProgramModule.routes.getRoutes()` already has.
+
 ## WebSocket
 
 Extend `ZanixWebSocket` and decorate the class with `@Socket`. Override the protected lifecycle
@@ -357,6 +378,30 @@ const fresh = await import(`${pageFilePath}?t=${Date.now()}`) // re-runs its dec
 This is not part of ordinary application composition — a route decorator already registers its class
 correctly the first time. It's a framework-internal/tooling escape hatch for lazy re-registration
 flows only.
+
+Reimporting only updates route metadata, though — it has no effect on an already-serving handler.
+`create()` compiles a server's route table exactly once, at activation time; a route registered
+afterward (this reimport flow, or an entirely new page file the dev server just discovered) needs
+`webServerManager.refreshRoutes(id)` to actually become reachable. It recompiles that server's route
+table from the current registry and swaps it in atomically — an in-flight request still sees either
+the fully-old or fully-new table, never a partial one — without rebinding the real `Deno.serve()`
+listener, so requests for routes that didn't change never see any downtime. It's a no-op for a
+server created with a fully custom `handler` (nothing framework-owned to recompile) or for an id
+that's unknown/already `unmount()`-ed:
+
+```ts
+import { ProgramModule, webServerManager } from 'jsr:@zanix/server@[version]'
+
+const previous = await import(pageFilePath)
+ProgramModule.unregisterRoutes(previous.default)
+await import(`${pageFilePath}?t=${Date.now()}`) // re-runs its decorators cleanly
+webServerManager.refreshRoutes(serverId) // make the already-serving handler see the fresh route
+```
+
+`ProgramModule.routes.hasRoutesForTarget(Target, type?)` is a read-only companion for this same
+flow: a plain existence check a dev-server's own "did I already register this class" bookkeeping can
+use to tell a still-correct registration apart from one removed by something else since (an
+unrelated hot-uninstall via `unregisterApplicationRoutes`, below, for instance).
 
 ### Hot-uninstalling an Application
 

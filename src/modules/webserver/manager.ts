@@ -333,9 +333,28 @@ export class WebServerManager {
     // never replaces it. Only this dispatch key's own handler is wrapped; a `previousDispatchKey`
     // entry (rotation window, below) always dispatches straight to its own `getMainHandler` build,
     // unwrapped — `preHandler` is a concern of the CURRENT id, not the one being rotated away from.
-    const dispatchHandler: ServerHandler = preHandler
-      ? async (req, info) => (await preHandler(req, info)) ?? await handler(req, info)
-      : handler
+    // Shared by the initial build below AND by `rebuildDefaultHandler` (refreshRoutes' own rebuild),
+    // so a route-table refresh reproduces the exact same wrapping the original registration got.
+    const withPreHandler = (rawHandler: ServerHandler): ServerHandler =>
+      preHandler
+        ? async (req, info) => (await preHandler(req, info)) ?? await rawHandler(req, info)
+        : rawHandler
+    const dispatchHandler: ServerHandler = withPreHandler(handler)
+    // Only meaningful for the default, route-table-derived handler — a caller-supplied
+    // `options.handler` is permanent and opaque to this class, nothing to recompile. See
+    // `refreshRoutes`'s own doc for when this actually gets called.
+    const rebuildDefaultHandler = usingDefaultHandler
+      ? () =>
+        withPreHandler(
+          getMainHandler(type, application, routeHandlerPrefix, {
+            cors,
+            gzip,
+            attachRequestToErrors,
+            maxBodyBytes,
+            graphqlValidation,
+          }),
+        )
+      : undefined
 
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
@@ -542,6 +561,7 @@ export class WebServerManager {
       type,
       port: opts.port as number,
       dispatchKey,
+      rebuildDefaultHandler,
     }
 
     return serverID
@@ -655,5 +675,42 @@ export class WebServerManager {
     }
 
     delete this.#servers[id]
+  }
+
+  /**
+   * Recompiles one already-`create()`d server's own route-table handler from `ProgramModule`'s
+   * CURRENT route registry, and atomically swaps it into its port's shared `HandlerBox` — the same
+   * freeze-and-swap `create()` itself uses, so an in-flight request still sees either the fully-old
+   * or fully-new table, never a partial one. The real `Deno.serve()` listener is never touched or
+   * rebound; only the dispatch table backing it changes, which is safe with zero downtime because
+   * `multiplexer` dereferences `box.current` fresh on every request rather than closing over one
+   * snapshot (see its own doc).
+   *
+   * This exists because `create()`'s handler is otherwise compiled exactly once, at Runtime-
+   * activation time — routes registered into `ProgramModule` afterward (e.g. a dev server
+   * discovering a newly added page file) have no effect on an already-serving handler until this is
+   * called. A no-op for a server id that was never registered, was already `unmount()`-ed, or was
+   * given a fully custom `options.handler` at `create()` time (see `rebuildDefaultHandler`'s own
+   * doc) — there is nothing framework-owned to recompile for that last case.
+   *
+   * A `previousDispatchKey` rotation-window entry (see `create()`'s own remarks) is never touched
+   * here — it's a short-lived, deliberately frozen snapshot for backward-compat during a manual id
+   * rotation, not something a route-registry change should reach into.
+   *
+   * @param id The server id (or ids) to refresh — see `Runtime.serverID`.
+   */
+  public refreshRoutes(id: ServerID | ServerID[]): void {
+    const ids = typeof id === 'string' ? [id] : id
+    for (const key of ids) {
+      const server = this.#servers[key]
+
+      const rebuild = server?.rebuildDefaultHandler
+      if (!rebuild) continue
+
+      const box = this.#handlers[server.port]
+      if (!box) continue
+
+      box.current = Object.freeze({ ...box.current, [server.dispatchKey]: rebuild() })
+    }
   }
 }

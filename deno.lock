@@ -19,7 +19,7 @@
     "jsr:@std/path@1.0.0-rc.2": "1.0.0-rc.2",
     "jsr:@std/streams@~0.224.5": "0.224.5",
     "jsr:@std/testing@1.0.9": "1.0.9",
-    "jsr:@zanix/utils@4": "4.0.0",
+    "jsr:@zanix/utils@^4.1.0": "4.1.0",
     "npm:graphql@16": "16.14.2"
   },
   "jsr": {
@@ -102,8 +102,8 @@
         "jsr:@std/data-structures"
       ]
     },
-    "@zanix/utils@4.0.0": {
-      "integrity": "2ef04a760e011829ff14e198d6e5fc947ae0cf2615b519c1954ddb78b7b376e6",
+    "@zanix/utils@4.1.0": {
+      "integrity": "3b223433ddbfac0a33edf1a985092f5ea947ccaed0142f016495bec4e42dce9b",
       "dependencies": [
         "jsr:@std/fmt@0.224",
         "jsr:@std/path@0.224"
@@ -122,7 +122,7 @@
       "jsr:@std/path@0.224",
       "jsr:@std/testing@1.0.9",
       "jsr:@std/uuid@0.224",
-      "jsr:@zanix/utils@4",
+      "jsr:@zanix/utils@^4.1.0",
       "npm:graphql@16"
     ]
   }

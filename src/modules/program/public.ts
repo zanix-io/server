@@ -319,6 +319,9 @@ export class Program {
    * analysis tool (e.g. an OpenAPI generator) that needs to read what routes exist without being
    * able to invoke anything.
    *
+   * Also exposes `hasRoutesForTarget(Target, type?)`, a plain existence check — see
+   * {@link ZanixRoutesGetter}'s own doc.
+   *
    * @example
    * const routes = ProgramModule.routes.getRoutes('rest')
    * for (const [key, route] of Object.entries(routes ?? {})) {
@@ -326,7 +329,10 @@ export class Program {
    * }
    */
   public get routes(): ZanixRoutesGetter {
-    return { getRoutes: (type) => ProgramModule.routes.getRoutes(type) }
+    return {
+      getRoutes: (type) => ProgramModule.routes.getRoutes(type),
+      hasRoutesForTarget: (Target, type) => ProgramModule.routes.hasRoutesForTarget(Target, type),
+    }
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { HandlerFunction, ProcessedRoutes } from 'typings/router.ts'
+import type { HandlerFunction, ProcessedRoutes, RouteEntry } from 'typings/router.ts'
 import type { WebServerTypes } from 'typings/server.ts'
 import type { HandlerTypes } from 'typings/program.ts'
 
@@ -10,6 +10,49 @@ import { capitalize, cleanRoute } from '@zanix/helpers'
 import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
 import { PARAM_PATTERN, ZANIX_PROPS } from 'utils/constants.ts'
+
+/**
+ * One route's already-computed processing result — everything `routeProcessor`'s reduce loop
+ * needs to re-insert a route into `acc` without recomputing `mountedPath`/`fullPath`/`regex`/param
+ * extraction or re-running `logger.info`. `bucket` records which of the three tables (`absolute`/
+ * `relative`/`catchAll`) this route belongs in, since a cache hit skips the `PARAM_PATTERN`/
+ * `isCatchAllRoute` branching that would otherwise redetermine it. `relativeRegex` is only ever
+ * set for `relative`/`catchAll` — the extra `pathToRegex(fullPath)` entry those two buckets (and
+ * only those two) push onto `acc.routePaths.relative`.
+ */
+type CachedProcessedRoute =
+  | { bucket: 'absolute'; route: string; fullPath: string; value: ProcessedRoutes[0] }
+  | {
+    bucket: 'relative' | 'catchAll'
+    route: string
+    fullPath: string
+    value: ProcessedRoutes[0]
+    relativeRegex: RegExp
+  }
+
+/**
+ * Per-route-record memoization for `routeProcessor`, keyed by the route record's own OBJECT
+ * IDENTITY (never by path/method string). This is what makes a `WebServerManager.refreshRoutes()`
+ * rebuild cheap for every route that didn't actually change: `RouteContainer.defineRoute`
+ * (`modules/program/metadata/routes.ts`) only ever writes a BRAND-NEW object at a route's storage
+ * key when that route is (re)registered — an unchanged route (e.g. `@zanix/space`'s dev-mode
+ * `loadRoutes()` skipping `defineRoute` entirely for a page whose reimported class didn't change)
+ * keeps the exact same record reference across rebuilds, while a genuinely changed route's record
+ * is a new object that simply never has a cache entry yet. A `WeakMap` (rather than a plain `Map`)
+ * lets a superseded record's cache entry die naturally with GC once nothing else references it —
+ * no manual invalidation needed, and nothing to clear on `resetContainer()`/
+ * `resetExceptApplications()` either, since those drop every reference to the record itself.
+ *
+ * Keyed a second level deep, per record, by a small context string (`application:globalPrefix:
+ * mountPrefix`) — NOT because a route record ordinarily gets reprocessed under more than one
+ * context, but because it genuinely can: `WebServerManager.create()`'s rotation window builds a
+ * second handler for the SAME Application, from the SAME registry, under the previous
+ * `routeHandlerPrefix` (`previousDispatchKey`/`previousRouteHandlerPrefix`), so the identical
+ * record object is processed twice, for two different `fullPath`s, in that case. `mountPrefix` is
+ * included too since `registerApplicationMount` documents itself as idempotent last-write-wins —
+ * an Application's mount prefix is not guaranteed immutable for the life of the process.
+ */
+const routeCache = new WeakMap<RouteEntry, Map<string, CachedProcessedRoute>>()
 
 /**
  * Function to process routes
@@ -53,7 +96,28 @@ export const routeProcessor = (
       routePaths: { absolute: Set<string>; relative: RegExp[] }
     }
   >((acc, storageKey) => {
-    const { handler, path, interceptors, pipes, httpMethod, guards } = allRoutes[storageKey]
+    const record = allRoutes[storageKey]
+
+    // See `routeCache`'s own doc — a cache hit means this EXACT record object was already
+    // processed (and logged) under this EXACT context before, so everything below (recomputing
+    // `mountedPath`/`fullPath`/`regex`/param extraction, and `logger.info`) is skipped entirely;
+    // only the already-computed result is re-inserted into this call's own `acc`.
+    const contextKey = `${application}:${globalPrefix}:${mountPrefix}`
+    const cached = routeCache.get(record)?.get(contextKey)
+
+    if (cached) {
+      if (cached.bucket === 'absolute') {
+        acc.absolutePaths[cached.route] = cached.value
+        acc.routePaths.absolute.add(cached.fullPath)
+      } else {
+        const table = cached.bucket === 'relative' ? acc.relativePaths : acc.catchAllPaths
+        table[cached.route] = cached.value
+        acc.routePaths.relative.push(cached.relativeRegex)
+      }
+      return acc
+    }
+
+    const { handler, path, interceptors, pipes, httpMethod, guards } = record
     // The mount prefix sits between `globalPrefix` and this route's own controller-prefix/
     // method-path (`path`): `globalPrefix + applicationMountPrefix + controllerPrefix +
     // methodPath`. `mountPrefix` empty (the default) makes `mountedPath === path`, identical to
@@ -137,30 +201,39 @@ export const routeProcessor = (
       pipes,
     } as ProcessedRoutes[0]
 
+    let cacheEntry: CachedProcessedRoute
+
     if (PARAM_PATTERN.test(route)) {
       // Filed into a SEPARATE bucket from an ordinary `:param` route — never together — so
       // `getMainHandler` can try them in a fixed, deterministic order (exact → `:param` →
       // catch-all) regardless of which was registered first. `isCatchAllRoute` checks `fullPath`
       // (no method suffix) — simpler than checking `route`, and equivalent here since a method
       // suffix can never itself introduce or remove a catch-all shape.
+      const relativeRegex = pathToRegex(fullPath)
       if (isCatchAllRoute(fullPath)) {
         // Guaranteed to exist and be `params`'s own last entry — `assertValidCatchAllPosition`
         // (registration time, `RouteContainer`) already rejects any route where a catch-all isn't
         // the final segment, so there is no case here where this is undefined.
         const catchAllParam = baseRoute.params[baseRoute.params.length - 1]
-        acc.catchAllPaths[route] = {
-          ...baseRoute,
-          catchAllParam,
-          regex: pathToRegex(route),
-        }
+        const value = { ...baseRoute, catchAllParam, regex: pathToRegex(route) }
+        acc.catchAllPaths[route] = value
+        cacheEntry = { bucket: 'catchAll', route, fullPath, value, relativeRegex }
       } else {
-        acc.relativePaths[route] = { ...baseRoute, regex: pathToRegex(route) }
+        const value = { ...baseRoute, regex: pathToRegex(route) }
+        acc.relativePaths[route] = value
+        cacheEntry = { bucket: 'relative', route, fullPath, value, relativeRegex }
       }
-      acc.routePaths.relative.push(pathToRegex(fullPath))
+      acc.routePaths.relative.push(relativeRegex)
     } else {
       acc.absolutePaths[route] = baseRoute
       acc.routePaths.absolute.add(fullPath)
+      cacheEntry = { bucket: 'absolute', route, fullPath, value: baseRoute }
     }
+
+    let recordCache = routeCache.get(record)
+    if (!recordCache) routeCache.set(record, recordCache = new Map())
+    recordCache.set(contextKey, cacheEntry)
+
     return acc
   }, {
     relativePaths: {},

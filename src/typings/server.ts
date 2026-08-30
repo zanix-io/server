@@ -41,6 +41,12 @@ export type ServerID = string
  * - `port`/`dispatchKey`: this activation's own port and multiplexer key — what
  *   `WebServerManager.unmount()` needs to strip only ITS OWN entry from the port's shared
  *   `HandlerBox`, without touching any other Application sharing the same port.
+ * - `rebuildDefaultHandler` (optional): present only for a server built from the default,
+ *   route-table-derived handler (`options.handler` was never given) — what
+ *   `WebServerManager.refreshRoutes()` calls to recompile this server's handler from
+ *   `ProgramModule`'s current route registry, wrapped with the same `preHandler` (if any) the
+ *   original registration used. Absent for a server given a fully custom `options.handler`, since
+ *   there's nothing framework-owned to recompile.
  */
 export type ServerManagerData = Record<
   ServerID,
@@ -52,6 +58,7 @@ export type ServerManagerData = Record<
     type: WebServerTypes
     port: number
     dispatchKey: string
+    rebuildDefaultHandler?: () => ServerHandler
   }
 >
 

@@ -137,10 +137,12 @@ configuring the server — `@zanix/server` doesn't fetch or decode SSL material 
 ## GZIP compression
 
 `ServerOptions.gzip` controls automatic response compression, applied by the server's own default
-interceptor to every `rest`/`graphql`/`ssr` response — no per-handler code needed. A response is
-only compressed when its `content-type` matches a compressible type (`text`, `json`, `javascript`,
-`xml`, `svg`, `css`, `html`) AND the request sent `Accept-Encoding: gzip`; anything else is returned
-untouched.
+interceptor to every `rest`/`graphql`/`ssr`/`socket` response — no per-handler code needed. A
+response is only compressed when its `content-type` matches a compressible type (`text`, `json`,
+`javascript`, `xml`, `svg`, `css`, `html`) AND the request sent `Accept-Encoding: gzip`; anything
+else is returned untouched. A `socket` server's own WebSocket upgrade handshake response is a
+`content-type`-less, bodyless `101` under the hood, so it's always left untouched regardless of
+`gzip` — the check exists mainly for a `socket` server's own non-upgrade HTTP routes, if any.
 
 - Omit `gzip` to accept the default: compression applies once the response body is at least `1024`
   bytes (`GzipSettings.threshold`); a smaller compressible body is sent uncompressed.

@@ -570,3 +570,100 @@ Deno.test('204 and 205 No Content returns undefined', async () => {
   await checkNoContent(204)
   await checkNoContent(205)
 })
+
+// --- reload: true / reloadDescriptor ---
+
+Deno.test('reload: true wraps the result as { data, reloadDescriptor } with the resolved endpoint/method', async () => {
+  const mockFetch = spy(() =>
+    Promise.resolve(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.get<{ ok: boolean }>('/users/123', { reload: true })
+
+  assertEquals(result.data, { ok: true })
+  assertEquals(result.reloadDescriptor.endpoint, 'https://api.example.com/users/123')
+  assertEquals(result.reloadDescriptor.method, 'GET')
+})
+
+Deno.test('reload: true only copies reloadableHeaders-allowlisted headers, never every header sent', async () => {
+  const mockFetch = spy(() =>
+    Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.get('/users/123', {
+    reload: true,
+    headers: { Authorization: 'Bearer secret-token', 'X-Trace-Id': 'abc' },
+  })
+
+  // The request itself still carried the real headers...
+  const sentHeaders = (mockFetch.calls[0].args[1 as never] as any)?.headers
+  assertEquals(sentHeaders?.Authorization, 'Bearer secret-token')
+  // ...but `reloadDescriptor.headers` — which gets serialized to the browser — only carries what
+  // `reloadableHeaders` allowlists by default (`content-type`), never the credential.
+  assertEquals(result.reloadDescriptor.headers, { 'content-type': 'application/json' })
+  assertEquals('authorization' in result.reloadDescriptor.headers, false)
+  assertEquals('x-trace-id' in result.reloadDescriptor.headers, false)
+})
+
+Deno.test('reloadableHeaders can be overridden by a subclass to allowlist more', async () => {
+  class ClientWithPublicHeader extends RestClient {
+    protected override reloadableHeaders = ['content-type', 'x-public-key']
+  }
+
+  const mockFetch = spy(() =>
+    Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new ClientWithPublicHeader({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.get('/x', {
+    reload: true,
+    headers: { 'X-Public-Key': 'not-a-secret', Authorization: 'Bearer secret' },
+  })
+
+  assertEquals((result as any).reloadDescriptor.headers['x-public-key'], 'not-a-secret')
+  assertEquals('authorization' in (result as any).reloadDescriptor.headers, false)
+})
+
+Deno.test('reload: true on POST captures the exact body string sent', async () => {
+  const mockFetch = spy(() =>
+    Promise.resolve(new Response(JSON.stringify({ id: 1 }), { status: 200 }))
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.post<{ id: number }>('/users', {
+    reload: true,
+    body: JSON.stringify({ name: 'Alice' }),
+  })
+
+  assertEquals(result.reloadDescriptor.body, JSON.stringify({ name: 'Alice' }))
+  assertEquals(result.reloadDescriptor.method, 'POST')
+})
+
+Deno.test('omitting reload (the default) keeps the plain, unwrapped return value', async () => {
+  const mockFetch = spy(() =>
+    Promise.resolve(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.get('/x')
+
+  assertEquals(result, { ok: true })
+  assertEquals('reloadDescriptor' in (result as object), false)
+})

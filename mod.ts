@@ -49,8 +49,10 @@ export { ZanixKVConnector } from 'connectors/core/kv.ts'
 export { ZanixAsyncmqConnector } from 'connectors/core/asyncmq.ts'
 export { ZanixCacheConnector } from 'connectors/core/cache.ts'
 export { ZanixDatabaseConnector } from 'connectors/core/database.ts'
-export { GraphQLClient } from 'connectors/core/graphql.ts'
+export { GraphQLClient, GraphQLClientError } from 'connectors/core/graphql.ts'
+export type { GraphQLErrorLike } from 'connectors/core/graphql.ts'
 export { RestClient, RestClientError } from 'connectors/core/rest.ts'
+export type { RestMethodWithReload } from 'connectors/core/rest.ts'
 export { ZanixSearchConnector } from 'connectors/core/search.ts'
 export { Connector } from 'connectors/decorators/base.ts'
 export { registerCoreConnectorSlot } from 'connectors/core/all.ts'
@@ -268,7 +270,7 @@ export type {
   ZanixProviderGeneric,
   ZanixProvidersGetter,
 } from 'typings/targets.ts'
-export type { GqlOptions, RestFullOptions } from 'typings/clients.ts'
+export type { GqlOptions, ReloadDescriptor, RestFullOptions } from 'typings/clients.ts'
 export type {
   HandlerFunction,
   HandlerResponse,

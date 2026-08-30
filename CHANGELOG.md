@@ -5,6 +5,121 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.1.0] - 2026-08-30
+
+### Added
+
+- **`GraphQLClient.query()` now throws `GraphQLClientError` when a `200 OK` response carries a
+  GraphQL-level `errors` array.** A query that fails at the GraphQL layer rather than the HTTP layer
+  previously returned normally with an invalid or absent `data` — `RestClient`'s own `!response.ok`
+  check never fires for a `200` response, and the GraphQL-over-HTTP spec allows an `errors` array
+  alongside (or instead of) `data` at that same status. The real errors survive structured on the
+  thrown error, readable via `GraphQLClientError.graphqlErrors` (see the new `GraphQLErrorLike`
+  type, also exported, for a single error's shape). `GraphQLClientError` extends `RestClientError`,
+  so it still integrates with the same logging/serialization conventions every other Zanix error
+  does; it reports `realHttpStatus === 200` for this case — a caller distinguishing it should read
+  `graphqlErrors`, not `realHttpStatus`.
+
+- **`RestClient.http.*` and `GraphQLClient.query()` accept a `reload: true` option to get
+  `{ data, reloadDescriptor }` back instead of the plain return value.** `reloadDescriptor` (the new
+  `ReloadDescriptor` type) is a ready-to-replay descriptor of the call — `endpoint`, `method`,
+  `headers`, `body` — meant to be forwarded through a page's own `loader` and replayed client-side
+  (typically by a Comet re-issuing the same call) with no REST/GraphQL-aware logic of its own.
+  `headers` is never a blind copy of what the call actually sent: only the names allowlisted by the
+  new `protected reloadableHeaders` (default: `['content-type']`) are copied, so a
+  credential-carrying header (`Authorization`, an internal API key) never reaches this far. Omitting
+  `reload` (the default) keeps today's plain, unwrapped return value unchanged.
+
+- **`GraphQLClient`'s constructor accepts a new `schemaApplication` option** (see the new
+  `GqlClientOptions` type) — a build-time-only hint naming which schema this client's queries should
+  be checked against by `zanix space build`'s GraphQL check step (`@zanix/cli`); never read here, at
+  runtime. Three forms: a `string` names a local Application's schema (`getSchema()`, below); the
+  string literal `'external'` marks the client as talking to a schema outside this project's own
+  composition, checked for syntax only; `{ external: true }` also marks it external, but
+  additionally opts into checking its queries against the real external schema cached by
+  `zanix generate graphql-schema` (`@zanix/cli`) — the object shape is itself the opt-in, so there's
+  no separate boolean that could be combined incorrectly with a local Application name. Omit
+  `schemaApplication` entirely to try the default Application.
+
+- **`getSchema(application?)`, exported from `@zanix/server/graphql`** — read-only introspection
+  over the `GraphQLSchema` this process actually compiled for an Application: the same object
+  `defineSchema` last built for it, including through a `WebServerManager.refreshRoutes()` dev-mode
+  rebuild. A pure cache read — never triggers a compile of its own, safe to call any number of
+  times. Returns `undefined` if no GraphQL server has been created for that Application yet in this
+  process.
+
+- **`WebServerManager.refreshRoutes(id)`** — recompiles an already-`create()`d server's own
+  route-table handler from `ProgramModule`'s current route registry and swaps it into its port's
+  shared `HandlerBox`, atomically, with zero downtime and without touching the real `Deno.serve()`
+  listener. Previously, `getMainHandler` only ever compiled a server's route table once, at
+  `create()` time — a route registered afterward (a dev server discovering a newly added page file,
+  for instance) had no way to reach an already-serving handler short of restarting the whole
+  process. A no-op for a server built with a fully custom `options.handler` (nothing framework-owned
+  to recompile) or for an id that was never registered/already `unmount()`-ed. A
+  `previousDispatchKey` rotation-window entry (see `create()`'s own remarks) is deliberately left
+  untouched — a short-lived, frozen snapshot for a manual id-rotation window, not something a route
+  registry change should reach into.
+
+- **`ProgramModule.routes.hasRoutesForTarget(Target, type?)`** — a plain, read-only check for
+  whether a decorated class currently owns at least one live route entry. Lets a caller with its own
+  "did I already register this class" bookkeeping (a dev server's re-import cache, for instance)
+  tell a still-correct registration apart from one removed by something else since (an unrelated
+  `unregisterRoutes`/`unregisterApplicationRoutes` call). Returns `false`, never throws, for a
+  `Target` that was never registered or was fully removed since.
+
+- **`defineSchema(application?)`, now exported from `@zanix/server/graphql`.** It already existed as
+  the function that compiles and caches an Application's `GraphQLSchema` (`getSchema`'s own
+  read-through, above), but wasn't reachable from outside the package — a caller that needed to
+  force a compile rather than just read whatever was already cached had no way to do so. Same
+  signature as before, `defineSchema(application: string = DEFAULT_APPLICATION): GraphQLSchema`,
+  purely additive to the export surface.
+
+- **`getSchemaApplications()`, exported from `@zanix/server/graphql`** — lists every Application
+  name with at least one registered `@Query`/`@Mutation` operation, without compiling or reading
+  anything. A pure read over the same bucket `defineSchema` itself builds a schema from, populated
+  as a side effect of `@Resolver` class decoration — a resolver with zero operations never appears.
+  Lets a caller discover which Applications are worth calling `defineSchema`/`getSchema` on at all,
+  without needing to already know their names — exactly the gap that was blocking
+  `zanix space
+  build`'s GraphQL check step (`@zanix/cli`) from validating real local schemas
+  instead of always seeing `undefined`. One caveat: once an Application's name has entered the
+  bucket, it stays there even after `defineSchema` resets it during a rebuild, so this reflects
+  "has/had at least one operation," not "has one pending right now."
+
+- **`GraphQLClient.introspect()`** — runs the standard, spec-defined GraphQL introspection query
+  against the client's own configured `baseUrl`/headers (through `query()`, same mechanism as any
+  other call) and returns the raw JSON response (typically `{ __schema: {...} }`), never a
+  `graphql-js` `GraphQLSchema` — this connector still has zero dependency on the `graphql` npm
+  package, same reasoning as `GraphQLErrorLike`'s own doc. Converting the raw result into a real
+  schema (via `graphql-js`'s `buildClientSchema()`) is the caller's job, in practice `@zanix/cli`'s
+  own GraphQL schema tooling. A disabled-introspection response (common on production APIs) or any
+  other request failure propagates unmodified as whatever `query()` itself throws
+  (`GraphQLClientError`/`RestClientError`) — this method does nothing to soften or silence it.
+
+### Fixed
+
+- **A `socket` server with gzip enabled crashed every WebSocket handshake from a real browser** —
+  `TypeError: Response with null body status cannot have body`. A WebSocket upgrade response
+  (`Deno.upgradeWebSocket()`, status `101`) has `body === null` by Fetch API spec, but
+  `gzipResponseFromResponse` (`utils/gzip.ts`) never checked for that before constructing a new
+  `Response` from it — `maybeGzip` always returns SOME body value, even an empty one, and the Fetch
+  API forbids constructing any null-body-status response with a body at all, regardless of size. A
+  real browser's WS handshake request ordinarily carries `Accept-Encoding: gzip` like any other
+  request, so this fired on the very first connection. Fixed by returning a null-body response
+  untouched, the same guard its sibling `gzipStreamingResponse` already had.
+
+- **`routeProcessor` (`helpers/routes.ts`) recomputed and re-logged EVERY route on every call,
+  including a `WebServerManager.refreshRoutes()` rebuild where nothing about that route actually
+  changed** — real, visible log spam (and wasted recompute of `mountedPath`/`fullPath`/`regex`/param
+  extraction) on every dev-mode file save once a file watcher started calling `refreshRoutes()` only
+  for the pages that actually needed it. Fixed with a `WeakMap`-keyed memoization cache, keyed by
+  each route's own registry record object reference (never by path/method string):
+  `RouteContainer.defineRoute` only ever writes a brand-new record object when a route is
+  (re)registered, so an unchanged route's record keeps the exact same reference across a rebuild —
+  free, no-new-signal proof that nothing needs recomputing or relogging for it — while a genuinely
+  changed route's new record object is always a cache miss and gets reprocessed and relogged
+  normally. Purely internal to `routeProcessor`; no signature changed anywhere.
+
 ## [4.0.0] - 2026-08-25
 
 ### Changed (BREAKING)

@@ -247,6 +247,36 @@ export class RouteContainer extends BaseContainer {
   }
 
   /**
+   * Whether `Target` currently owns at least one live route entry — a plain, read-only existence
+   * check, never mutating anything. Lets a caller that tracks its own "did I already register
+   * this class" bookkeeping (a dev-server's re-import cache, for instance) tell a still-correct
+   * registration apart from one that was removed by something ELSE since — e.g.
+   * `removeRoutesForTarget`/`removeRoutesForApplication` above, called by an unrelated hot
+   * uninstall/reinstall cycle the caller's own bookkeeping has no way to observe directly.
+   *
+   * @returns `false` for a `Target` with no routes registered at all (never registered, or fully
+   * removed since) — never throws.
+   */
+  public hasRoutesForTarget(
+    Target: ClassConstructor,
+    type?: WebServerTypes,
+  ): boolean {
+    const routes = this.getData<RoutesObject>(this.#routesKey)
+    if (!routes) return false
+
+    const types = type ? [type] : (Object.keys(routes) as WebServerTypes[])
+    for (const t of types) {
+      const byPath = routes[t]
+      if (!byPath) continue
+      for (const fullPath of Object.keys(byPath)) {
+        const { handler } = byPath[fullPath]
+        if (typeof handler !== 'function' && handler.Target === Target) return true
+      }
+    }
+    return false
+  }
+
+  /**
    * Removes every route entry (across every server type) whose `application` equals `application`
    * — the metadata-level half of hot-uninstalling one Zanix App while every other Application
    * (host or sibling app) keeps serving. Deliberately narrower than `resetExceptApplications`

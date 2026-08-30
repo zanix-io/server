@@ -374,6 +374,45 @@ by `protected etagIdentityHeaders` (default: the resolved `AUTH_HEADERS.user`/`A
 header values) — so two different callers hitting the same URL with different credentials never
 share a cached value; override it in a subclass to scope by additional/different headers.
 
+### Getting a replayable `reloadDescriptor` back from a call
+
+Pass `reload: true` to any `http.*` call (or to `GraphQLClient.query()`) to get
+`{ data, reloadDescriptor }` back instead of the plain return value:
+
+```ts
+const client = new BillingClient({ baseUrl: 'https://billing.internal' })
+
+const { data, reloadDescriptor } = await client.http.get('invoices/123', { reload: true })
+// reloadDescriptor: { endpoint: 'https://billing.internal/invoices/123', method: 'GET', headers: {...}, body: undefined }
+```
+
+`reloadDescriptor` is a ready-to-replay descriptor of the call — everything a plain `fetch()` needs,
+already resolved — meant to be forwarded through a page's own `loader` and read back client-side
+(typically by a Comet re-issuing the same call) with no REST/GraphQL-aware logic of its own:
+
+```ts
+fetch(reloadDescriptor.endpoint, {
+  method: reloadDescriptor.method,
+  headers: reloadDescriptor.headers,
+  body: reloadDescriptor.body,
+})
+```
+
+`reloadDescriptor.headers` is never a blind copy of the headers the original call actually sent —
+this whole descriptor is meant to be serialized into a page's initial client-side state, in plain
+text. Only the names listed in `protected reloadableHeaders` (default: `['content-type']`) are
+copied over; a header carrying real credentials (an `Authorization` bearer token, an internal API
+key) is left out unless a subclass deliberately allowlists it:
+
+```ts
+class PublicApiClient extends RestClient {
+  protected override reloadableHeaders = ['content-type', 'x-public-key']
+}
+```
+
+Omitting `reload` (the default) keeps today's plain, unwrapped return value — nothing changes for an
+existing call site.
+
 ### Presenting a client certificate (mTLS)
 
 Pass a `Deno.HttpClient` via the constructor's `client` option to have every request from that
@@ -422,6 +461,92 @@ try {
   }
 }
 ```
+
+### `GraphQLClient`'s own GraphQL-level error handling
+
+A GraphQL endpoint can answer `200 OK` and still carry an `errors` array instead of (or alongside)
+`data` — `RestClient`'s `!response.ok` check never fires for that. `GraphQLClient.query()` checks
+the response body itself and throws a `GraphQLClientError` (extends `RestClientError`) whenever it
+finds one, so a caller can trust `query()`'s own `{ data: T }` return type without checking for
+`errors` on every call:
+
+```ts
+import { GraphQLClientError } from 'jsr:@zanix/server@[version]'
+
+try {
+  await client.query('{ user { id } }')
+} catch (error) {
+  if (error instanceof GraphQLClientError) {
+    console.log(error.graphqlErrors[0].message)
+  }
+}
+```
+
+`error.realHttpStatus` reports `200` here — the request DID succeed at the HTTP level — so a caller
+distinguishing this case reads `graphqlErrors`, not `realHttpStatus`.
+
+### `GraphQLClient`'s build-time schema check (`schemaApplication`)
+
+Pass `schemaApplication` in the constructor options to tell `zanix space build`'s GraphQL check step
+(`@zanix/cli`) which schema this client's queries should be checked against. It is a build-time-only
+hint — never read at runtime, by `query()` or anything else. It takes one of three forms:
+
+```ts
+class UsersClient extends GraphQLClient {
+  constructor() {
+    // A `string` — the name of a local Application's schema (see
+    // [`getSchema()`](./handlers.md#graphql)).
+    super({ baseUrl: 'http://localhost:8000/graphql', schemaApplication: 'main' })
+  }
+}
+
+class LegacyThirdPartyClient extends GraphQLClient {
+  constructor() {
+    // The string literal 'external' — talks to a schema outside this project's own composition,
+    // checked for syntax only (no schema to check against).
+    super({ baseUrl: 'https://legacy.example.com/graphql', schemaApplication: 'external' })
+  }
+}
+
+class ThirdPartyClient extends GraphQLClient {
+  constructor() {
+    // `{ external: true }` — also external, but additionally opts into checking queries against
+    // the real external schema cached by `zanix generate graphql-schema` (`@zanix/cli`), via
+    // `introspect()` (below). The object shape is itself the opt-in — there's no separate boolean
+    // that could be combined incorrectly with a local Application name.
+    super({
+      baseUrl: 'https://api.example.com/graphql',
+      schemaApplication: { external: true },
+    })
+  }
+}
+```
+
+Omit `schemaApplication` entirely to try the default Application. It is deliberately not inferred
+from `baseUrl`: a `spacecraft` project's own space and server halves can bind different ports, so
+"local vs. external" can't be read reliably off the URL alone.
+
+### `GraphQLClient.introspect()`
+
+`introspect()` runs the standard GraphQL introspection query against the client's own configured
+`baseUrl`/headers and returns the raw JSON response — never a `graphql-js` `GraphQLSchema`. This
+connector has zero dependency on the `graphql` npm package, so turning the raw result into a real
+schema is the caller's job:
+
+```ts
+import { buildClientSchema } from 'graphql'
+import type { IntrospectionQuery } from 'graphql'
+
+const raw = await client.introspect()
+const schema = buildClientSchema(raw as unknown as IntrospectionQuery)
+```
+
+Many production GraphQL APIs disable introspection entirely — `introspect()` does nothing to soften
+that: a disabled-introspection response, or any other request failure, propagates unmodified as
+whatever `query()` itself throws (`GraphQLClientError` or `RestClientError`). Reporting that failure
+is the caller's responsibility. In practice, this is called by `@zanix/cli`'s own GraphQL
+schema-cache command and Layer 2 of its check — never automatically at build/dev time — for a client
+whose `schemaApplication` is `{ external: true }`.
 
 ### Restricting a `ZanixWorkerProvider`'s own permissions
 
