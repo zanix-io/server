@@ -488,23 +488,65 @@ distinguishing this case reads `graphqlErrors`, not `realHttpStatus`.
 ### `GraphQLClient`'s build-time schema check (`schemaApplication`)
 
 Pass `schemaApplication` in the constructor options to tell `zanix space build`'s GraphQL check step
-(`@zanix/cli`) which local Application's schema (see [`getSchema()`](./handlers.md#graphql)) this
-client's queries should be checked against. It is a build-time-only hint — never read at runtime, by
-`query()` or anything else:
+(`@zanix/cli`) which schema this client's queries should be checked against. It is a build-time-only
+hint — never read at runtime, by `query()` or anything else. It takes one of three forms:
 
 ```ts
 class UsersClient extends GraphQLClient {
   constructor() {
+    // A `string` — the name of a local Application's schema (see
+    // [`getSchema()`](./handlers.md#graphql)).
     super({ baseUrl: 'http://localhost:8000/graphql', schemaApplication: 'main' })
+  }
+}
+
+class LegacyThirdPartyClient extends GraphQLClient {
+  constructor() {
+    // The string literal 'external' — talks to a schema outside this project's own composition,
+    // checked for syntax only (no schema to check against).
+    super({ baseUrl: 'https://legacy.example.com/graphql', schemaApplication: 'external' })
+  }
+}
+
+class ThirdPartyClient extends GraphQLClient {
+  constructor() {
+    // `{ external: true }` — also external, but additionally opts into checking queries against
+    // the real external schema cached by `zanix generate graphql-schema` (`@zanix/cli`), via
+    // `introspect()` (below). The object shape is itself the opt-in — there's no separate boolean
+    // that could be combined incorrectly with a local Application name.
+    super({
+      baseUrl: 'https://api.example.com/graphql',
+      schemaApplication: { external: true },
+    })
   }
 }
 ```
 
-Omit it to try the default Application. Set it to `'external'` to mark the client as talking to a
-schema outside this project's own composition — checked for syntax only, never against a local
-schema. It is deliberately not inferred from `baseUrl`: a `spacecraft` project's own space and
-server halves can bind different ports, so "local vs. external" can't be read reliably off the URL
-alone.
+Omit `schemaApplication` entirely to try the default Application. It is deliberately not inferred
+from `baseUrl`: a `spacecraft` project's own space and server halves can bind different ports, so
+"local vs. external" can't be read reliably off the URL alone.
+
+### `GraphQLClient.introspect()`
+
+`introspect()` runs the standard GraphQL introspection query against the client's own configured
+`baseUrl`/headers and returns the raw JSON response — never a `graphql-js` `GraphQLSchema`. This
+connector has zero dependency on the `graphql` npm package, so turning the raw result into a real
+schema is the caller's job:
+
+```ts
+import { buildClientSchema } from 'graphql'
+import type { IntrospectionQuery } from 'graphql'
+
+const raw = await client.introspect()
+const schema = buildClientSchema(raw as unknown as IntrospectionQuery)
+```
+
+Many production GraphQL APIs disable introspection entirely — `introspect()` does nothing to soften
+that: a disabled-introspection response, or any other request failure, propagates unmodified as
+whatever `query()` itself throws (`GraphQLClientError` or `RestClientError`). Reporting that failure
+is the caller's responsibility. In practice, this is called by `@zanix/cli`'s own GraphQL
+schema-cache command and Layer 2 of its check — never automatically at build/dev time — for a client
+whose `schemaApplication` is `{ external: true }`.
 
 ### Restricting a `ZanixWorkerProvider`'s own permissions
 

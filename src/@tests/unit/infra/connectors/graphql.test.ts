@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertSpyCalls, spy } from '@std/testing/mock'
-import { assertEquals, assertRejects } from '@std/assert'
+import { assertEquals, assertRejects, assertStringIncludes } from '@std/assert'
 import { GraphQLClient, GraphQLClientError } from 'modules/infra/connectors/core/graphql.ts'
 
 // --- Example subclass ---
@@ -105,6 +105,41 @@ Deno.test('schemaApplication defaults to undefined when omitted', () => {
   const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
   assertEquals((client as any).schemaApplication, undefined)
 })
+
+Deno.test(
+  'schemaApplication: { external: true } is stored on the instance as-is and never reaches the actual HTTP request',
+  async () => {
+    const mockPost = spy((_endpoint: string, opts: any) => {
+      // `schemaApplication` must never leak into the real request options — build-time-only.
+      assertEquals('schemaApplication' in opts, false)
+      return Promise.resolve({ data: { ping: 'pong' } })
+    })
+
+    const client = new MyGraphQLClient({
+      baseUrl: 'https://api.example.com/graphql',
+      schemaApplication: { external: true },
+    })
+    client.http.post = mockPost as any
+
+    // Stored exactly as given — the object shape itself is the opt-in, nothing discriminates it
+    // here (that's `@zanix/cli`'s job, reading this the same structural way regardless of shape).
+    assertEquals((client as any).schemaApplication, { external: true })
+
+    await client.query<{ ping: string }>('query { ping }')
+    assertSpyCalls(mockPost, 1)
+  },
+)
+
+Deno.test(
+  "schemaApplication: 'external' (string literal) still works exactly as before — unchanged by the { external: true } addition",
+  () => {
+    const client = new MyGraphQLClient({
+      baseUrl: 'https://api.example.com/graphql',
+      schemaApplication: 'external',
+    })
+    assertEquals((client as any).schemaApplication, 'external')
+  },
+)
 
 Deno.test('a bare contextId string still constructs correctly (DI constructor-shape compatibility)', () => {
   const client = new MyGraphQLClient('some-context-id')
@@ -251,4 +286,59 @@ Deno.test('query() with reload: true, end-to-end through the real RestClient (fe
   } finally {
     globalThis.fetch = originalFetch
   }
+})
+
+Deno.test('introspect() sends the standard GraphQL introspection query via query() and returns its raw data', async () => {
+  const introspectionResult = {
+    __schema: {
+      queryType: { name: 'Query' },
+      mutationType: null,
+      subscriptionType: null,
+      types: [],
+      directives: [],
+    },
+  }
+
+  const mockPost = spy((_endpoint: string, opts: any) => {
+    const sentBody = JSON.parse(opts.body)
+    // Same fixed query every call — the standard, spec-defined introspection query, not
+    // parameterized by anything about this particular client/call.
+    assertStringIncludes(sentBody.query, 'query IntrospectionQuery')
+    assertStringIncludes(sentBody.query, '__schema')
+    assertStringIncludes(sentBody.query, 'fragment FullType on __Type')
+    assertStringIncludes(sentBody.query, 'fragment TypeRef on __Type')
+    assertEquals(sentBody.variables, undefined)
+    return Promise.resolve({ data: introspectionResult })
+  })
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  const result = await client.introspect()
+
+  assertEquals(result, introspectionResult)
+  assertSpyCalls(mockPost, 1)
+})
+
+Deno.test('introspect() propagates GraphQLClientError unmodified when the endpoint disables introspection', async () => {
+  const mockPost = spy((_endpoint: string, _opts: any) =>
+    Promise.resolve({
+      errors: [{ message: 'GraphQL introspection is not allowed' }],
+    })
+  )
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  const error = await assertRejects(() => client.introspect(), GraphQLClientError)
+  assertEquals(error.graphqlErrors, [{ message: 'GraphQL introspection is not allowed' }])
+})
+
+Deno.test('introspect() propagates a transport-level failure unmodified', async () => {
+  const mockPost = spy((_endpoint: string, _opts: any) => Promise.reject(new Error('network down')))
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  await assertRejects(() => client.introspect(), Error, 'network down')
 })

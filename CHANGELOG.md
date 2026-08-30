@@ -31,11 +31,15 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   `reload` (the default) keeps today's plain, unwrapped return value unchanged.
 
 - **`GraphQLClient`'s constructor accepts a new `schemaApplication` option** (see the new
-  `GqlClientOptions` type) — a build-time-only hint naming which local Application's schema
-  (`getSchema()`, below) this client's queries should be checked against by `zanix space build`'s
-  GraphQL check step (`@zanix/cli`); never read here, at runtime. Omit it to try the default
-  Application, or set it to `'external'` to mark the client as talking to a schema outside this
-  project's own composition (checked for syntax only, never against a local schema).
+  `GqlClientOptions` type) — a build-time-only hint naming which schema this client's queries should
+  be checked against by `zanix space build`'s GraphQL check step (`@zanix/cli`); never read here, at
+  runtime. Three forms: a `string` names a local Application's schema (`getSchema()`, below); the
+  string literal `'external'` marks the client as talking to a schema outside this project's own
+  composition, checked for syntax only; `{ external: true }` also marks it external, but
+  additionally opts into checking its queries against the real external schema cached by
+  `zanix generate graphql-schema` (`@zanix/cli`) — the object shape is itself the opt-in, so there's
+  no separate boolean that could be combined incorrectly with a local Application name. Omit
+  `schemaApplication` entirely to try the default Application.
 
 - **`getSchema(application?)`, exported from `@zanix/server/graphql`** — read-only introspection
   over the `GraphQLSchema` this process actually compiled for an Application: the same object
@@ -81,6 +85,16 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   instead of always seeing `undefined`. One caveat: once an Application's name has entered the
   bucket, it stays there even after `defineSchema` resets it during a rebuild, so this reflects
   "has/had at least one operation," not "has one pending right now."
+
+- **`GraphQLClient.introspect()`** — runs the standard, spec-defined GraphQL introspection query
+  against the client's own configured `baseUrl`/headers (through `query()`, same mechanism as any
+  other call) and returns the raw JSON response (typically `{ __schema: {...} }`), never a
+  `graphql-js` `GraphQLSchema` — this connector still has zero dependency on the `graphql` npm
+  package, same reasoning as `GraphQLErrorLike`'s own doc. Converting the raw result into a real
+  schema (via `graphql-js`'s `buildClientSchema()`) is the caller's job, in practice `@zanix/cli`'s
+  own GraphQL schema tooling. A disabled-introspection response (common on production APIs) or any
+  other request failure propagates unmodified as whatever `query()` itself throws
+  (`GraphQLClientError`/`RestClientError`) — this method does nothing to soften or silence it.
 
 ### Fixed
 

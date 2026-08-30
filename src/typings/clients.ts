@@ -106,12 +106,25 @@ export interface ReloadDescriptor {
  * already accepts (`baseUrl`, headers, `etag`, ...), plus a build-time-only hint about which
  * local schema this client's queries belong to.
  *
- * @property {string | 'external'} [schemaApplication] - Which local Application's schema (see
- * `getSchema()`, `jsr:@zanix/server/graphql`) this client's queries should be checked against at
- * build time by `zanix space build`'s GraphQL check step (`@zanix/cli`) — never read at runtime.
- * Omit to try the default Application. Set to `'external'` to mark this client as talking to a
- * schema outside this project's own composition (always checked for syntax only).
+ * @property {string | 'external' | { external: true }} [schemaApplication] - Which schema this
+ * client's queries should be checked against at build time by `zanix space build`'s GraphQL check
+ * step (`@zanix/cli`) — never read at runtime, by `query()`/`http.*` or anything else in this
+ * class. Three forms:
+ * - A plain `string` — the name of a local Application's schema (see `getSchema()`,
+ *   `jsr:@zanix/server/graphql`) this client's queries are checked against.
+ * - The string literal `'external'` — marks this client as talking to a schema outside this
+ *   project's own composition, checked for syntax only (no schema to check against).
+ * - `{ external: true }` — also marks this client as external, but additionally opts into
+ *   checking its queries against the real external schema cached by `zanix generate
+ *   graphql-schema` (`@zanix/cli`, via `GraphQLClient.introspect()`). The object shape is itself
+ *   the opt-in — there's no separate boolean to combine incorrectly with a local
+ *   `schemaApplication` name (a previous, now-replaced design had exactly that problem: an
+ *   orthogonal boolean silently doing nothing when set without `'external'`).
+ *
+ * Omit `schemaApplication` entirely to try the default Application. Deliberately not inferred
+ * from `baseUrl` — a `spacecraft`'s own space and server halves can bind different ports, so
+ * "local vs. external" can't be read reliably off the URL alone.
  */
 export type GqlClientOptions = RequestOptions & {
-  schemaApplication?: string | 'external'
+  schemaApplication?: string | 'external' | { external: true }
 }

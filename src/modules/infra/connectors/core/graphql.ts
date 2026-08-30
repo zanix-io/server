@@ -19,6 +19,116 @@ export interface GraphQLErrorLike {
   extensions?: Record<string, unknown>
 }
 
+// The standard GraphQL introspection query, per the GraphQL spec's `__schema` introspection
+// system — the exact shape `graphql-js`'s own `buildClientSchema()` needs to reconstruct a real
+// `GraphQLSchema` from a raw response (every type's `kind`/`name`/`description`/`fields`/
+// `inputFields`/`interfaces`/`enumValues`/`possibleTypes`, plus `directives`, `queryType`,
+// `mutationType`, `subscriptionType`). Hand-written here rather than imported from `graphql-js`'s
+// own `getIntrospectionQuery()`, same reasoning as {@link GraphQLErrorLike}'s own doc: this
+// connector has zero dependency on the `graphql` npm package. Fixed and spec-defined — it never
+// changes per call, so there's nothing to parameterize.
+const INTROSPECTION_QUERY = `
+query IntrospectionQuery {
+  __schema {
+    queryType { name kind }
+    mutationType { name kind }
+    subscriptionType { name kind }
+    types {
+      ...FullType
+    }
+    directives {
+      name
+      description
+      locations
+      args {
+        ...InputValue
+      }
+    }
+  }
+}
+
+fragment FullType on __Type {
+  kind
+  name
+  description
+  fields(includeDeprecated: true) {
+    name
+    description
+    args {
+      ...InputValue
+    }
+    type {
+      ...TypeRef
+    }
+    isDeprecated
+    deprecationReason
+  }
+  inputFields {
+    ...InputValue
+  }
+  interfaces {
+    ...TypeRef
+  }
+  enumValues(includeDeprecated: true) {
+    name
+    description
+    isDeprecated
+    deprecationReason
+  }
+  possibleTypes {
+    ...TypeRef
+  }
+}
+
+fragment InputValue on __InputValue {
+  name
+  description
+  type { ...TypeRef }
+  defaultValue
+}
+
+fragment TypeRef on __Type {
+  kind
+  name
+  ofType {
+    name
+    kind
+    ofType {
+      name
+      kind
+      ofType {
+        name
+        kind
+        ofType {
+          name
+          kind
+          ofType {
+            name
+            kind
+            ofType {
+              name
+              kind
+              ofType {
+                name
+                kind
+                ofType {
+                  name
+                  kind
+                  ofType {
+                    name
+                    kind
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`
+
 /**
  * Abstract base class for GraphQL clients.
  *
@@ -54,17 +164,22 @@ export interface GraphQLErrorLike {
  */
 export abstract class GraphQLClient extends RestClient {
   /**
-   * Which local Application's schema (see `getSchema()`, `jsr:@zanix/server/graphql`) this
-   * client's queries should be checked against at build time — read only by `zanix space
-   * build`'s GraphQL check step (`@zanix/cli`); never consulted here, at runtime, by `query()` or
-   * anything else in this class.
+   * Which schema this client's queries should be checked against at build time — read only by
+   * `zanix space build`'s GraphQL check step (`@zanix/cli`); never consulted here, at runtime, by
+   * `query()` or anything else in this class. Three forms:
+   * - A plain `string` — the name of a local Application's schema (see `getSchema()`,
+   *   `jsr:@zanix/server/graphql`) this client's queries are checked against (`getSchema()` called
+   *   with that name). The common case for a client talking to its own local server in a
+   *   `spacecraft` project (space frontend + server, same process).
+   * - The string literal `'external'` — marks this client as talking to a schema outside this
+   *   project's own composition, checked for syntax only, never attempted against any schema.
+   * - `{ external: true }` — also marks this client as external, but additionally opts into
+   *   checking its queries against the real external schema cached by `zanix generate
+   *   graphql-schema` (`@zanix/cli`, via {@link GraphQLClient.introspect}). The object shape is
+   *   itself the opt-in — there's no separate boolean alongside it to combine incorrectly with a
+   *   local Application name.
    *
-   * Omit it to try the default Application (`getSchema()` called with no argument) — the common
-   * case for a client talking to its own local server in a `spacecraft` project (space frontend +
-   * server, same process). Set it to a different Application's name for a non-default one. Set it
-   * to `'external'` to mark this client as talking to a schema outside this project's own
-   * composition — always checked for syntax only, never attempted against a local schema.
-   *
+   * Omit it entirely to try the default Application (`getSchema()` called with no argument).
    * Deliberately not inferred from `baseUrl` — a `spacecraft`'s own space and server halves can
    * bind different ports, so "local vs. external" can't be read reliably off the URL alone.
    *
@@ -74,8 +189,18 @@ export abstract class GraphQLClient extends RestClient {
    *     super({ baseUrl: 'http://localhost:8000/graphql', schemaApplication: 'main' })
    *   }
    * }
+   *
+   * @example
+   * class ThirdPartyClient extends GraphQLClient {
+   *   constructor() {
+   *     super({
+   *       baseUrl: 'https://api.example.com/graphql',
+   *       schemaApplication: { external: true },
+   *     })
+   *   }
+   * }
    */
-  protected readonly schemaApplication?: string | 'external'
+  protected readonly schemaApplication?: string | 'external' | { external: true }
 
   /**
    * Creates the GraphQL client — same `string | options` duality {@link RestClient}'s own
@@ -161,6 +286,42 @@ export abstract class GraphQLClient extends RestClient {
     })
     this.#assertNoGraphQLErrors(response.errors)
     return { data: response.data }
+  }
+
+  /**
+   * Runs the standard GraphQL introspection query (see `INTROSPECTION_QUERY`, this module's own
+   * hand-written copy of the GraphQL spec's `__schema` query) against this client's own
+   * `baseUrl`/headers, through {@link query} — same mechanism, same error handling, as any other
+   * query this client sends.
+   *
+   * Returns the raw JSON `data` the endpoint answers with (typically `{ __schema: {...} }`) —
+   * never a `graphql-js` `GraphQLSchema`. This connector has zero dependency on the `graphql` npm
+   * package (see `INTROSPECTION_QUERY`'s own doc); converting the raw result into a real
+   * `GraphQLSchema` (via `graphql-js`'s `buildClientSchema()`) is the caller's job — in practice,
+   * `@zanix/cli`'s own GraphQL schema-cache/check tooling, which already depends on `graphql-js`
+   * for other reasons.
+   *
+   * Many production GraphQL APIs disable introspection entirely — a real, common outcome, not an
+   * edge case. This method does nothing to soften that: a disabled-introspection response or any
+   * other request failure propagates as whatever {@link query} itself throws
+   * ({@link GraphQLClientError} for a GraphQL-level `errors` array, `RestClientError` for an
+   * HTTP-level failure), unmodified. Reporting that failure clearly is the caller's
+   * responsibility — always an explicit, opt-in command (`@zanix/cli`), never a build/dev-time
+   * path that could silently swallow it.
+   *
+   * @returns {Promise<Record<string, unknown>>} The introspection response's raw `data`.
+   * @throws {GraphQLClientError} If the response is a `200 OK` but its body carries a GraphQL-level
+   * `errors` array (the common shape for a disabled-introspection response).
+   * @throws {RestClientError} If the request itself fails at the HTTP level.
+   *
+   * @example
+   * const raw = await client.introspect();
+   * // Elsewhere, with graphql-js available:
+   * // const schema = buildClientSchema(raw as IntrospectionQuery);
+   */
+  public async introspect(): Promise<Record<string, unknown>> {
+    const { data } = await this.query<Record<string, unknown>>(INTROSPECTION_QUERY)
+    return data
   }
 
   /**
