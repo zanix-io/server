@@ -144,7 +144,7 @@ Deno.test({
       // Rejects almost immediately — never waits out retryInterval/timeoutConnection. Tolerance
       // (80ms) stays well under retryInterval (200ms) so a single retry, if it wrongly happened,
       // would still clearly fail this — while staying generous enough for a loaded CI machine.
-      assertAlmostEquals(elapsed, 0, 85, `${startMode}: should reject without retrying`)
+      assertAlmostEquals(elapsed, 0, 80, `${startMode}: should reject without retrying`)
     }
   },
 })
