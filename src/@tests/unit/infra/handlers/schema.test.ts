@@ -3,8 +3,14 @@ import type { GraphQLObjectType } from 'graphql'
 import {
   defineSchema,
   getSchema,
+  getSchemaApplications,
   gqlSchemaDefinitions,
 } from 'modules/infra/handlers/graphql/schema.ts'
+import {
+  defineSchema as defineSchemaFromMod,
+  getSchema as getSchemaFromMod,
+  getSchemaApplications as getSchemaApplicationsFromMod,
+} from 'modules/infra/handlers/graphql/mod.ts'
 import {
   defineResolverDecorator,
   defineResolverRequestDecorator,
@@ -115,3 +121,77 @@ Deno.test('getSchema: never touches gqlSchemaDefinitions (pure cache read, no si
   getSchema('some-application-getSchema-has-never-seen')
   assertEquals(JSON.stringify(gqlSchemaDefinitions), before)
 })
+
+Deno.test(
+  '@zanix/server/graphql mod.ts: re-exports the exact same defineSchema/getSchema/getSchemaApplications functions, not wrappers',
+  () => {
+    assert(defineSchemaFromMod === defineSchema)
+    assert(getSchemaFromMod === getSchema)
+    assert(getSchemaApplicationsFromMod === getSchemaApplications)
+  },
+)
+
+Deno.test(
+  'getSchemaApplications: an Application with no GraphQL operation registered is absent from the list',
+  () => {
+    assert(!getSchemaApplications().includes('getSchemaApplications-never-registered'))
+  },
+)
+
+Deno.test(
+  'getSchemaApplications: never touches gqlSchemaDefinitions (pure read, no side effects)',
+  () => {
+    const before = JSON.stringify(gqlSchemaDefinitions)
+    getSchemaApplications()
+    assertEquals(JSON.stringify(gqlSchemaDefinitions), before)
+  },
+)
+
+Deno.test(
+  'getSchemaApplications: one Application with a registered operation appears in the list',
+  () => {
+    class SingleAppResolver extends ZanixResolver {
+      public singleAppField() {
+        return 'value'
+      }
+    }
+    defineResolverRequestDecorator('Query', { name: 'singleAppField' })(
+      SingleAppResolver.prototype.singleAppField,
+    )
+    defineResolverDecorator()(SingleAppResolver as never)
+
+    assert(getSchemaApplications().includes(DEFAULT_APPLICATION))
+  },
+)
+
+Deno.test(
+  'getSchemaApplications: multiple Applications with registered operations all appear in the list, custom-named and DEFAULT_APPLICATION alike',
+  async () => {
+    class MultiDefaultResolver extends ZanixResolver {
+      public multiDefaultField() {
+        return 'value'
+      }
+    }
+    class MultiCustomResolver extends ZanixResolver {
+      public multiCustomField() {
+        return 'value'
+      }
+    }
+
+    defineResolverRequestDecorator('Query', { name: 'multiDefaultField' })(
+      MultiDefaultResolver.prototype.multiDefaultField,
+    )
+    defineResolverDecorator()(MultiDefaultResolver as never)
+
+    defineResolverRequestDecorator('Query', { name: 'multiCustomField' })(
+      MultiCustomResolver.prototype.multiCustomField,
+    )
+    await ProgramModule.applications.define('getSchemaApplications-custom-app', () => {
+      defineResolverDecorator()(MultiCustomResolver as never)
+    })
+
+    const applications = getSchemaApplications()
+    assert(applications.includes(DEFAULT_APPLICATION))
+    assert(applications.includes('getSchemaApplications-custom-app'))
+  },
+)

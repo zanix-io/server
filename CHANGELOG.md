@@ -63,6 +63,25 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   `unregisterRoutes`/`unregisterApplicationRoutes` call). Returns `false`, never throws, for a
   `Target` that was never registered or was fully removed since.
 
+- **`defineSchema(application?)`, now exported from `@zanix/server/graphql`.** It already existed as
+  the function that compiles and caches an Application's `GraphQLSchema` (`getSchema`'s own
+  read-through, above), but wasn't reachable from outside the package — a caller that needed to
+  force a compile rather than just read whatever was already cached had no way to do so. Same
+  signature as before, `defineSchema(application: string = DEFAULT_APPLICATION): GraphQLSchema`,
+  purely additive to the export surface.
+
+- **`getSchemaApplications()`, exported from `@zanix/server/graphql`** — lists every Application
+  name with at least one registered `@Query`/`@Mutation` operation, without compiling or reading
+  anything. A pure read over the same bucket `defineSchema` itself builds a schema from, populated
+  as a side effect of `@Resolver` class decoration — a resolver with zero operations never appears.
+  Lets a caller discover which Applications are worth calling `defineSchema`/`getSchema` on at all,
+  without needing to already know their names — exactly the gap that was blocking
+  `zanix space
+  build`'s GraphQL check step (`@zanix/cli`) from validating real local schemas
+  instead of always seeing `undefined`. One caveat: once an Application's name has entered the
+  bucket, it stays there even after `defineSchema` resets it during a rebuild, so this reflects
+  "has/had at least one operation," not "has one pending right now."
+
 ### Fixed
 
 - **A `socket` server with gzip enabled crashed every WebSocket handshake from a real browser** —

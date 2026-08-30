@@ -22,6 +22,37 @@ const getBucket = (application: string) =>
   gqlSchemaDefinitions[application] ??= { Query: '', Mutation: '' }
 
 /**
+ * The Application names that currently have at least one entry in {@linkcode gqlSchemaDefinitions}
+ * — i.e. at least one `@Resolver`-decorated class with at least one `@Query`/`@Mutation` method
+ * has already run for that Application in this process. Purely a read over the bucket's own keys;
+ * never triggers a compile ({@linkcode defineSchema}) and never touches the bucket itself (a
+ * `@Resolver` class with zero `@Query`/`@Mutation` methods never creates a bucket entry, so it
+ * never appears here either).
+ *
+ * Meant for a caller that needs to discover which Applications to compile ahead of time — e.g. a
+ * `Zanix.compose(rootDir)`-then-inspect subprocess with no way to guess Application names in
+ * advance — without having to call `defineSchema` speculatively on every possible name, which
+ * would consume that name's accumulator and build an empty stub schema for any name that never
+ * actually had a resolver (see {@linkcode defineSchema}'s own doc).
+ *
+ * ⚠️ Once {@linkcode defineSchema} has run for an Application, its name stays in this list even
+ * though its accumulator is reset to empty strings right after compiling — `defineSchema` writes
+ * back into the same bucket key rather than deleting it. So after compiling, this reflects "has
+ * (or had) at least one operation", not "currently has a pending, uncompiled one".
+ *
+ * @returns The Application names with at least one GraphQL operation registered so far in this
+ * process, in no particular order.
+ *
+ * @example
+ * import { getSchemaApplications, defineSchema } from '@zanix/server/graphql'
+ *
+ * for (const application of getSchemaApplications()) {
+ *   defineSchema(application)
+ * }
+ */
+export const getSchemaApplications = (): string[] => Object.keys(gqlSchemaDefinitions)
+
+/**
  * Custom `.gql`/`.graphql` type definitions plus scalar stubs — computed once at module load.
  * Shared across every schema, regardless of Application: a type/scalar vocabulary isn't
  * resolver-specific, unlike `Query`/`Mutation`.
@@ -52,7 +83,9 @@ const getFileConfig = () => cachedFileConfig ??= readConfig()
  */
 const compiledSchemas: Record<string, GraphQLSchema> = {}
 
-export const defineSchema = (application: string = DEFAULT_APPLICATION) => {
+export const defineSchema: (application?: string) => GraphQLSchema = (
+  application: string = DEFAULT_APPLICATION,
+) => {
   const fileConfig = getFileConfig()
   const bucket = getBucket(application)
 
