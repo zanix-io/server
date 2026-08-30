@@ -5,9 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [4.1.0] - 2026-08-28
+## [4.1.0] - 2026-08-30
 
 ### Added
+
+- **`GraphQLClient.query()` now throws `GraphQLClientError` when a `200 OK` response carries a
+  GraphQL-level `errors` array.** A query that fails at the GraphQL layer rather than the HTTP layer
+  previously returned normally with an invalid or absent `data` — `RestClient`'s own `!response.ok`
+  check never fires for a `200` response, and the GraphQL-over-HTTP spec allows an `errors` array
+  alongside (or instead of) `data` at that same status. The real errors survive structured on the
+  thrown error, readable via `GraphQLClientError.graphqlErrors` (see the new `GraphQLErrorLike`
+  type, also exported, for a single error's shape). `GraphQLClientError` extends `RestClientError`,
+  so it still integrates with the same logging/serialization conventions every other Zanix error
+  does; it reports `realHttpStatus === 200` for this case — a caller distinguishing it should read
+  `graphqlErrors`, not `realHttpStatus`.
+
+- **`RestClient.http.*` and `GraphQLClient.query()` accept a `metadata: true` option to get
+  `{ data, reloadMetadata }` back instead of the plain return value.** `reloadMetadata` (the new
+  `ReloadMetadata` type) is a ready-to-replay descriptor of the call — `endpoint`, `method`,
+  `headers`, `body` — meant to be forwarded through a page's own `loader` and replayed client-side
+  (typically by a Comet re-issuing the same call) with no REST/GraphQL-aware logic of its own.
+  `headers` is never a blind copy of what the call actually sent: only the names allowlisted by the
+  new `protected reloadableHeaders` (default: `['content-type']`) are copied, so a
+  credential-carrying header (`Authorization`, an internal API key) never reaches this far. Omitting
+  `metadata` (the default) keeps today's plain, unwrapped return value unchanged.
+
+- **`GraphQLClient`'s constructor accepts a new `schemaApplication` option** (see the new
+  `GqlClientOptions` type) — a build-time-only hint naming which local Application's schema
+  (`getSchema()`, below) this client's queries should be checked against by `zanix space build`'s
+  GraphQL check step (`@zanix/cli`); never read here, at runtime. Omit it to try the default
+  Application, or set it to `'external'` to mark the client as talking to a schema outside this
+  project's own composition (checked for syntax only, never against a local schema).
+
+- **`getSchema(application?)`, exported from `@zanix/server/graphql`** — read-only introspection
+  over the `GraphQLSchema` this process actually compiled for an Application: the same object
+  `defineSchema` last built for it, including through a `WebServerManager.refreshRoutes()` dev-mode
+  rebuild. A pure cache read — never triggers a compile of its own, safe to call any number of
+  times. Returns `undefined` if no GraphQL server has been created for that Application yet in this
+  process.
 
 - **`WebServerManager.refreshRoutes(id)`** — recompiles an already-`create()`d server's own
   route-table handler from `ProgramModule`'s current route registry and swaps it into its port's

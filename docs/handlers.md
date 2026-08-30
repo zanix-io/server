@@ -218,6 +218,27 @@ as a memory/CPU exhaustion vector. `introspection` defaults to `true` since most
 (GraphiQL, schema-aware clients/codegen) depends on it — disable it only for a genuinely public API
 that shouldn't expose its schema shape.
 
+### Reading back the compiled schema
+
+`getSchema(application?)` returns the `GraphQLSchema` this process actually compiled for an
+Application — the same object `defineSchema` last built for it, including through a
+`WebServerManager.refreshRoutes()` dev-mode rebuild:
+
+```ts
+import { getSchema } from 'jsr:@zanix/server@[version]/graphql'
+import { printSchema } from 'graphql'
+
+const schema = getSchema('main') // omit the argument for the default Application
+if (schema) console.log(printSchema(schema))
+```
+
+A pure cache read — it never triggers a compile of its own, so it is safe to call any number of
+times, in any order, relative to a real server starting. It returns `undefined` until a GraphQL
+server has actually been created for that Application in this process
+(`webServerManager.create(
+'graphql', ...)`/`bootstrapServers({ graphql: {...} })`), the same
+precondition `ProgramModule.routes.getRoutes()` already has.
+
 ## WebSocket
 
 Extend `ZanixWebSocket` and decorate the class with `@Socket`. Override the protected lifecycle

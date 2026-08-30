@@ -80,7 +80,7 @@ Deno.test({
     // The whole point of this accessor: read-only introspection, never the mutating
     // `RouteContainer` methods (`defineRoute`/`removeRoutesForTarget`/etc.) `unregisterRoutes`
     // already covers those individually via its own narrow, purpose-built wrapper.
-    assertEquals(Object.keys(PublicProgramModule.routes), ['getRoutes'])
+    assertEquals(Object.keys(PublicProgramModule.routes), ['getRoutes', 'hasRoutesForTarget'])
   },
 })
 

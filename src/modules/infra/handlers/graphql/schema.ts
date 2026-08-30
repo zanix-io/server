@@ -1,4 +1,5 @@
 import type { ResolverTypes } from 'typings/decorators.ts'
+import type { GraphQLSchema } from 'graphql'
 
 import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import { defineScalars, getGqlTypes, scalarTypes } from './types.ts'
@@ -42,6 +43,15 @@ let cachedFileConfig: ReturnType<typeof readConfig> | undefined
  */
 const getFileConfig = () => cachedFileConfig ??= readConfig()
 
+/**
+ * The most recently compiled schema for each Application — written every time `defineSchema`
+ * successfully builds one, including through a `refreshRoutes()` dev-mode rebuild
+ * (`modules/webserver/manager.ts`'s `rebuildDefaultHandler`), so this always reflects whichever
+ * version is actually being served right now. Purely an outward-facing cache for `getSchema`
+ * (below) — `defineSchema` itself never reads from this, only writes to it.
+ */
+const compiledSchemas: Record<string, GraphQLSchema> = {}
+
 export const defineSchema = (application: string = DEFAULT_APPLICATION) => {
   const fileConfig = getFileConfig()
   const bucket = getBucket(application)
@@ -63,5 +73,39 @@ export const defineSchema = (application: string = DEFAULT_APPLICATION) => {
   bucket.Query = ''
   bucket.Mutation = ''
 
+  // Write-through cache — `getSchema()` reads this, never re-derives from the (now-reset) bucket.
+  compiledSchemas[application] = schema
+
   return schema
 }
+
+/**
+ * Read-only introspection over the schema this process actually compiled for `application` (or
+ * `DEFAULT_APPLICATION` if omitted) — the same `GraphQLSchema` object `defineSchema` last built
+ * for it, including through a `refreshRoutes()` dev-mode rebuild. Never triggers a compile of its
+ * own and never touches {@linkcode gqlSchemaDefinitions} — a pure cache read, safe to call any
+ * number of times in any order relative to a real server starting. Calling `defineSchema` again
+ * instead would consume the accumulator a second time and build an empty stub schema — see its
+ * own doc; this exists specifically so a caller never has to do that just to read the schema.
+ *
+ * Returns `undefined` if no GraphQL server has been created for `application` in this process yet
+ * (`webServerManager.create('graphql', ...)`/`bootstrapServers({ graphql: {...} })` is what
+ * populates this, via `defineSchema`) — the same precondition class as
+ * `ProgramModule.routes.getRoutes()` already has: call it once composition/creation for the
+ * Application you're asking about is actually done, not before.
+ *
+ * @param application - The Application whose compiled schema to read. Defaults to
+ * `DEFAULT_APPLICATION`.
+ * @returns The compiled `GraphQLSchema`, or `undefined` if that Application has no GraphQL server
+ * created in this process.
+ *
+ * @example
+ * import { getSchema } from '@zanix/server/graphql'
+ * import { printSchema } from 'graphql'
+ *
+ * const schema = getSchema('main')
+ * if (schema) console.log(printSchema(schema))
+ */
+export const getSchema = (
+  application: string = DEFAULT_APPLICATION,
+): GraphQLSchema | undefined => compiledSchemas[application]

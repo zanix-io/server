@@ -1,4 +1,4 @@
-import type { RequestOptions, RestFullOptions } from 'typings/clients.ts'
+import type { ReloadMetadata, RequestOptions, RestFullOptions } from 'typings/clients.ts'
 import type { HttpMethod } from 'typings/router.ts'
 
 import { HttpError } from '@zanix/errors'
@@ -55,6 +55,18 @@ function identityKey(
 }
 
 /**
+ * A call's own two-shape return, based on `metadata` — `true` gets `{ data, reloadMetadata }`
+ * (see {@link ReloadMetadata}), anything else (the default) keeps today's plain return value.
+ * Shared by every `RestClient.http.*` method except `head` (which already returns a `Response`).
+ */
+export interface RestMethodWithMetadata {
+  <T>(endpoint: string, options: RestFullOptions & { metadata: true }): Promise<
+    { data: T; reloadMetadata: ReloadMetadata }
+  >
+  <T>(endpoint: string, options?: RestFullOptions & { metadata?: false }): Promise<T>
+}
+
+/**
  * Abstract base class for RESTful HTTP clients.
  *
  * Extends {@link ZanixConnector} to provide a structured HTTP client
@@ -100,12 +112,23 @@ export class RestClient extends ZanixConnector {
     AUTH_HEADERS.api.toLowerCase(),
   ]
 
+  /**
+   * Header names safe to copy into a call's `reloadMetadata.headers` when it's made with
+   * `metadata: true` — never a blind copy of whatever headers the call actually sent. Some (an
+   * `Authorization` bearer token, an internal API key) carry real credentials that must never
+   * reach the browser: `reloadMetadata` is meant to be forwarded through a page's own `loader` as
+   * serializable data and read back client-side (typically by a Comet re-issuing the same call),
+   * so anything included here ends up in the page's initial client-side state, in plain text.
+   *
+   * Defaults to `['content-type']` — harmless, and generally useful for a replayed call to know.
+   * Override in a subclass to allowlist more (e.g. a header carrying a genuinely public API key),
+   * never to forward something secret.
+   */
+  protected reloadableHeaders: string[] = ['content-type']
+
   /** Convenience methods (`get`, `post`, `put`, `patch`, `delete`, `head`) for issuing REST requests. */
   public http:
-    & Record<
-      Exclude<Lowercase<HttpMethod>, 'head'>,
-      <T>(endpoint: string, options?: RestFullOptions) => Promise<T>
-    >
+    & Record<Exclude<Lowercase<HttpMethod>, 'head'>, RestMethodWithMetadata>
     & {
       head: (
         endpoint: string,
@@ -135,13 +158,19 @@ export class RestClient extends ZanixConnector {
     }
 
     this.http = {
-      put: this.#put.bind(this),
-      post: this.#post.bind(this),
-      delete: this.#delete.bind(this),
-      get: this.#get.bind(this),
-      patch: this.#patch.bind(this),
+      // `#put`/`#post`/etc. stay loosely typed internally (`<T>(endpoint, options?) => Promise<T>`)
+      // — the same shape every branch inside `#http` already relies on its own `as T` casts for
+      // (the 304/204/HEAD/metadata-wrapped cases each return a differently-shaped value under one
+      // generic). The precise, two-shape public contract (`RestMethodWithMetadata`) is enforced at
+      // this one assignment boundary instead, the same "loose internals, precise public type" split
+      // several other Zanix modules already use.
+      put: this.#put.bind(this) as RestMethodWithMetadata,
+      post: this.#post.bind(this) as RestMethodWithMetadata,
+      delete: this.#delete.bind(this) as RestMethodWithMetadata,
+      get: this.#get.bind(this) as RestMethodWithMetadata,
+      patch: this.#patch.bind(this) as RestMethodWithMetadata,
       head: this.#head.bind(this),
-      options: this.#options.bind(this),
+      options: this.#options.bind(this) as RestMethodWithMetadata,
     }
   }
 
@@ -174,6 +203,28 @@ export class RestClient extends ZanixConnector {
       >('cache:local') ?? etagCache
     } catch {
       return etagCache
+    }
+  }
+
+  /**
+   * Builds the `ReloadMetadata` a `metadata: true` call attaches — `url`/`options` are always the
+   * already-fully-resolved values `#http` itself is about to `fetch()` with, so this never
+   * recomputes anything (no second URL join, no second header merge). See
+   * {@link reloadableHeaders}'s own doc for why `headers` is filtered, never copied wholesale.
+   */
+  #buildReloadMetadata(method: string, url: string, options: RestFullOptions): ReloadMetadata {
+    const sourceHeaders = new Headers(options.headers)
+    const headers: Record<string, string> = {}
+    for (const name of this.reloadableHeaders) {
+      const value = sourceHeaders.get(name)
+      if (value !== null) headers[name] = value
+    }
+
+    return {
+      endpoint: url,
+      method,
+      headers,
+      body: typeof options.body === 'string' ? options.body : undefined,
     }
   }
 
@@ -214,6 +265,9 @@ export class RestClient extends ZanixConnector {
 
     delete options.etag
 
+    const wantsMetadata = options.metadata === true
+    delete options.metadata
+
     const [protocol, restOfUrl] = (baseUrl ? `${baseUrl}/${endpoint}` : endpoint).split('://')
 
     if (!restOfUrl) {
@@ -228,6 +282,13 @@ export class RestClient extends ZanixConnector {
     const cacheKey = `${url} ${identityKey(options.headers, this.etagIdentityHeaders)}`
     const etagCacheStore = this.#resolveEtagCache(useEtag)
 
+    // Built once, reused for every successful-return branch below — never for the two error
+    // branches (a caller replaying a failed call gets nothing useful to reload).
+    const withMetadata = <V>(data: V): T =>
+      (wantsMetadata
+        ? { data, reloadMetadata: this.#buildReloadMetadata(method, url, options) }
+        : data) as T
+
     const cached = etagCacheStore?.get(cacheKey)
     if (cached) {
       options.headers = { ...options.headers, 'If-None-Match': cached.etag }
@@ -239,7 +300,7 @@ export class RestClient extends ZanixConnector {
       // A `304` only ever comes back for a request THIS client conditioned on `If-None-Match`
       // (i.e. `cached` is set) — the cached value from that same ETag is still current.
       if (response.status === 304 && cached) {
-        return cached.value as T
+        return withMetadata(cached.value)
       }
 
       if (!response.ok) {
@@ -270,7 +331,7 @@ export class RestClient extends ZanixConnector {
       }
 
       if (response.status === 204 || response.status === 205) {
-        return undefined as T
+        return withMetadata(undefined)
       }
 
       const text = await response.text()
@@ -284,7 +345,7 @@ export class RestClient extends ZanixConnector {
       const etag = response.headers.get('ETag')
       if (etag) etagCacheStore?.set(cacheKey, { etag, value })
 
-      return value as T
+      return withMetadata(value)
     } catch (e) {
       // Already a well-formed `HttpError` (the `!response.ok` branch above built one, with the
       // real upstream status structured in its own `meta`) — pass it through unchanged, don't

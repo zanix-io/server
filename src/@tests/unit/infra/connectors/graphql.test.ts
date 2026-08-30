@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertSpyCalls, spy } from '@std/testing/mock'
-import { assertEquals } from '@std/assert'
-import { GraphQLClient } from 'modules/infra/connectors/core/graphql.ts'
+import { assertEquals, assertRejects } from '@std/assert'
+import { GraphQLClient, GraphQLClientError } from 'modules/infra/connectors/core/graphql.ts'
 
 // --- Example subclass ---
 class MyGraphQLClient extends GraphQLClient {
@@ -80,4 +80,175 @@ Deno.test('query() merges custom request options', async () => {
 
   assertEquals(result, { data: { ping: 'pong' } })
   assertSpyCalls(mockPost, 1)
+})
+
+Deno.test('schemaApplication is stored on the instance and never reaches the actual HTTP request', async () => {
+  const mockPost = spy((_endpoint: string, opts: any) => {
+    // `schemaApplication` must never leak into the real request options — build-time-only.
+    assertEquals('schemaApplication' in opts, false)
+    return Promise.resolve({ data: { ping: 'pong' } })
+  })
+
+  const client = new MyGraphQLClient({
+    baseUrl: 'https://api.example.com/graphql',
+    schemaApplication: 'main',
+  })
+  client.http.post = mockPost as any
+
+  assertEquals((client as any).schemaApplication, 'main')
+
+  await client.query<{ ping: string }>('query { ping }')
+  assertSpyCalls(mockPost, 1)
+})
+
+Deno.test('schemaApplication defaults to undefined when omitted', () => {
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  assertEquals((client as any).schemaApplication, undefined)
+})
+
+Deno.test('a bare contextId string still constructs correctly (DI constructor-shape compatibility)', () => {
+  const client = new MyGraphQLClient('some-context-id')
+  assertEquals((client as any).schemaApplication, undefined)
+})
+
+Deno.test('query() throws GraphQLClientError when a 200 OK response carries a GraphQL errors array', async () => {
+  const mockPost = spy((_endpoint: string, _opts: any) =>
+    Promise.resolve({
+      errors: [{ message: 'Field "nmae" does not exist on type "Country"' }],
+    })
+  )
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  const error = await assertRejects(
+    () => client.query('query { country { nmae } }'),
+    GraphQLClientError,
+  )
+  assertEquals(error.graphqlErrors, [
+    { message: 'Field "nmae" does not exist on type "Country"' },
+  ])
+  // The HTTP call itself succeeded — 200 OK — so `realHttpStatus` (inherited from
+  // `RestClientError`) reports that, not a transport/HTTP failure.
+  assertEquals(error.realHttpStatus, 200)
+})
+
+Deno.test('query() does not throw when the response has no errors array', async () => {
+  const mockPost = spy((_endpoint: string, _opts: any) =>
+    Promise.resolve({ data: { ping: 'pong' } })
+  )
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  const result = await client.query<{ ping: string }>('query { ping }')
+  assertEquals(result, { data: { ping: 'pong' } })
+})
+
+Deno.test('query() does not throw for an empty errors array', async () => {
+  const mockPost = spy((_endpoint: string, _opts: any) =>
+    Promise.resolve({ data: { ping: 'pong' }, errors: [] })
+  )
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  const result = await client.query<{ ping: string }>('query { ping }')
+  // The empty `errors` array never leaks into the return value — `query()` always returns exactly
+  // `{ data }`, not whatever raw shape the response body happened to have.
+  assertEquals(result, { data: { ping: 'pong' } })
+})
+
+Deno.test('query() with metadata: true forwards metadata: true to http.post and unwraps its reloadMetadata correctly', async () => {
+  const zanixReload = {
+    endpoint: 'https://api.example.com/graphql',
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ query: 'query { ping }', variables: undefined }),
+  }
+  const mockPost = spy((_endpoint: string, opts: any) => {
+    assertEquals(opts.metadata, true)
+    return Promise.resolve({
+      data: { data: { ping: 'pong' } },
+      reloadMetadata: zanixReload,
+    })
+  })
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  const result = await client.query<{ ping: string }>('query { ping }', { metadata: true })
+
+  assertEquals(result.data, { ping: 'pong' })
+  assertEquals(result.reloadMetadata, zanixReload)
+})
+
+Deno.test('query() with metadata: true still throws GraphQLClientError for a GraphQL errors array', async () => {
+  const mockPost = spy((_endpoint: string, _opts: any) =>
+    Promise.resolve({
+      data: { errors: [{ message: 'boom' }] },
+      reloadMetadata: {
+        endpoint: 'https://api.example.com/graphql',
+        method: 'POST',
+        headers: {},
+      },
+    })
+  )
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  const error = await assertRejects(
+    () => client.query('query { broken }', { metadata: true }),
+    GraphQLClientError,
+  )
+  assertEquals(error.graphqlErrors, [{ message: 'boom' }])
+})
+
+Deno.test('query() without metadata never passes metadata to http.post', async () => {
+  const mockPost = spy((_endpoint: string, opts: any) => {
+    assertEquals('metadata' in opts, false)
+    return Promise.resolve({ data: { ping: 'pong' } })
+  })
+
+  const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
+  client.http.post = mockPost as any
+
+  await client.query<{ ping: string }>('query { ping }')
+  assertSpyCalls(mockPost, 1)
+})
+
+Deno.test('query() with metadata: true, end-to-end through the real RestClient (fetch mocked, not http.post)', async () => {
+  const originalFetch = globalThis.fetch
+  try {
+    const mockFetch = spy((_url: string, _opts: any) =>
+      Promise.resolve(
+        new Response(JSON.stringify({ data: { ping: 'pong' } }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+    )
+    globalThis.fetch = mockFetch as unknown as typeof fetch
+
+    const client = new MyGraphQLClient({
+      baseUrl: 'https://api.example.com/graphql',
+      headers: { Authorization: 'Bearer secret-token' },
+    })
+    const result = await client.query<{ ping: string }>('query { ping }', { metadata: true })
+
+    assertEquals(result.data, { ping: 'pong' })
+    assertEquals(result.reloadMetadata.endpoint, 'https://api.example.com/graphql')
+    assertEquals(result.reloadMetadata.method, 'POST')
+    assertEquals(
+      result.reloadMetadata.body,
+      JSON.stringify({ query: 'query { ping }', variables: undefined }),
+    )
+    // Same allowlist guarantee as RestClient's own — the real Authorization header this client
+    // was constructed with never reaches reloadMetadata, even end-to-end through the real stack.
+    assertEquals(result.reloadMetadata.headers, { 'content-type': 'application/json' })
+    assertEquals('authorization' in result.reloadMetadata.headers, false)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
 })

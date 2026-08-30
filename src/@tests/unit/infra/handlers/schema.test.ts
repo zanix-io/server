@@ -1,6 +1,10 @@
-import { assert, assertStringIncludes } from '@std/assert'
+import { assert, assertEquals, assertStringIncludes } from '@std/assert'
 import type { GraphQLObjectType } from 'graphql'
-import { defineSchema } from 'modules/infra/handlers/graphql/schema.ts'
+import {
+  defineSchema,
+  getSchema,
+  gqlSchemaDefinitions,
+} from 'modules/infra/handlers/graphql/schema.ts'
 import {
   defineResolverDecorator,
   defineResolverRequestDecorator,
@@ -67,4 +71,47 @@ Deno.test('defineSchema: Application buckets stay independent (no cross-reset)',
   )
   assert(publicFields.includes('publiconlyfield'))
   assert(!publicFields.includes('internalonlyfield'))
+})
+
+Deno.test(
+  'getSchema: returns undefined for an Application with no GraphQL server created yet',
+  () => {
+    assertEquals(getSchema('getSchema-never-built'), undefined)
+  },
+)
+
+Deno.test(
+  'getSchema: reads back the schema defineSchema just compiled, even after the bucket resets',
+  async () => {
+    class GetSchemaResolver extends ZanixResolver {
+      public exampleField() {
+        return 'value'
+      }
+    }
+    defineResolverRequestDecorator('Query', { name: 'exampleField' })(
+      GetSchemaResolver.prototype.exampleField,
+    )
+    await ProgramModule.applications.define('getSchema-test-app', () => {
+      defineResolverDecorator()(GetSchemaResolver as never)
+    })
+
+    // The bucket for 'getSchema-test-app' is fully consumed and reset by this call — proving
+    // `getSchema` below isn't just re-deriving from it (it would get an empty stub schema if it
+    // were, the same bug a naive re-read of `gqlSchemaDefinitions` would hit).
+    const built = defineSchema('getSchema-test-app')
+    const read = getSchema('getSchema-test-app')
+
+    assert(read === built)
+    const fields = Object.keys(
+      (read?.getType('Query') as GraphQLObjectType).getFields(),
+    )
+    assert(fields.includes('examplefield'))
+  },
+)
+
+Deno.test('getSchema: never touches gqlSchemaDefinitions (pure cache read, no side effects)', () => {
+  const before = JSON.stringify(gqlSchemaDefinitions)
+  getSchema(DEFAULT_APPLICATION)
+  getSchema('some-application-getSchema-has-never-seen')
+  assertEquals(JSON.stringify(gqlSchemaDefinitions), before)
 })

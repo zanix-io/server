@@ -570,3 +570,100 @@ Deno.test('204 and 205 No Content returns undefined', async () => {
   await checkNoContent(204)
   await checkNoContent(205)
 })
+
+// --- metadata: true / reloadMetadata ---
+
+Deno.test('metadata: true wraps the result as { data, reloadMetadata } with the resolved endpoint/method', async () => {
+  const mockFetch = spy(() =>
+    Promise.resolve(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.get<{ ok: boolean }>('/users/123', { metadata: true })
+
+  assertEquals(result.data, { ok: true })
+  assertEquals(result.reloadMetadata.endpoint, 'https://api.example.com/users/123')
+  assertEquals(result.reloadMetadata.method, 'GET')
+})
+
+Deno.test('metadata: true only copies reloadableHeaders-allowlisted headers, never every header sent', async () => {
+  const mockFetch = spy(() =>
+    Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.get('/users/123', {
+    metadata: true,
+    headers: { Authorization: 'Bearer secret-token', 'X-Trace-Id': 'abc' },
+  })
+
+  // The request itself still carried the real headers...
+  const sentHeaders = (mockFetch.calls[0].args[1 as never] as any)?.headers
+  assertEquals(sentHeaders?.Authorization, 'Bearer secret-token')
+  // ...but `reloadMetadata.headers` — which gets serialized to the browser — only carries what
+  // `reloadableHeaders` allowlists by default (`content-type`), never the credential.
+  assertEquals(result.reloadMetadata.headers, { 'content-type': 'application/json' })
+  assertEquals('authorization' in result.reloadMetadata.headers, false)
+  assertEquals('x-trace-id' in result.reloadMetadata.headers, false)
+})
+
+Deno.test('reloadableHeaders can be overridden by a subclass to allowlist more', async () => {
+  class ClientWithPublicHeader extends RestClient {
+    protected override reloadableHeaders = ['content-type', 'x-public-key']
+  }
+
+  const mockFetch = spy(() =>
+    Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new ClientWithPublicHeader({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.get('/x', {
+    metadata: true,
+    headers: { 'X-Public-Key': 'not-a-secret', Authorization: 'Bearer secret' },
+  })
+
+  assertEquals((result as any).reloadMetadata.headers['x-public-key'], 'not-a-secret')
+  assertEquals('authorization' in (result as any).reloadMetadata.headers, false)
+})
+
+Deno.test('metadata: true on POST captures the exact body string sent', async () => {
+  const mockFetch = spy(() =>
+    Promise.resolve(new Response(JSON.stringify({ id: 1 }), { status: 200 }))
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.post<{ id: number }>('/users', {
+    metadata: true,
+    body: JSON.stringify({ name: 'Alice' }),
+  })
+
+  assertEquals(result.reloadMetadata.body, JSON.stringify({ name: 'Alice' }))
+  assertEquals(result.reloadMetadata.method, 'POST')
+})
+
+Deno.test('omitting metadata (the default) keeps the plain, unwrapped return value', async () => {
+  const mockFetch = spy(() =>
+    Promise.resolve(
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+  const result = await client.http.get('/x')
+
+  assertEquals(result, { ok: true })
+  assertEquals('reloadMetadata' in (result as object), false)
+})

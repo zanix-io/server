@@ -374,6 +374,45 @@ by `protected etagIdentityHeaders` (default: the resolved `AUTH_HEADERS.user`/`A
 header values) — so two different callers hitting the same URL with different credentials never
 share a cached value; override it in a subclass to scope by additional/different headers.
 
+### Getting a replayable `reloadMetadata` back from a call
+
+Pass `metadata: true` to any `http.*` call (or to `GraphQLClient.query()`) to get
+`{ data, reloadMetadata }` back instead of the plain return value:
+
+```ts
+const client = new BillingClient({ baseUrl: 'https://billing.internal' })
+
+const { data, reloadMetadata } = await client.http.get('invoices/123', { metadata: true })
+// reloadMetadata: { endpoint: 'https://billing.internal/invoices/123', method: 'GET', headers: {...}, body: undefined }
+```
+
+`reloadMetadata` is a ready-to-replay descriptor of the call — everything a plain `fetch()` needs,
+already resolved — meant to be forwarded through a page's own `loader` and read back client-side
+(typically by a Comet re-issuing the same call) with no REST/GraphQL-aware logic of its own:
+
+```ts
+fetch(reloadMetadata.endpoint, {
+  method: reloadMetadata.method,
+  headers: reloadMetadata.headers,
+  body: reloadMetadata.body,
+})
+```
+
+`reloadMetadata.headers` is never a blind copy of the headers the original call actually sent — this
+whole descriptor is meant to be serialized into a page's initial client-side state, in plain text.
+Only the names listed in `protected reloadableHeaders` (default: `['content-type']`) are copied
+over; a header carrying real credentials (an `Authorization` bearer token, an internal API key) is
+left out unless a subclass deliberately allowlists it:
+
+```ts
+class PublicApiClient extends RestClient {
+  protected override reloadableHeaders = ['content-type', 'x-public-key']
+}
+```
+
+Omitting `metadata` (the default) keeps today's plain, unwrapped return value — nothing changes for
+an existing call site.
+
 ### Presenting a client certificate (mTLS)
 
 Pass a `Deno.HttpClient` via the constructor's `client` option to have every request from that
@@ -422,6 +461,50 @@ try {
   }
 }
 ```
+
+### `GraphQLClient`'s own GraphQL-level error handling
+
+A GraphQL endpoint can answer `200 OK` and still carry an `errors` array instead of (or alongside)
+`data` — `RestClient`'s `!response.ok` check never fires for that. `GraphQLClient.query()` checks
+the response body itself and throws a `GraphQLClientError` (extends `RestClientError`) whenever it
+finds one, so a caller can trust `query()`'s own `{ data: T }` return type without checking for
+`errors` on every call:
+
+```ts
+import { GraphQLClientError } from 'jsr:@zanix/server@[version]'
+
+try {
+  await client.query('{ user { id } }')
+} catch (error) {
+  if (error instanceof GraphQLClientError) {
+    console.log(error.graphqlErrors[0].message)
+  }
+}
+```
+
+`error.realHttpStatus` reports `200` here — the request DID succeed at the HTTP level — so a caller
+distinguishing this case reads `graphqlErrors`, not `realHttpStatus`.
+
+### `GraphQLClient`'s build-time schema check (`schemaApplication`)
+
+Pass `schemaApplication` in the constructor options to tell `zanix space build`'s GraphQL check step
+(`@zanix/cli`) which local Application's schema (see [`getSchema()`](./handlers.md#graphql)) this
+client's queries should be checked against. It is a build-time-only hint — never read at runtime, by
+`query()` or anything else:
+
+```ts
+class UsersClient extends GraphQLClient {
+  constructor() {
+    super({ baseUrl: 'http://localhost:8000/graphql', schemaApplication: 'main' })
+  }
+}
+```
+
+Omit it to try the default Application. Set it to `'external'` to mark the client as talking to a
+schema outside this project's own composition — checked for syntax only, never against a local
+schema. It is deliberately not inferred from `baseUrl`: a `spacecraft` project's own space and
+server halves can bind different ports, so "local vs. external" can't be read reliably off the URL
+alone.
 
 ### Restricting a `ZanixWorkerProvider`'s own permissions
 
