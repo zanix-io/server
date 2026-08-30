@@ -1,4 +1,4 @@
-import type { GqlClientOptions, GqlOptions, ReloadMetadata } from 'typings/clients.ts'
+import type { GqlClientOptions, GqlOptions, ReloadDescriptor } from 'typings/clients.ts'
 import { RestClient, RestClientError } from './rest.ts'
 
 /**
@@ -107,11 +107,11 @@ export abstract class GraphQLClient extends RestClient {
    * @param {object} [options] - Optional configuration for the request.
    * @param {Record<string, unknown>} [options.variables] - Variables to be passed into the GraphQL query.
    * @param {GqlOptions} [options.request] - Additional options merged into the underlying HTTP request (e.g. headers).
-   * @param {boolean} [options.metadata] - Set to `true` to get `reloadMetadata` back alongside
-   * `data` — see {@link ReloadMetadata} and `RestClient.reloadableHeaders`'s own doc (the same
+   * @param {boolean} [options.reload] - Set to `true` to get `reloadDescriptor` back alongside
+   * `data` — see {@link ReloadDescriptor} and `RestClient.reloadableHeaders`'s own doc (the same
    * mechanism `RestClient.http.*` already has, inherited here through `this.http.post`).
    * @returns {Promise<{ data: T }>} - A promise resolving to the parsed GraphQL response data (plus
-   * `reloadMetadata` when `options.metadata` is `true`).
+   * `reloadDescriptor` when `options.reload` is `true`).
    * @throws {GraphQLClientError} If the response is a `200 OK` but its body carries a GraphQL-level
    * `errors` array — see {@link GraphQLClientError}'s own doc.
    *
@@ -127,32 +127,32 @@ export abstract class GraphQLClient extends RestClient {
    */
   public query<T = Record<string, unknown>>(
     query: string,
-    options: { variables?: Record<string, unknown>; request?: GqlOptions; metadata: true },
-  ): Promise<{ data: T; reloadMetadata: ReloadMetadata }>
-  /** Same as above, without `metadata: true` — today's plain, unwrapped `{ data: T }` return. */
+    options: { variables?: Record<string, unknown>; request?: GqlOptions; reload: true },
+  ): Promise<{ data: T; reloadDescriptor: ReloadDescriptor }>
+  /** Same as above, without `reload: true` — today's plain, unwrapped `{ data: T }` return. */
   public query<T = Record<string, unknown>>(
     query: string,
-    options?: { variables?: Record<string, unknown>; request?: GqlOptions; metadata?: false },
+    options?: { variables?: Record<string, unknown>; request?: GqlOptions; reload?: false },
   ): Promise<{ data: T }>
   public async query<T = Record<string, unknown>>(
     query: string,
     options: {
       variables?: Record<string, unknown>
       request?: GqlOptions
-      metadata?: boolean
+      reload?: boolean
     } = {},
-  ): Promise<{ data: T; reloadMetadata?: ReloadMetadata }> {
-    const { request, variables, metadata } = options
+  ): Promise<{ data: T; reloadDescriptor?: ReloadDescriptor }> {
+    const { request, variables, reload } = options
     const body = JSON.stringify({ query, variables })
 
-    if (metadata) {
+    if (reload) {
       const response = await this.http.post<{ data: T; errors?: GraphQLErrorLike[] }>('', {
         ...request,
         body,
-        metadata: true,
+        reload: true,
       })
       this.#assertNoGraphQLErrors(response.data.errors)
-      return { data: response.data.data, reloadMetadata: response.reloadMetadata }
+      return { data: response.data.data, reloadDescriptor: response.reloadDescriptor }
     }
 
     const response = await this.http.post<{ data: T; errors?: GraphQLErrorLike[] }>('', {

@@ -20,15 +20,15 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   does; it reports `realHttpStatus === 200` for this case — a caller distinguishing it should read
   `graphqlErrors`, not `realHttpStatus`.
 
-- **`RestClient.http.*` and `GraphQLClient.query()` accept a `metadata: true` option to get
-  `{ data, reloadMetadata }` back instead of the plain return value.** `reloadMetadata` (the new
-  `ReloadMetadata` type) is a ready-to-replay descriptor of the call — `endpoint`, `method`,
+- **`RestClient.http.*` and `GraphQLClient.query()` accept a `reload: true` option to get
+  `{ data, reloadDescriptor }` back instead of the plain return value.** `reloadDescriptor` (the new
+  `ReloadDescriptor` type) is a ready-to-replay descriptor of the call — `endpoint`, `method`,
   `headers`, `body` — meant to be forwarded through a page's own `loader` and replayed client-side
   (typically by a Comet re-issuing the same call) with no REST/GraphQL-aware logic of its own.
   `headers` is never a blind copy of what the call actually sent: only the names allowlisted by the
   new `protected reloadableHeaders` (default: `['content-type']`) are copied, so a
   credential-carrying header (`Authorization`, an internal API key) never reaches this far. Omitting
-  `metadata` (the default) keeps today's plain, unwrapped return value unchanged.
+  `reload` (the default) keeps today's plain, unwrapped return value unchanged.
 
 - **`GraphQLClient`'s constructor accepts a new `schemaApplication` option** (see the new
   `GqlClientOptions` type) — a build-time-only hint naming which local Application's schema

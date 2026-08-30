@@ -374,35 +374,35 @@ by `protected etagIdentityHeaders` (default: the resolved `AUTH_HEADERS.user`/`A
 header values) — so two different callers hitting the same URL with different credentials never
 share a cached value; override it in a subclass to scope by additional/different headers.
 
-### Getting a replayable `reloadMetadata` back from a call
+### Getting a replayable `reloadDescriptor` back from a call
 
-Pass `metadata: true` to any `http.*` call (or to `GraphQLClient.query()`) to get
-`{ data, reloadMetadata }` back instead of the plain return value:
+Pass `reload: true` to any `http.*` call (or to `GraphQLClient.query()`) to get
+`{ data, reloadDescriptor }` back instead of the plain return value:
 
 ```ts
 const client = new BillingClient({ baseUrl: 'https://billing.internal' })
 
-const { data, reloadMetadata } = await client.http.get('invoices/123', { metadata: true })
-// reloadMetadata: { endpoint: 'https://billing.internal/invoices/123', method: 'GET', headers: {...}, body: undefined }
+const { data, reloadDescriptor } = await client.http.get('invoices/123', { reload: true })
+// reloadDescriptor: { endpoint: 'https://billing.internal/invoices/123', method: 'GET', headers: {...}, body: undefined }
 ```
 
-`reloadMetadata` is a ready-to-replay descriptor of the call — everything a plain `fetch()` needs,
+`reloadDescriptor` is a ready-to-replay descriptor of the call — everything a plain `fetch()` needs,
 already resolved — meant to be forwarded through a page's own `loader` and read back client-side
 (typically by a Comet re-issuing the same call) with no REST/GraphQL-aware logic of its own:
 
 ```ts
-fetch(reloadMetadata.endpoint, {
-  method: reloadMetadata.method,
-  headers: reloadMetadata.headers,
-  body: reloadMetadata.body,
+fetch(reloadDescriptor.endpoint, {
+  method: reloadDescriptor.method,
+  headers: reloadDescriptor.headers,
+  body: reloadDescriptor.body,
 })
 ```
 
-`reloadMetadata.headers` is never a blind copy of the headers the original call actually sent — this
-whole descriptor is meant to be serialized into a page's initial client-side state, in plain text.
-Only the names listed in `protected reloadableHeaders` (default: `['content-type']`) are copied
-over; a header carrying real credentials (an `Authorization` bearer token, an internal API key) is
-left out unless a subclass deliberately allowlists it:
+`reloadDescriptor.headers` is never a blind copy of the headers the original call actually sent —
+this whole descriptor is meant to be serialized into a page's initial client-side state, in plain
+text. Only the names listed in `protected reloadableHeaders` (default: `['content-type']`) are
+copied over; a header carrying real credentials (an `Authorization` bearer token, an internal API
+key) is left out unless a subclass deliberately allowlists it:
 
 ```ts
 class PublicApiClient extends RestClient {
@@ -410,8 +410,8 @@ class PublicApiClient extends RestClient {
 }
 ```
 
-Omitting `metadata` (the default) keeps today's plain, unwrapped return value — nothing changes for
-an existing call site.
+Omitting `reload` (the default) keeps today's plain, unwrapped return value — nothing changes for an
+existing call site.
 
 ### Presenting a client certificate (mTLS)
 

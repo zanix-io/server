@@ -571,9 +571,9 @@ Deno.test('204 and 205 No Content returns undefined', async () => {
   await checkNoContent(205)
 })
 
-// --- metadata: true / reloadMetadata ---
+// --- reload: true / reloadDescriptor ---
 
-Deno.test('metadata: true wraps the result as { data, reloadMetadata } with the resolved endpoint/method', async () => {
+Deno.test('reload: true wraps the result as { data, reloadDescriptor } with the resolved endpoint/method', async () => {
   const mockFetch = spy(() =>
     Promise.resolve(
       new Response(JSON.stringify({ ok: true }), {
@@ -585,14 +585,14 @@ Deno.test('metadata: true wraps the result as { data, reloadMetadata } with the 
   globalThis.fetch = mockFetch as unknown as typeof fetch
 
   const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
-  const result = await client.http.get<{ ok: boolean }>('/users/123', { metadata: true })
+  const result = await client.http.get<{ ok: boolean }>('/users/123', { reload: true })
 
   assertEquals(result.data, { ok: true })
-  assertEquals(result.reloadMetadata.endpoint, 'https://api.example.com/users/123')
-  assertEquals(result.reloadMetadata.method, 'GET')
+  assertEquals(result.reloadDescriptor.endpoint, 'https://api.example.com/users/123')
+  assertEquals(result.reloadDescriptor.method, 'GET')
 })
 
-Deno.test('metadata: true only copies reloadableHeaders-allowlisted headers, never every header sent', async () => {
+Deno.test('reload: true only copies reloadableHeaders-allowlisted headers, never every header sent', async () => {
   const mockFetch = spy(() =>
     Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }))
   )
@@ -600,18 +600,18 @@ Deno.test('metadata: true only copies reloadableHeaders-allowlisted headers, nev
 
   const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
   const result = await client.http.get('/users/123', {
-    metadata: true,
+    reload: true,
     headers: { Authorization: 'Bearer secret-token', 'X-Trace-Id': 'abc' },
   })
 
   // The request itself still carried the real headers...
   const sentHeaders = (mockFetch.calls[0].args[1 as never] as any)?.headers
   assertEquals(sentHeaders?.Authorization, 'Bearer secret-token')
-  // ...but `reloadMetadata.headers` — which gets serialized to the browser — only carries what
+  // ...but `reloadDescriptor.headers` — which gets serialized to the browser — only carries what
   // `reloadableHeaders` allowlists by default (`content-type`), never the credential.
-  assertEquals(result.reloadMetadata.headers, { 'content-type': 'application/json' })
-  assertEquals('authorization' in result.reloadMetadata.headers, false)
-  assertEquals('x-trace-id' in result.reloadMetadata.headers, false)
+  assertEquals(result.reloadDescriptor.headers, { 'content-type': 'application/json' })
+  assertEquals('authorization' in result.reloadDescriptor.headers, false)
+  assertEquals('x-trace-id' in result.reloadDescriptor.headers, false)
 })
 
 Deno.test('reloadableHeaders can be overridden by a subclass to allowlist more', async () => {
@@ -626,15 +626,15 @@ Deno.test('reloadableHeaders can be overridden by a subclass to allowlist more',
 
   const client = new ClientWithPublicHeader({ baseUrl: 'https://api.example.com' })
   const result = await client.http.get('/x', {
-    metadata: true,
+    reload: true,
     headers: { 'X-Public-Key': 'not-a-secret', Authorization: 'Bearer secret' },
   })
 
-  assertEquals((result as any).reloadMetadata.headers['x-public-key'], 'not-a-secret')
-  assertEquals('authorization' in (result as any).reloadMetadata.headers, false)
+  assertEquals((result as any).reloadDescriptor.headers['x-public-key'], 'not-a-secret')
+  assertEquals('authorization' in (result as any).reloadDescriptor.headers, false)
 })
 
-Deno.test('metadata: true on POST captures the exact body string sent', async () => {
+Deno.test('reload: true on POST captures the exact body string sent', async () => {
   const mockFetch = spy(() =>
     Promise.resolve(new Response(JSON.stringify({ id: 1 }), { status: 200 }))
   )
@@ -642,15 +642,15 @@ Deno.test('metadata: true on POST captures the exact body string sent', async ()
 
   const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
   const result = await client.http.post<{ id: number }>('/users', {
-    metadata: true,
+    reload: true,
     body: JSON.stringify({ name: 'Alice' }),
   })
 
-  assertEquals(result.reloadMetadata.body, JSON.stringify({ name: 'Alice' }))
-  assertEquals(result.reloadMetadata.method, 'POST')
+  assertEquals(result.reloadDescriptor.body, JSON.stringify({ name: 'Alice' }))
+  assertEquals(result.reloadDescriptor.method, 'POST')
 })
 
-Deno.test('omitting metadata (the default) keeps the plain, unwrapped return value', async () => {
+Deno.test('omitting reload (the default) keeps the plain, unwrapped return value', async () => {
   const mockFetch = spy(() =>
     Promise.resolve(
       new Response(JSON.stringify({ ok: true }), {
@@ -665,5 +665,5 @@ Deno.test('omitting metadata (the default) keeps the plain, unwrapped return val
   const result = await client.http.get('/x')
 
   assertEquals(result, { ok: true })
-  assertEquals('reloadMetadata' in (result as object), false)
+  assertEquals('reloadDescriptor' in (result as object), false)
 })

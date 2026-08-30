@@ -159,7 +159,7 @@ Deno.test('query() does not throw for an empty errors array', async () => {
   assertEquals(result, { data: { ping: 'pong' } })
 })
 
-Deno.test('query() with metadata: true forwards metadata: true to http.post and unwraps its reloadMetadata correctly', async () => {
+Deno.test('query() with reload: true forwards reload: true to http.post and unwraps its reloadDescriptor correctly', async () => {
   const zanixReload = {
     endpoint: 'https://api.example.com/graphql',
     method: 'POST',
@@ -167,27 +167,27 @@ Deno.test('query() with metadata: true forwards metadata: true to http.post and 
     body: JSON.stringify({ query: 'query { ping }', variables: undefined }),
   }
   const mockPost = spy((_endpoint: string, opts: any) => {
-    assertEquals(opts.metadata, true)
+    assertEquals(opts.reload, true)
     return Promise.resolve({
       data: { data: { ping: 'pong' } },
-      reloadMetadata: zanixReload,
+      reloadDescriptor: zanixReload,
     })
   })
 
   const client = new MyGraphQLClient({ baseUrl: 'https://api.example.com/graphql' })
   client.http.post = mockPost as any
 
-  const result = await client.query<{ ping: string }>('query { ping }', { metadata: true })
+  const result = await client.query<{ ping: string }>('query { ping }', { reload: true })
 
   assertEquals(result.data, { ping: 'pong' })
-  assertEquals(result.reloadMetadata, zanixReload)
+  assertEquals(result.reloadDescriptor, zanixReload)
 })
 
-Deno.test('query() with metadata: true still throws GraphQLClientError for a GraphQL errors array', async () => {
+Deno.test('query() with reload: true still throws GraphQLClientError for a GraphQL errors array', async () => {
   const mockPost = spy((_endpoint: string, _opts: any) =>
     Promise.resolve({
       data: { errors: [{ message: 'boom' }] },
-      reloadMetadata: {
+      reloadDescriptor: {
         endpoint: 'https://api.example.com/graphql',
         method: 'POST',
         headers: {},
@@ -199,15 +199,15 @@ Deno.test('query() with metadata: true still throws GraphQLClientError for a Gra
   client.http.post = mockPost as any
 
   const error = await assertRejects(
-    () => client.query('query { broken }', { metadata: true }),
+    () => client.query('query { broken }', { reload: true }),
     GraphQLClientError,
   )
   assertEquals(error.graphqlErrors, [{ message: 'boom' }])
 })
 
-Deno.test('query() without metadata never passes metadata to http.post', async () => {
+Deno.test('query() without reload never passes reload to http.post', async () => {
   const mockPost = spy((_endpoint: string, opts: any) => {
-    assertEquals('metadata' in opts, false)
+    assertEquals('reload' in opts, false)
     return Promise.resolve({ data: { ping: 'pong' } })
   })
 
@@ -218,7 +218,7 @@ Deno.test('query() without metadata never passes metadata to http.post', async (
   assertSpyCalls(mockPost, 1)
 })
 
-Deno.test('query() with metadata: true, end-to-end through the real RestClient (fetch mocked, not http.post)', async () => {
+Deno.test('query() with reload: true, end-to-end through the real RestClient (fetch mocked, not http.post)', async () => {
   const originalFetch = globalThis.fetch
   try {
     const mockFetch = spy((_url: string, _opts: any) =>
@@ -235,19 +235,19 @@ Deno.test('query() with metadata: true, end-to-end through the real RestClient (
       baseUrl: 'https://api.example.com/graphql',
       headers: { Authorization: 'Bearer secret-token' },
     })
-    const result = await client.query<{ ping: string }>('query { ping }', { metadata: true })
+    const result = await client.query<{ ping: string }>('query { ping }', { reload: true })
 
     assertEquals(result.data, { ping: 'pong' })
-    assertEquals(result.reloadMetadata.endpoint, 'https://api.example.com/graphql')
-    assertEquals(result.reloadMetadata.method, 'POST')
+    assertEquals(result.reloadDescriptor.endpoint, 'https://api.example.com/graphql')
+    assertEquals(result.reloadDescriptor.method, 'POST')
     assertEquals(
-      result.reloadMetadata.body,
+      result.reloadDescriptor.body,
       JSON.stringify({ query: 'query { ping }', variables: undefined }),
     )
     // Same allowlist guarantee as RestClient's own — the real Authorization header this client
-    // was constructed with never reaches reloadMetadata, even end-to-end through the real stack.
-    assertEquals(result.reloadMetadata.headers, { 'content-type': 'application/json' })
-    assertEquals('authorization' in result.reloadMetadata.headers, false)
+    // was constructed with never reaches reloadDescriptor, even end-to-end through the real stack.
+    assertEquals(result.reloadDescriptor.headers, { 'content-type': 'application/json' })
+    assertEquals('authorization' in result.reloadDescriptor.headers, false)
   } finally {
     globalThis.fetch = originalFetch
   }

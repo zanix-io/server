@@ -53,9 +53,9 @@ export type RestFullOptions = Omit<RequestInit, 'method'> & {
   baseUrl?: string
   /** Per-call override of the constructor's own `etag` option — see {@link RequestOptions.etag}. */
   etag?: boolean
-  /** Set to `true` to get this call's `{ data, reloadMetadata }` shape back — see
-   * {@link ReloadMetadata}. Defaults to `false` (today's plain return value, unchanged). */
-  metadata?: boolean
+  /** Set to `true` to get this call's `{ data, reloadDescriptor }` shape back — see
+   * {@link ReloadDescriptor}. Defaults to `false` (today's plain return value, unchanged). */
+  reload?: boolean
 }
 
 /**
@@ -76,7 +76,7 @@ export type GqlOptions = Omit<RequestInit, 'method' | 'body'> & {
 
 /**
  * A ready-to-replay descriptor for a single `RestClient`/`GraphQLClient` call — attached as
- * `reloadMetadata` when a call is made with `metadata: true`. Deliberately captures everything a
+ * `reloadDescriptor` when a call is made with `reload: true`. Deliberately captures everything a
  * plain `fetch()` needs (already fully resolved), so a caller replaying it — typically a Comet,
  * client-side, that received this via a page's own `loader` — never needs any REST/GraphQL-aware
  * logic of its own:
@@ -89,7 +89,7 @@ export type GqlOptions = Omit<RequestInit, 'method' | 'body'> & {
  * `RestClient.reloadableHeaders`'s own doc for why (a credential-carrying header must never reach
  * this far — this whole descriptor gets serialized into the page's initial client-side state).
  */
-export interface ReloadMetadata {
+export interface ReloadDescriptor {
   /** The fully resolved request URL (`baseUrl` + path already joined and cleaned). */
   endpoint: string
   /** The HTTP method the original call used. */
