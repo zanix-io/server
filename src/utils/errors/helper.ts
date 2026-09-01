@@ -65,9 +65,13 @@ export const defaultErrorLogThrottleStore: ErrorLogThrottleStore = {
   },
 }
 
-// Exported (not just re-read through a getter) so `uncaught-error-monitor.ts` shares the exact
-// same live binding — including whatever backend `setErrorLogThrottleStore` installs — instead of
-// duplicating its own separate counter/store abstraction for a conceptually identical need.
+/**
+ * The store tracking error occurrences for throttling — exported (not just re-read through a
+ * getter) so `uncaught-error-monitor.ts` shares the exact same live binding, including whatever
+ * backend {@linkcode setErrorLogThrottleStore} installs, instead of duplicating its own separate
+ * counter/store abstraction for a conceptually identical need. Defaults to an in-process `Map`-based
+ * store; see {@linkcode setErrorLogThrottleStore} to swap it for a shared backend (Deno KV, Redis).
+ */
 export let errorLogThrottleStore: ErrorLogThrottleStore = defaultErrorLogThrottleStore
 
 /**

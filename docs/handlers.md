@@ -239,6 +239,19 @@ server has actually been created for that Application in this process
 'graphql', ...)`/`bootstrapServers({ graphql: {...} })`), the same
 precondition `ProgramModule.routes.getRoutes()` already has.
 
+`defineSchema(application?)` is the compile step `getSchema` reads back — also exported from
+`@zanix/server/graphql` for a caller that needs to force a fresh compile instead of just reading
+whatever's already cached (the same compile `bootstrapServers({ graphql: {...} })` triggers
+internally). Calling it a second time for an Application with no new `@Query`/`@Mutation` registered
+in between builds an empty stub schema, since the accumulator it compiles from was already consumed
+by the previous call — most consumers want `getSchema`, not this.
+
+`getSchemaApplications()` lists every Application name with at least one `@Query`/`@Mutation`
+registered so far in this process, without compiling or reading anything — useful for a caller that
+needs to discover which Applications are worth calling `defineSchema`/`getSchema` on without already
+knowing their names (`@zanix/cli`'s own `zanix space build` GraphQL check step uses this to find
+local schemas to validate against).
+
 ## WebSocket
 
 Extend `ZanixWebSocket` and decorate the class with `@Socket`. Override the protected lifecycle

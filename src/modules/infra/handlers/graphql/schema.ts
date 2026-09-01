@@ -83,9 +83,25 @@ const getFileConfig = () => cachedFileConfig ??= readConfig()
  */
 const compiledSchemas: Record<string, GraphQLSchema> = {}
 
-export const defineSchema: (application?: string) => GraphQLSchema = (
+/**
+ * Compiles `application`'s `GraphQLSchema` from its currently-accumulated `Query`/`Mutation`
+ * buckets (see {@linkcode gqlSchemaDefinitions}) and writes it into {@linkcode compiledSchemas} for
+ * {@linkcode getSchema} to read back — the same compile `webServerManager.create('graphql', ...)`/
+ * `bootstrapServers({ graphql: {...} })` already triggers internally, exposed here for a caller
+ * that needs to force a fresh compile (e.g. a `WebServerManager.refreshRoutes()` dev-mode rebuild)
+ * rather than just read whatever's already cached.
+ *
+ * Consumes the accumulator: calling this a second time for the same Application without any new
+ * `@Query`/`@Mutation` registered in between builds an empty stub schema, since the bucket was
+ * already reset by the previous call — see {@linkcode getSchema}'s own doc for why a caller that
+ * only wants to read the schema should call that instead.
+ *
+ * @param application - The Application to compile a schema for. Defaults to `DEFAULT_APPLICATION`.
+ * @returns The freshly compiled `GraphQLSchema`.
+ */
+export const defineSchema = (
   application: string = DEFAULT_APPLICATION,
-) => {
+): GraphQLSchema => {
   const fileConfig = getFileConfig()
   const bucket = getBucket(application)
 
