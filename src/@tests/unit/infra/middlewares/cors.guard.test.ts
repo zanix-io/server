@@ -241,6 +241,49 @@ Deno.test('Cors (socket): an explicit origins allowlist permits a cross-site Upg
   assert(!result.response && !result.headers)
 })
 
+/**
+ * `HEAD` is never listed in `allowedMethods` itself (neither the per-type defaults nor a caller's
+ * own override), but is always implicitly allowed whenever `GET` is — a `HEAD` request is always
+ * routed to its route's own `GET` handler (see `stripResponseBody`, `webserver/helpers/handler.ts`),
+ * so rejecting it here before the handler ever runs would defeat that fallback entirely.
+ */
+Deno.test(
+  'Cors: HEAD is implicitly allowed whenever GET is, without being listed in allowedMethods itself',
+  async () => {
+    const cors = corsGuard() // fully default configuration — GET is in the default allowlist
+    const baseUrl = new URL('http://url.com')
+    const baseOpts = {
+      payload: { params: undefined, search: undefined, body: undefined },
+      id: '',
+      url: baseUrl,
+      locals: {},
+      cookies: {},
+    }
+
+    // No throw — HEAD piggybacks on GET's own allowance.
+    const response = await cors({
+      req: new Request(baseUrl, { method: 'HEAD' }),
+      ...baseOpts,
+    })
+    assertEquals(
+      response.headers?.['Access-Control-Allow-Methods'],
+      'GET, POST, PUT, PATCH, DELETE',
+    )
+
+    // A caller that deliberately excludes GET loses the implicit HEAD allowance too — it's tied
+    // to GET's own presence, never granted unconditionally.
+    const noGet = corsGuard({ allowedMethods: ['POST'] })
+    assertThrows(
+      () =>
+        noGet({
+          req: new Request(baseUrl, { method: 'HEAD' }),
+          ...baseOpts,
+        }),
+      HttpError,
+    )
+  },
+)
+
 Deno.test({
   name: 'Cors default policy never reflects credentials for an arbitrary origin',
   fn: async () => {

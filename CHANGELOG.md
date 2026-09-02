@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-09-01
+
+### Added
+
+- **HTTP `HEAD` requests are now answered automatically for any `@Get()` route** — there's no
+  `Head()` decorator, and none is needed. An unmatched `HEAD` request (absolute, `:param`, or
+  catch-all route alike) falls back to its route's own `GET` entry, and the resulting response has
+  its body stripped per RFC 9110 §9.3.2 while keeping the same status and headers, including a
+  computed `Content-Length` whenever nothing upstream already set one. An explicit `HEAD`
+  registration (the raw `{path, handler}` escape hatch) still takes precedence over the fallback. A
+  route with no `GET` entry at all still responds `405 Method Not Allowed` for `HEAD`, same as any
+  other method mismatch. See `docs/handlers.md`'s new "HEAD requests" section.
+
+- **`corsGuard`'s default and custom `allowedMethods` implicitly allow `HEAD` whenever `GET` is
+  allowed.** `HEAD` is never listed in `allowedMethods` itself — neither the per-type defaults nor a
+  caller's own override — since it always piggybacks on `GET`'s own allowance; removing `GET` from
+  an explicit override loses the implicit `HEAD` allowance too. See `docs/middlewares.md`'s CORS
+  defaults section.
+
+### Fixed
+
+- **`ContextualBaseClass`'s `context` getter throws a clear `CONTEXT_NOT_READY` error when the
+  scoped-context registry entry it reads has no `id`**, instead of returning an unpopulated entry
+  that would otherwise surface as a confusing `TypeError` several calls deeper (e.g.
+  `ctx.cookies[...]` inside a session helper). This happens when `context` — directly, or through a
+  provider/interactor method built on top of it — is read from inside a `@Guard`, which runs before
+  `contextSettingPipe` (the Pipe that actually populates the registry), or after the context has
+  already been torn down by `cleanUpPipe`. Guard-stage code that needs cookies/session data should
+  read it from the guard's own `ctx: HandlerContext` parameter directly, or call a free function
+  with explicitly-passed dependencies instead of a context-reading provider/interactor method. See
+  `docs/middlewares.md`'s new Guard-stage caveat and `ContextualBaseClass.context`'s own JSDoc.
+
 ## [4.1.0] - 2026-08-30
 
 ### Added

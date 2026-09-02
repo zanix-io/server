@@ -87,6 +87,17 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
    * The `context` object returned contains request information, allowing for modular state management
    * and context isolation across the application.
    *
+   * ⚠️ **Guard-stage caveat**: this registry is only populated once `contextSettingPipe` runs — a
+   * **Pipe**, which executes strictly *after* every Guard (see `docs/middlewares.md`, "Execution
+   * order": `Guard → Pipe(s) → Handler → Interceptor(s)`). Reading `context` — directly, or through
+   * a provider/interactor method built on top of it — from inside a `@Guard` throws
+   * `CONTEXT_NOT_READY` (see below) instead of returning usable request data. Guard-stage code that
+   * needs cookies/session data should read it from the guard's own `ctx: HandlerContext` parameter
+   * directly, or call a free function with explicitly-passed dependencies instead of a
+   * provider/interactor method that reads `this.context` internally — see `@zanix/auth`'s own
+   * `jwtValidationGuard` (`checkTokenBlockList(jti, cacheProvider, kvConnector)`) for a real,
+   * working precedent of this pattern.
+   *
    * @protected
    * @returns {ScopedContext} An object representing the current scoped context, which includes the `id`, `payload`, `session`, etc.
    */
@@ -128,6 +139,35 @@ export abstract class ContextualBaseClass extends TargetBaseClass {
       )
     }
 
-    return ProgramModule.context.getContext<ScopedContext>(this.contextId)
+    const scopedContext = ProgramModule.context.getContext<ScopedContext>(this.contextId)
+
+    // `contextSettingPipe` always freezes a real `id` onto the registry entry it writes — so an
+    // entry with no `id` can only mean the registry hasn't been populated for this context yet
+    // (called from a `@Guard`, which runs before that Pipe) or has already been torn down (called
+    // after `cleanUpPipe`). Either way, that's a genuinely different, actionable failure from the
+    // two checks above, and worth its own clear error instead of letting the caller hit a much
+    // more confusing `TypeError` several calls deeper (e.g. `ctx.cookies[...]` inside a session
+    // helper) — see this getter's own Guard-stage caveat above for the full explanation.
+    if (!scopedContext.id) {
+      throw new TargetError(
+        `The system could not find the required information to proceed`,
+        startMode,
+        {
+          shouldLog: true,
+          code: 'CONTEXT_NOT_READY',
+          cause:
+            "The scoped context for this request hasn't been populated yet (or was already torn " +
+            'down). `context` is only available from a Pipe, a Handler, or an Interceptor — never ' +
+            'from a Guard, which runs before `contextSettingPipe` populates it. Read data directly ' +
+            "from the Guard's own `ctx: HandlerContext` parameter instead, or call a free function " +
+            "with explicitly-passed dependencies (see `@zanix/auth`'s `jwtValidationGuard` for a " +
+            'real precedent) rather than a provider/interactor method that reads `this.context` ' +
+            'internally.',
+          meta: { targetName: this.constructor.name, source: 'zanix' },
+        },
+      )
+    }
+
+    return scopedContext
   }
 }

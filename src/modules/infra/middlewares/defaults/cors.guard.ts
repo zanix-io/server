@@ -137,8 +137,14 @@ export const corsGuard = (
       return { response }
     }
 
-    // Allowed methods validation
-    if (!allowedMethods.includes(ctx.req.method as HttpMethod)) {
+    // Allowed methods validation. `HEAD` is never listed explicitly in `allowedMethods` — neither
+    // the defaults above nor a caller's own override — since there's no `Head()` decorator/CORS
+    // concept for it; it's always implicitly allowed whenever `GET` is, the same "HEAD is GET,
+    // minus the body" fallback `getMainHandler`'s own route matching applies (see its own
+    // `isHeadRequest` doc). A caller that customizes `allowedMethods` to exclude `GET` correctly
+    // loses `HEAD` too, same as any other CORS-restricted method.
+    const isImplicitHead = ctx.req.method === 'HEAD' && allowedMethods.includes('GET')
+    if (!isImplicitHead && !allowedMethods.includes(ctx.req.method as HttpMethod)) {
       throw new HttpError('METHOD_NOT_ALLOWED', { id: ctx.id })
     }
 

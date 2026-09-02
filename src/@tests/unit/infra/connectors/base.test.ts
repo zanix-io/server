@@ -223,8 +223,15 @@ Deno.test('ZanixConnector: should interact with context', async () => {
   const conn = new TestConnector({ contextId: 'id' })
   await conn.isReady
 
-  // props validations
-  assert(conn['context'].id === undefined)
+  // `context` requires a real, populated registry entry (the same one `contextSettingPipe` writes
+  // for a real request) — an entry with no `id` throws `CONTEXT_NOT_READY`, so this simulates that
+  // Pipe having already run for this context id.
+  Program.context.addContext({ id: 'id' } as never)
+  try {
+    assert(conn['context'].id === 'id')
+  } finally {
+    Program.context.deleteContext('id')
+  }
 
   const errorContext = new OtherConnector()
 

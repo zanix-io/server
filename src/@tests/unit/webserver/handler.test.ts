@@ -594,3 +594,107 @@ Deno.test(
     Program.routes.resetContainer()
   },
 )
+
+// --- HEAD → GET fallback -------------------------------------------------------------------------
+
+Deno.test(
+  'getMainHandler: HEAD on a Get()-only absolute route responds with the SAME status/headers as ' +
+    'GET (including a computed Content-Length), but an empty body — no Head() registration exists',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/head-absolute',
+      handler: () =>
+        new Response(JSON.stringify({ hello: 'world' }), {
+          headers: { 'content-type': 'application/json', 'x-custom': 'yes' },
+        }) as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '') as unknown as TestHandler
+
+    const getResponse = await handler(new Request('http://localhost/head-absolute'))
+    const getBody = await getResponse.text()
+
+    const headResponse = await handler(
+      new Request('http://localhost/head-absolute', { method: 'HEAD' }),
+    )
+    const headBody = await headResponse.text()
+
+    assertEquals(headResponse.status, getResponse.status)
+    assertEquals(headBody, '')
+    assertEquals(headResponse.headers.get('content-type'), 'application/json')
+    assertEquals(headResponse.headers.get('x-custom'), 'yes')
+    assertEquals(headResponse.headers.get('content-length'), String(getBody.length))
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: HEAD on a Get()-only :param (relative-bucket) route falls back to its GET ' +
+    'entry the same way an absolute route does',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/head-param/:id',
+      handler: paramsCapturingHandler({}, 'value') as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '') as unknown as TestHandler
+
+    const headResponse = await handler(
+      new Request('http://localhost/head-param/42', { method: 'HEAD' }),
+    )
+
+    assertEquals(headResponse.status, 200)
+    assertEquals(await headResponse.text(), '')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: an explicit HEAD registration (the raw {path, handler} escape hatch) still ' +
+    "wins outright over the generic GET fallback — it's tried first, never shadowed",
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/head-explicit',
+      handler: () => new Response('get-body') as never,
+    })
+    Program.routes.defineRoute('rest', {
+      path: '/head-explicit',
+      handler: () => new Response(null, { headers: { 'x-explicit-head': 'yes' } }) as never,
+      httpMethod: 'HEAD',
+    })
+
+    const handler = getMainHandler('rest', undefined, '') as unknown as TestHandler
+
+    const headResponse = await handler(
+      new Request('http://localhost/head-explicit', { method: 'HEAD' }),
+    )
+
+    assertEquals(headResponse.headers.get('x-explicit-head'), 'yes')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: HEAD on a route registered under a different, non-GET method only (no GET ' +
+    'entry to fall back to) still 405s — the fallback never masks a real method mismatch',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/head-post-only',
+      handler: () => 'ok' as never,
+      httpMethod: 'POST',
+    })
+
+    const handler = getMainHandler('rest', undefined, '') as unknown as TestHandler
+
+    const error = await handler(
+      new Request('http://localhost/head-post-only', { method: 'HEAD' }),
+    ).catch((e: unknown) => e)
+
+    assertEquals((error as HttpError).status.code, 'METHOD_NOT_ALLOWED')
+
+    Program.routes.resetContainer()
+  },
+)

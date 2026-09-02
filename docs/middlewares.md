@@ -30,6 +30,15 @@ Guards receive a richer context than Pipes and Interceptors: in addition to the 
 context, a guard's context also exposes `interactors`, `providers`, and `connectors` — since a guard
 may need to check external state (e.g. a rate-limit store) before allowing the request through.
 
+> ⚠️ **Guard-stage caveat**: this ordering means a Guard runs _before_ the scoped context registry
+> (`ProgramModule.context`) is populated — that only happens in `contextSettingPipe`, a Pipe. An
+> interactor/provider method that reads `this.context` internally (via `ContextualBaseClass.context`
+> — see its JSDoc for the full explanation) throws a `CONTEXT_NOT_READY` error when called from a
+> Guard, rather than returning usable request data. Guards that need that data should read it from
+> their own `ctx: HandlerContext` parameter directly, or call a free function with explicitly-passed
+> dependencies — the same pattern `@zanix/auth`'s own `jwtValidationGuard` already uses — rather
+> than a context-reading provider/interactor method.
+
 ## Per-handler middlewares
 
 Apply these directly on a handler method, stacking as many as needed:
@@ -122,6 +131,11 @@ Defaults (identical logic across every server type, applied per-property when om
   `graphql`/`ssr`, `['GET']` for `socket`.
 - `exposedHeaders: ['Content-Length', 'X-Kuma-Revision']`
 - `preflight`: unset — the browser decides its own cache duration for `OPTIONS` requests.
+
+`HEAD` is never listed in `allowedMethods` itself, neither the defaults above nor your own override
+— it's always implicitly allowed whenever `GET` is (see [HEAD requests](./handlers.md#head-requests)
+for the routing side of this), and rejected exactly when you remove `GET` from an explicit
+`allowedMethods` override.
 
 ```ts
 await bootstrapServers({

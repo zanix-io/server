@@ -58,7 +58,9 @@ Deno.test('ContextualBaseClass.testContext throws in SINGLETON mode', () => {
 })
 
 Deno.test('ContextualBaseClass.testContext returns scoped context when not SINGLETON', () => {
-  const fakeContext = { user: 'test-user' }
+  // `id` is required here — it's what `contextSettingPipe` always freezes onto a real, populated
+  // registry entry, and what `testContext` checks for (see the CONTEXT_NOT_READY test below).
+  const fakeContext = { id: 'ctx-real', user: 'test-user' }
 
   // Spy on Program.context.getContext
   const getContextSpy = spy((_id: string) => fakeContext)
@@ -76,3 +78,25 @@ Deno.test('ContextualBaseClass.testContext returns scoped context when not SINGL
   assertSpyCalls(getContextSpy, 1)
   assertEquals(getContextSpy.calls[0].args, ['ctx-real'])
 })
+
+Deno.test(
+  'ContextualBaseClass.testContext throws CONTEXT_NOT_READY when the registry entry has no `id` ' +
+    '— the real shape `ProgramModule.context.getContext` returns for a context `contextSettingPipe` ' +
+    "hasn't populated yet (e.g. called from a @Guard, which runs before that Pipe)",
+  () => {
+    // Real fallback shape from `ContextContainer.getContext` (`{}`, see its own test:
+    // "getContext returns empty object for missing key") — never actually reached this deep once
+    // `contextSettingPipe` has run, since it always freezes a real `id` onto what it writes.
+    const getContextSpy = spy((_id: string) => ({}))
+    Program.context.getContext = getContextSpy as never
+
+    const instance = new TestContextual('ctx-not-ready')
+    instance.setZnxProps({ lifetime: 'REQUEST' })
+
+    assertThrows(
+      () => instance.testContext,
+      InternalError,
+      'The system could not find the required information to proceed',
+    )
+  },
+)

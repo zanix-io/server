@@ -68,6 +68,11 @@ Deno.test('CoreBaseClass should call getInstance correctly for all connectors or
 
   const testInstance = new TestCore('context-id')
 
+  // `context` requires a real, populated registry entry (the same one `contextSettingPipe` writes
+  // for a real request) — an entry with no `id` throws `CONTEXT_NOT_READY`, so this simulates that
+  // Pipe having already run for this context id.
+  ProgramModule.context.addContext({ id: 'context-id' } as never)
+
   assert(testInstance['config'])
   assert(testInstance['context'])
 

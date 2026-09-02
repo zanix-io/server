@@ -128,6 +128,28 @@ for (const [key, route] of Object.entries(routes ?? {})) {
 
 `route.rto` is `undefined` for a route declared with no RTO at all.
 
+### HEAD requests
+
+There's no `@Head` decorator, and none is needed: an HTTP `HEAD` request to any `@Get()` route
+(absolute, `:name`, or `:name*` alike) is automatically answered exactly like `GET` would — same
+status, same headers (including `Content-Length`) — with the body removed, per RFC 9110 §9.3.2. A
+`HEAD` request to a route with no `GET` at all (registered only for `POST`/`PUT`/etc.) still
+responds `405 Method Not Allowed`, same as any other method mismatch — the fallback only ever
+applies once no exact match exists for the method actually sent.
+
+```ts
+@Controller()
+class ItemsController extends ZanixController {
+  @Get('items')
+  public list() {
+    return { items: [1, 2, 3] }
+  }
+}
+
+// GET  /items  -> 200, body: {"items":[1,2,3]}
+// HEAD /items  -> 200, same headers (Content-Length included), empty body
+```
+
 ### `@Controller` options
 
 Besides a plain string prefix, `@Controller` accepts an options object:

@@ -33,6 +33,43 @@ import {
 } from 'middlewares/defaults/main.middlewares.ts'
 
 /**
+ * Turns an already-fully-built `Response` into a spec-correct `HEAD` response (RFC 9110 §9.3.2):
+ * identical status/statusText/headers, with only the actual body bytes removed.
+ *
+ * **`Content-Length` is computed here, not merely copied.** An in-memory `Response` never actually
+ * carries this header itself — confirmed empirically: `new Response(json).headers.get(
+ * 'content-length')` is `null` even for a real string body — real send layers (Deno's own HTTP
+ * server included) only emit it once they measure the real body at send time. A `HEAD` response has
+ * no body left for that measurement to happen against, so this reads `response`'s real byte length
+ * itself (via `.clone().arrayBuffer()` — the ONE buffering read this function does, on the response
+ * clone, never the original) and sets the header explicitly, UNLESS something upstream (the handler
+ * itself, or `gzip.ts`'s own `content-length` deletion for a compressed body) already set/removed it
+ * on purpose — that explicit decision is never second-guessed here. A response with no body at all
+ * (`response.body === null` — e.g. `204`/`304`/a WebSocket-upgrade `101`, see `gzip.ts`'s own doc
+ * for the full list) skips this entirely, nothing to measure.
+ *
+ * `response.body`'s own stream is explicitly canceled (not merely left to be garbage-collected) once
+ * no longer needed — this response's body is never read by anything else, since `HEAD` handling
+ * fully replaces it with this function's own return value before it ever reaches the caller.
+ */
+const stripResponseBody = async (response: Response): Promise<Response> => {
+  const headers = new Headers(response.headers)
+
+  if (response.body && !headers.has('content-length')) {
+    const bytes = await response.clone().arrayBuffer()
+    headers.set('content-length', String(bytes.byteLength))
+  }
+
+  await response.body?.cancel()
+
+  return new Response(null, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
+/**
  * Main process execution. `enableALS` (see `GenericHandlerOptions.enableALS`'s own doc for the
  * Deno-vs-Node-compat caveat) opens one `asyncContext` scope per request here — the
  * highest-concurrency use of `AsyncContext` in this codebase, since a busy server runs many of
@@ -191,13 +228,31 @@ export const getMainHandler = (
       searchParamsPropertyDescriptor(url.searchParams),
     )
 
+    // `HEAD` never gets its own registration — there's no `Head()` decorator, and per RFC 9110
+    // §9.3.2 a `HEAD` response MUST be identical to what `GET` would return for the same request,
+    // minus the body. Rather than indexing routes under a second, redundant `HEAD` entry, an
+    // unmatched `HEAD` request falls back to its route's own `GET` entry below (absolute and
+    // relative/catch-all alike). An explicit `HEAD` registration (the raw `{path, handler}` escape
+    // hatch accepts any `HttpMethod`, `HEAD` included) still wins outright — this fallback only
+    // ever applies once no exact `HEAD` match exists at all, exactly like `GET` continuing to work
+    // normally for every other method.
+    //
+    // Either way — exact match or `GET` fallback — every `HEAD` response has its body stripped
+    // (`stripResponseBody`) right before it's returned, unconditionally: RFC 9110 forbids a body on
+    // a `HEAD` response regardless of which handler produced it, so an explicit `HEAD` handler that
+    // returned one anyway would still be a spec violation left uncorrected. See that function's own
+    // doc for exactly which headers get recomputed (`Content-Length`, only when nothing upstream
+    // already set it) versus left untouched.
+    const isHeadRequest = req.method === 'HEAD'
+
     // Check for absolute paths
     const path = cleanRoute(url.pathname)
     const fullPath = `${path}/${req.method}`
-    const absoluteRoute = absolutePaths[fullPath]
+    const absoluteRoute = absolutePaths[fullPath] ??
+      (isHeadRequest ? absolutePaths[`${path}/GET`] : undefined)
 
     if (absoluteRoute) {
-      return mainProcess({
+      const response = mainProcess({
         route: absoluteRoute,
         context,
         gzip,
@@ -205,15 +260,23 @@ export const getMainHandler = (
         type,
         attachRequestToErrors,
       })
+      return isHeadRequest ? stripResponseBody(await response) : response
     }
 
     // Deterministic precedence, independent of registration order: ordinary `:param` routes are
     // tried before catch-all (`:name*`) routes, always — never "whichever was registered first".
     // `relativePaths`/`catchAllPaths` are two SEPARATE tables precisely so this order is fixed
-    // structurally, not by accident of iteration order within one combined table.
+    // structurally, not by accident of iteration order within one combined table. The `GET`
+    // fallback (see this function's own `isHeadRequest` comment above) is tried last, only once
+    // every real `HEAD`/exact-method table has already missed.
+    const getFullPath = isHeadRequest ? `${path}/GET` : fullPath
     const processedRoute =
       findMatchingRoute(relativeByMethod[req.method] ?? EMPTY_ROUTES, fullPath) ??
-        findMatchingRoute(catchAllByMethod[req.method] ?? EMPTY_ROUTES, fullPath)
+        findMatchingRoute(catchAllByMethod[req.method] ?? EMPTY_ROUTES, fullPath) ??
+        (isHeadRequest
+          ? findMatchingRoute(relativeByMethod.GET ?? EMPTY_ROUTES, getFullPath) ??
+            findMatchingRoute(catchAllByMethod.GET ?? EMPTY_ROUTES, getFullPath)
+          : undefined)
     if (!processedRoute) {
       if (routePaths.absolute.has(path) || routePaths.relative.test(path)) {
         const error = new HttpError('METHOD_NOT_ALLOWED', { id: context.id })
@@ -260,7 +323,7 @@ export const getMainHandler = (
       ),
     )
 
-    return mainProcess({
+    const response = mainProcess({
       route,
       context,
       gzip,
@@ -268,6 +331,7 @@ export const getMainHandler = (
       type,
       attachRequestToErrors,
     })
+    return isHeadRequest ? stripResponseBody(await response) : response
   })
 }
 
