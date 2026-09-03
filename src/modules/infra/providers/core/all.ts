@@ -93,19 +93,33 @@ export function getCoreProviderSlot(
 }
 
 /**
- * Maps a concrete provider class's target key (see `getTargetKey`, `utils/targets.ts`) back to
- * the core slot string key it was decorated under. Populated automatically by
- * `defineProviderDecorator` whenever `@Provider({ type })` decorates a class for a registered
- * core slot — never written to directly.
+ * Maps a concrete provider class's target key (see `getTargetKey`, `utils/targets.ts`) back to a
+ * stable string slot key it was decorated under — a REGISTERED core slot (`cache`, `auth`, ...)
+ * OR, as of a real, confirmed fix (see `defineProviderDecorator`'s own doc), a plain
+ * developer-chosen custom slot string. Populated automatically by `defineProviderDecorator`
+ * whenever `@Provider({ slot })` decorates a class for either kind — never written to directly.
  *
- * This is what lets `this.providers.get(SomeCoreProviderSubclass)` resolve the exact same
- * singleton instance as `this.providers.get('name')`, without the two forms ever creating two
- * separate instances: `getProviders`'s `get(Class)` branch (`modules/program/public.ts`)
- * translates the class back to this canonical string key *before* it ever reaches
- * `TargetContainer`'s instance cache, so both forms end up resolving under the identical cache
- * key. A class that was never decorated for a core slot (the common case — a custom provider, or
- * simply a class nobody looks up by reference) has no entry here and resolves through the normal
- * class-keyed path unchanged.
+ * This is what lets `this.providers.get(SomeProviderSubclass)` resolve the exact same singleton
+ * instance as `this.providers.get('name')`, without the two forms ever creating two separate
+ * instances: `getProviders`'s `get(Class)` branch (`modules/program/public.ts`) translates the
+ * class back to this canonical string key *before* it ever reaches `TargetContainer`'s instance
+ * cache, so both forms end up resolving under the identical cache key. A class that was never
+ * decorated with a `slot` at all (the common case — a plain provider looked up only by class
+ * reference) has no entry here and resolves through the normal class-keyed path unchanged.
+ *
+ * The custom-slot half of this exists specifically to close a real module-identity split a core
+ * slot alone can't reach: a PROJECT-LOCAL provider class (never a `@zanix/*` package, so it can
+ * never be added to `@zanix/space`'s own `NATIVE_RUNTIME_MODULES`) that a consuming app's Space
+ * pages reach through Vite's SSR pipeline gets re-evaluated as a SECOND, independent class object
+ * — same source, same `.name`, different reference — from whatever the native process already
+ * loaded directly. Both evaluations run the SAME `@Provider({ slot })` decorator, each aliasing
+ * ITS OWN `getTargetKey` result to the SAME shared string, so a class-reference lookup from
+ * EITHER evaluation resolves the SAME cached singleton instead of two independent ones under two
+ * different class-derived keys (confirmed as a real, live failure otherwise:
+ * `[BaseInstancesContainer]: Target is not a constructor` — `INVALID_INSTANCE`, `'unknown': there
+ * is no metadata information` — the exact shape `@zanix/auth`'s own production incident hit before
+ * `@zanix/auth` was added to `NATIVE_RUNTIME_MODULES`, but for a class that mechanism structurally
+ * cannot cover at all).
  */
 const targetKeyToCoreProviderKey: Record<string, string> = {}
 
@@ -119,6 +133,44 @@ export function resolveCoreProviderTargetAlias(
   targetKey: string,
 ): string | undefined {
   return targetKeyToCoreProviderKey[targetKey]
+}
+
+/**
+ * Tracks the class NAME each CUSTOM (non-core) provider slot string was first aliased under —
+ * deliberately never object identity, unlike {@linkcode registerCoreProviderSlot}'s own
+ * `existing.Target !== BaseTarget` check: a project-local Provider genuinely reached through TWO
+ * separate module evaluations (see {@linkcode targetKeyToCoreProviderKey}'s own doc for the real
+ * mechanism this closes) legitimately produces two DIFFERENT class objects for "the same" class —
+ * always sharing the same `.name`, since it's the same source file evaluated twice. Two genuinely
+ * DIFFERENT business classes accidentally choosing the same custom slot string — the real mistake
+ * this guards against — is vanishingly unlikely to also share a class name.
+ */
+const customProviderSlotClassNames: Record<string, string> = {}
+
+/**
+ * Registers `Target` under custom slot `key`, throwing if a DIFFERENT class (by name) already
+ * claimed the same key — see {@linkcode customProviderSlotClassNames}'s own doc for why name,
+ * not object identity, is the right comparison here. Idempotent for repeat registrations of the
+ * same class name under the same key (the legitimate multi-evaluation case).
+ */
+export function registerCustomProviderSlotAlias(key: string, Target: { name: string }): void {
+  const existingName = customProviderSlotClassNames[key]
+  if (existingName !== undefined && existingName !== Target.name) {
+    throw new InternalError(
+      `Provider slot "${key}" is already registered by a different class ('${existingName}'). ` +
+        `Cannot also register '${Target.name}' under the same slot — choose a distinct slot name ` +
+        `for one of them.`,
+      {
+        meta: {
+          source: 'zanix',
+          slot: key,
+          existingTarget: existingName,
+          incomingTarget: Target.name,
+        },
+      },
+    )
+  }
+  customProviderSlotClassNames[key] = Target.name
 }
 
 export default providerCoreModules

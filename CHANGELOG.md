@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.2.1] - 2026-09-03
+
+### Fixed
+
+- **`@Provider({ slot })` (or the plain-string shorthand) silently ignored any string outside the 5
+  reserved core slots (`cache`/`asyncmq`/`worker`/`auth`/`notifications`)** — `slot` was already
+  typed to accept an arbitrary string (`ProviderTypes`'s `string & {}` widening), but the runtime
+  only ever did something with one of the 5 reserved names; any other value quietly fell back to
+  resolving purely by class reference, as if `slot` had never been passed at all
+  (`providers/decorators/assembly.ts`, `providers/core/all.ts`, `modules/program/public.ts`). This
+  meant a custom `slot` could never give a plain provider the "resolve by class reference OR by
+  string, always the identical cached singleton" guarantee core slots already had — closing a real,
+  confirmed module-identity split no existing mechanism could reach: a PROJECT-LOCAL provider class
+  a consuming app's `@zanix/space` pages reach through Vite's SSR pipeline gets re-evaluated as a
+  second, independent class object from whatever the native process already loaded directly (same
+  source, same name, different reference). `this.providers.get(TheClass)` from either evaluation now
+  resolves the same instance instead of throwing
+  `[BaseInstancesContainer]: Target is not a
+  constructor` — `INVALID_INSTANCE` (a real, reported
+  production failure) — verified to share a single constructed instance regardless of which
+  evaluation resolves it first, never two separate ones. Guarded: two genuinely DIFFERENT classes
+  (by name) cannot collide on the same custom slot string — only two evaluations of the same class,
+  which always share a name, can. Fully backward-compatible: no public signature changed, and
+  nothing could have been relying on a custom `slot` being silently ignored.
+
 ## [4.2.0] - 2026-09-01
 
 ### Added

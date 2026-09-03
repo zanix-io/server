@@ -156,11 +156,16 @@ export class Program {
         })
       }
 
+      // No eager `getCoreProviderSlot` pre-check here — that registry only ever knows about the
+      // 5 REGISTERED core slots, but `key` may just as validly be a custom `slot` string a plain
+      // `@Provider({ slot })` chose (see that decorator's own doc) with no such pre-declaration
+      // at all: the first `defineTarget` call under that string IS its registration. Attempting
+      // the real lookup directly, and consulting `getCoreProviderSlot` only to enrich the error
+      // when it genuinely fails, covers both a core AND a custom slot with the identical
+      // "resolved, or a clear reason why not" behavior — `getInstance`'s own `targetName:
+      // "'unknown': ..."` shape (`isUnresolvedTargetError`) fires identically whether `key` was
+      // never registered as ANY kind of target at all.
       const key = Provider
-      const slot = getCoreProviderSlot(key)
-      if (!slot) {
-        throw missingCoreSlotError('provider', key, undefined, verbose)
-      }
 
       try {
         return ProgramModule.targets.getProvider(key, {
@@ -170,7 +175,7 @@ export class Program {
         })
       } catch (e) {
         if (isUnresolvedTargetError(e)) {
-          throw missingCoreSlotError('provider', key, slot, verbose, e)
+          throw missingCoreSlotError('provider', key, getCoreProviderSlot(key), verbose, e)
         }
         throw e
       }

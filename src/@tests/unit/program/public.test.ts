@@ -200,6 +200,88 @@ Deno.test({
   },
 })
 
+/** A fresh `AuthRepository`-shaped Provider class, named identically on every call — the exact
+ * shape a project-local Provider takes when re-evaluated a SECOND time (same source, same name,
+ * a genuinely DIFFERENT class object) through `@zanix/space`'s SSR pipeline, never the same
+ * reference the native `zanix space dev` process already loaded directly. Named via a computed
+ * property so the class's own `.name` is real, not `'anonymous'` — `getTargetKey`/
+ * `registerCustomProviderSlotAlias` both key off `.name` for exactly this reason. */
+function makeCustomSlotProviderClass(name: string) {
+  abstract class Base extends ZanixProvider {}
+  return {
+    [name]: class extends Base {
+      public override use(_: unknown): ZanixConnector {
+        throw new Error('Method not implemented.')
+      }
+    },
+  }[name]
+}
+
+Deno.test({
+  name:
+    'PublicProgramModule.providers: a custom (non-core) slot lets TWO DIFFERENT class objects ' +
+    "sharing the same name — the real module-identity-split shape, see defineProviderDecorator's " +
+    'own doc — resolve the SAME cached singleton, from either class reference or the string key, ' +
+    'never two independent instances',
+  fn: () => {
+    const NativeAuthRepository = makeCustomSlotProviderClass('AuthRepository')
+    const SsrAuthRepository = makeCustomSlotProviderClass('AuthRepository')
+    // Genuinely different class objects, never the same reference — proving this isn't trivially
+    // working just because it's literally one class evaluated once.
+    assert(NativeAuthRepository !== SsrAuthRepository)
+    assertEquals(NativeAuthRepository.name, SsrAuthRepository.name)
+
+    defineProviderDecorator({ slot: 'public-test-auth-repository' })(
+      NativeAuthRepository as never,
+    )
+    const viaNative = PublicProgramModule.providers.get(NativeAuthRepository)
+
+    // The regression check: decorating the SECOND (SSR-side) evaluation must not throw, and a
+    // lookup through THAT class reference must resolve the exact same instance the first
+    // evaluation already created and cached — never a second, independent one (the real
+    // `[BaseInstancesContainer]: Target is not a constructor` failure this closes).
+    defineProviderDecorator({ slot: 'public-test-auth-repository' })(SsrAuthRepository as never)
+    const viaSsr = PublicProgramModule.providers.get(SsrAuthRepository)
+    const viaName = PublicProgramModule.providers.get('public-test-auth-repository')
+
+    assert(viaNative instanceof NativeAuthRepository)
+    assertStrictEquals(viaNative, viaSsr)
+    assertStrictEquals(viaNative, viaName)
+  },
+})
+
+Deno.test({
+  name: 'PublicProgramModule.providers: a custom slot rejects two GENUINELY DIFFERENT classes ' +
+    '(different names) sharing the same slot string — only two evaluations of the SAME class ' +
+    "are meant to share one, see registerCustomProviderSlotAlias's own doc",
+  fn: () => {
+    const ProviderA = makeCustomSlotProviderClass('PublicTestCollisionA')
+    const ProviderB = makeCustomSlotProviderClass('PublicTestCollisionB')
+
+    defineProviderDecorator({ slot: 'public-test-collision-slot' })(ProviderA as never)
+
+    assertThrows(
+      () => defineProviderDecorator({ slot: 'public-test-collision-slot' })(ProviderB as never),
+      InternalError,
+      'already registered by a different class',
+    )
+  },
+})
+
+Deno.test({
+  name:
+    'PublicProgramModule.providers: a custom slot string that was never registered throws the ' +
+    "same clear 'missing' error a core slot does — never a raw, confusing " +
+    "'not a constructor'/'unknown metadata' one",
+  fn: () => {
+    assertThrows(
+      () => PublicProgramModule.providers.get('public-test-never-registered-custom-slot'),
+      InternalError,
+      'Missing core provider slot',
+    )
+  },
+})
+
 Deno.test({
   name:
     "PublicProgramModule.connectors: a decorated core-slot class resolves the same singleton as get('name')",

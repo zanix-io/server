@@ -186,10 +186,15 @@ export type ConnectorDecoratorOptions<L extends Lifetime> = {
 /** Options accepted by the object-argument overload of the `@Provider` class decorator. */
 export type ProviderDecoratorOptions<L extends Exclude<Lifetime, 'TRANSIENT'>> = {
   /**
-   * Which core provider slot this class registers under (e.g. `'cache'`, `'auth'`), or
-   * omitted/`'custom'` for a plain provider resolved only by class reference. Named `slot`, not
-   * `type`, because it's only ever a real registration key for a core slot — for a custom
-   * provider there's no key here at all (the actual lookup key is derived from the class itself).
+   * Which provider slot this class registers under — a REGISTERED core slot (`'cache'`,
+   * `'auth'`, ...), a plain developer-chosen custom string, or omitted/`'custom'` for a plain
+   * provider resolved only by class reference (the default, and still the right choice for a
+   * class nobody needs to look up by a stable key). Either a core or a custom `slot` makes
+   * `this.providers.get(TheClass)` and `this.providers.get('theSlot')` resolve the identical
+   * cached singleton — see `defineProviderDecorator`'s own doc for the real module-identity split
+   * a custom `slot` specifically exists to close (a project-local provider a Space page's SSR
+   * pipeline re-evaluates as a second, independent class object from what the native process
+   * already loaded).
    */
   slot?: ProviderTypes
   /** The instance lifetime strategy (`'SINGLETON'` or `'SCOPED'`). */
