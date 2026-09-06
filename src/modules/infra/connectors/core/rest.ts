@@ -198,7 +198,14 @@ export class RestClient extends ZanixConnector {
     if (!useEtag) return undefined
 
     try {
-      return getConnectors(this.contextId, false).get<
+      // No explicit `verbose: false` here — a never-registered `'cache:local'` connector, the
+      // routine, expected case this fallback exists for, never logs regardless: `BaseInstancesContainer
+      // .getInstance` (`metadata/targets/instances.ts`) only honors `verbose` when a Target was
+      // actually found, so this default has no effect on that path. Leaving it at the default
+      // `true` instead only changes what happens when `'cache:local'` IS registered but its own
+      // constructor genuinely fails — that case logs loudly, giving visibility into a real
+      // misconfiguration instead of silently degrading to the local `etagCache` `Map` below.
+      return getConnectors(this.contextId).get<
         ZanixCacheConnector<string, EtagCacheEntry>
       >('cache:local') ?? etagCache
     } catch {

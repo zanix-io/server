@@ -167,7 +167,19 @@ export abstract class BaseInstancesContainer extends BaseContainer {
             message: 'An error ocurred on trying to instance the class',
             targetName: Target ? `${Target.name}` : "'unknown': there is no metadata information",
           },
-          shouldLog: verbose,
+          // `Target` falsy means nothing was ever registered for this key — the routine, expected
+          // outcome for any core/custom slot a project simply doesn't configure (not a real
+          // failure). This never eager-logs, regardless of `verbose`: callers one layer up
+          // (`Program.getProviders`/`getConnectors`, `modules/program/public.ts`) recognize this
+          // exact shape (`isUnresolvedTargetError`) and reword it into a quiet-by-default "missing
+          // core slot" error of their own — but that rewording happens after this error object
+          // already exists, and `InternalError`'s own `shouldLog` fires synchronously at
+          // construction time (`processError`, `@zanix/utils`), before any catch above ever runs —
+          // so this constructor is the one place that has to stay quiet on its own for the
+          // never-registered case, regardless of what the caller passes. A Target that DOES exist
+          // but whose own constructor/lifecycle genuinely throws is a real, unexpected failure —
+          // `verbose`'s own default (`true`) stays loud for that case.
+          shouldLog: Target ? verbose : false,
           cause: e,
         },
       )

@@ -201,7 +201,14 @@ export function dispatchWorkerTask<T extends TaskFunction>(
 
   if (mode === 'persisted') {
     try {
-      const worker = provider ? provider() : PublicProgramModule.getProviders(undefined, false).get<
+      // No explicit `verbose: false` here — a never-registered `'worker'` provider, the routine,
+      // expected case this fallback exists for, never logs regardless: `BaseInstancesContainer
+      // .getInstance` (`metadata/targets/instances.ts`) only honors `verbose` when a Target was
+      // actually found, so this default has no effect on that path. Leaving it at the default
+      // `true` instead only changes what happens when `'worker'` IS registered but its own
+      // constructor genuinely fails — that case logs loudly, giving visibility into a real
+      // misconfiguration instead of silently degrading to `'one-time'` mode below.
+      const worker = provider ? provider() : PublicProgramModule.getProviders().get<
         ZanixWorkerProvider
       >('worker')
       return worker.executeGeneralTask(fn, {

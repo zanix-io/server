@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.2.2] - 2026-09-05
+
+### Fixed
+
+- **A never-registered core or custom provider/connector slot logged a raw, confusing
+  `INVALID_INSTANCE`/`[BaseInstancesContainer]: Target is not a constructor` `ERROR`-level trace on
+  every resolution attempt** — the routine, expected outcome for any slot a project simply doesn't
+  configure (e.g. a plain `@zanix/space` project's `'controlPlane'` slot, never registered because
+  `@zanix/app/core` was never imported), not a real failure. `BaseInstancesContainer.getInstance`
+  (`modules/program/metadata/targets/instances.ts`) now only logs when a Target genuinely exists but
+  its own construction fails; a Target that was never registered at all stays silent, regardless of
+  the caller's own `verbose` option — closing the gap between `Program.getProviders()`/
+  `getConnectors()`'s own quiet "missing slot" error (`modules/program/public.ts`) and
+  `InternalError`'s synchronous, construction-time logging (`processError`, `@zanix/utils`), which
+  fires before that quieter error is ever constructed.
+- **`dispatchWorkerTask`'s persisted-mode fallback and `RestClient`'s ETag cache resolution now
+  surface a genuinely broken (but registered) `'worker'`/`'cache:local'` slot instead of silently
+  degrading** — both previously passed an explicit `verbose: false` to work around the noisy log
+  above, which also silenced a real constructor failure on an actually-registered slot. Now that the
+  fix above already keeps the never-registered case quiet on its own, both call sites use the
+  default `verbose` again, so a genuine misconfiguration logs loudly on its way to the same graceful
+  fallback (`'one-time'` worker mode, the local `etagCache` `Map`).
+- **A server type's own `onError` (and any other option baked into its own `Deno.serve()` call) was
+  silently discarded whenever it shared a port with another type that bound the listener first** —
+  `WebServerManager` lets multiple types (`rest`/`ssr`/`socket`/`graphql`) share one physical port,
+  but only the first to call `_start()` ever calls `Deno.serve()` itself; every later type reused
+  that listener, so a guard/pipe throw from its own handler was judged against the FIRST type's
+  `onError`, not its own, with no warning anywhere. `WebServerManager.create()` now wraps each
+  type's own dispatch-table entry with its own `onError` at registration time, so every type's
+  errors reach its own handler regardless of which type binds the port first.
+
 ## [4.2.1] - 2026-09-03
 
 ### Fixed

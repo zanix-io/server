@@ -339,13 +339,26 @@ export class WebServerManager {
       preHandler
         ? async (req, info) => (await preHandler(req, info)) ?? await rawHandler(req, info)
         : rawHandler
-    const dispatchHandler: ServerHandler = withPreHandler(handler)
+    // Wraps the dispatch entry with its OWN `onError` (the same function `opts.onError` gets,
+    // below), instead of relying only on `Deno.serve`'s single per-port `onError` — fixes a real
+    // bug: when server types share a port, only the first to bind `Deno.serve()` had its `onError`
+    // actually applied; every other type's own `onError` was silently discarded regardless of
+    // which type's handler threw. `opts.onError` below still serves as a last-resort net for
+    // anything that fails outside a dispatch entry entirely.
+    const withErrorHandling = (rawHandler: ServerHandler): ServerHandler => async (req, info) => {
+      try {
+        return await rawHandler(req, info)
+      } catch (error) {
+        return await errorHandler(error)
+      }
+    }
+    const dispatchHandler: ServerHandler = withErrorHandling(withPreHandler(handler))
     // Only meaningful for the default, route-table-derived handler — a caller-supplied
     // `options.handler` is permanent and opaque to this class, nothing to recompile. See
     // `refreshRoutes`'s own doc for when this actually gets called.
     const rebuildDefaultHandler = usingDefaultHandler
       ? () =>
-        withPreHandler(
+        withErrorHandling(withPreHandler(
           getMainHandler(type, application, routeHandlerPrefix, {
             cors,
             gzip,
@@ -353,7 +366,7 @@ export class WebServerManager {
             maxBodyBytes,
             graphqlValidation,
           }),
-        )
+        ))
       : undefined
 
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
@@ -374,8 +387,9 @@ export class WebServerManager {
 
     // Listener assignment
     const serverInfo = `${capitalize(application)} ${type}`
+    const errorHandler = onErrorListener(currentErrorHandler, serverInfo)
     opts.onListen = onListen(currentListenHandler, protocol, serverInfo)
-    opts.onError = onErrorListener(currentErrorHandler, serverInfo)
+    opts.onError = errorHandler
 
     // Never mutate the port's existing dispatch table in place — each registration builds an
     // entirely new, frozen table and swaps the box's own `current` pointer to it in one atomic
@@ -392,7 +406,9 @@ export class WebServerManager {
     const previousHandlerEntry = usingDefaultHandler && previousDispatchKey &&
         previousRouteHandlerPrefix
       ? {
-        [previousDispatchKey]: getMainHandler(
+        // Same `errorHandler` as the current dispatch key above — this rotation window is the same
+        // server under its old address, not a different one.
+        [previousDispatchKey]: withErrorHandling(getMainHandler(
           type,
           application,
           previousRouteHandlerPrefix,
@@ -403,7 +419,7 @@ export class WebServerManager {
             maxBodyBytes,
             graphqlValidation,
           },
-        ),
+        )),
       }
       : {}
     box.current = Object.freeze({

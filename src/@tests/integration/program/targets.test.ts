@@ -7,7 +7,7 @@ import { assertThrows } from '@std/assert/assert-throws'
 import { spy } from '@std/testing/mock'
 import { TargetContainer } from 'modules/program/metadata/targets/main.ts'
 import { ZANIX_PROPS } from 'utils/constants.ts'
-import { HttpError } from '@zanix/errors'
+import { HttpError, InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
 
 console.error = () => {}
@@ -167,6 +167,62 @@ Deno.test('TargetContainer: getInstance throws INVALID_INSTANCE when constructio
     'This action cannot be completed at the moment.',
   )
 })
+
+Deno.test(
+  'TargetContainer: getInstance never eagerly logs when the key was never registered at all — ' +
+    "the routine, expected outcome for any core/custom slot a project simply doesn't configure " +
+    "(e.g. @zanix/app's 'controlPlane' provider slot, registered only when @zanix/app/core is " +
+    "imported). InternalError's own shouldLog fires synchronously at construction time, before " +
+    'any caller-side rewording into a quiet missing-slot error ever runs — so getInstance itself ' +
+    'must stay quiet for this case, not whatever wraps it',
+  () => {
+    const container = new TargetContainer()
+    const logSpy = spy(logger, 'error')
+
+    try {
+      assertThrows(
+        () => container.getProvider('never-registered-instance-key'),
+        InternalError,
+      )
+      assertEquals(logSpy.calls.length, 0)
+    } finally {
+      logSpy.restore()
+    }
+  },
+)
+
+Deno.test(
+  'TargetContainer: getInstance still logs (verbose defaults to true) when the Target genuinely ' +
+    'exists but its own construction fails — only a Target that was never registered at all ' +
+    'stays quiet',
+  () => {
+    const container = new TargetContainer()
+
+    class ThrowingLoggedClass {
+      constructor() {
+        throw new Error('boom')
+      }
+    }
+
+    container.defineTarget('throwing-logged', {
+      Target: ThrowingLoggedClass as any,
+      type: 'interactor',
+      lifetime: 'TRANSIENT',
+    })
+
+    const logSpy = spy(logger, 'error')
+    try {
+      assertThrows(
+        () => container.getInteractor('throwing-logged'),
+        HttpError,
+        'This action cannot be completed at the moment.',
+      )
+      assertEquals(logSpy.calls.length, 1)
+    } finally {
+      logSpy.restore()
+    }
+  },
+)
 
 Deno.test({
   name: 'TargetContainer: resetScopedInstances resolves immediately when nothing is scoped',
