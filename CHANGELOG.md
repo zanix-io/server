@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.2.3] - 2026-09-06
+
+### Fixed
+
+- **Two sibling `:param` routes sharing an earlier `:param` prefix could resolve to the WRONG
+  handler, depending purely on registration/discovery order** — `routeProcessor`
+  (`modules/webserver/helpers/routes.ts`) already files an exact-literal route, a `:param` route,
+  and a catch-all (`:name*`) route into three separate tables so exact beats `:param` beats
+  catch-all regardless of order, but that split only ever helps a route with ZERO params anywhere in
+  its path; two routes that both already carry an earlier param (e.g. every `@zanix/space` SSR page
+  living under a shared `/:lang/...` prefix) both land in the very same `relativePaths` (or
+  `catchAllPaths`) table, where `findMatchingRoute`'s plain `for...in` scan simply took whichever
+  was inserted first — for `@zanix/space`'s file-based page discovery, that's
+  filesystem/alphabetical scan order, not any meaningful precedence. Confirmed real, reproduced
+  end-to-end in a consumer project (`iam`, in both `zanix space dev` and a production
+  `zanix space build`): a GET to `/en/password/recovery/callback` (the password-reset CONFIRMATION
+  step) was misrouted to `/:lang/password/recovery/:email`'s handler (the reset REQUEST step, whose
+  regex happily accepts `callback` as a syntactically valid `:email` value too) purely because
+  `[email]` sorts alphabetically before `callback` on disk — breaking the password-reset flow
+  end-to-end. `routes.ts` now exports `compareRouteSpecificity`/`sortBySpecificity`: a literal
+  segment at a given path depth always outranks a `:param`/`:name*` segment at that same depth, the
+  same "static sibling beats dynamic sibling" precedence
+  Express/Next.js/Remix/Fastify/`path-to-regexp` already resolve this exact ambiguity with.
+  `routeProcessor` reorders `relativePaths`/`catchAllPaths` by specificity, once, on its own return
+  path — the `for...in` scans in `findMatchingRoute` and `bucketRoutesByMethod` need no changes at
+  all, since a plain object's string-key iteration order already follows insertion order. The
+  `routeCache`/`WeakMap` per-record memoization is untouched: this reordering is a fresh pass over
+  the already-processed tables, never something cached per-record.
+
 ## [4.2.2] - 2026-09-05
 
 ### Fixed

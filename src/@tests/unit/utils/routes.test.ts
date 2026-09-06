@@ -6,10 +6,13 @@ import { HttpError, InternalError } from '@zanix/errors'
 import {
   assertValidCatchAllPosition,
   bodyPayloadProperty,
+  compareRouteSpecificity,
   getParamNames,
   isCatchAllRoute,
   pathToRegex,
+  sortBySpecificity,
 } from 'utils/routes.ts'
+import type { ProcessedRoutes } from 'typings/router.ts'
 
 console.error = () => {}
 
@@ -184,6 +187,87 @@ Deno.test('getParamNames: strips the trailing "*" from a catch-all param name', 
 Deno.test('getParamNames: ordinary param names are unaffected', () => {
   assertEquals(getParamNames('/files/:name/GET'), ['name'])
 })
+
+// --- specificity precedence (confirmed real production bug: `/en/password/recovery/callback`
+// misrouted to the `/en/password/recovery/:email` handler because both sibling routes share the
+// earlier `:lang` param and therefore land in the same bucket, in filesystem/registration order) ---
+
+Deno.test(
+  'compareRouteSpecificity: a literal segment outranks a :param segment at the same depth, ' +
+    'regardless of which argument is which',
+  () => {
+    const literalFirst = '/:lang/password/recovery/callback/GET'
+    const paramFirst = '/:lang/password/recovery/:email/GET'
+
+    // Negative means the first argument sorts first (is more specific).
+    assert(compareRouteSpecificity(literalFirst, paramFirst) < 0)
+    assert(compareRouteSpecificity(paramFirst, literalFirst) > 0)
+  },
+)
+
+Deno.test(
+  'compareRouteSpecificity: two literal-vs-literal or two :param-vs-:param routes are a tie (0)',
+  () => {
+    assertEquals(
+      compareRouteSpecificity('/:lang/blog/foo/GET', '/:lang/blog/bar/GET'),
+      0,
+    )
+    assertEquals(
+      compareRouteSpecificity('/:lang/blog/:slug/GET', '/:lang/blog/:id/GET'),
+      0,
+    )
+  },
+)
+
+Deno.test(
+  'compareRouteSpecificity: a longer literal-prefixed catch-all outranks a shorter, ' +
+    'less-specific one it never disagrees in shape with',
+  () => {
+    const longerCatchAll = '/:lang/blog/:slug*/GET'
+    const shorterCatchAll = '/:x*/GET'
+
+    assert(compareRouteSpecificity(longerCatchAll, shorterCatchAll) < 0)
+    assert(compareRouteSpecificity(shorterCatchAll, longerCatchAll) > 0)
+  },
+)
+
+Deno.test(
+  'sortBySpecificity: reorders a :param-first table so its literal sibling comes first, ' +
+    'independent of original insertion order',
+  () => {
+    const dynamicSibling = '/:lang/password/recovery/:email/GET'
+    const literalSibling = '/:lang/password/recovery/callback/GET'
+
+    // Reproduces the exact confirmed production ordering: the dynamic sibling (`:email`, sorting
+    // alphabetically before `callback` on a real filesystem scan) is inserted FIRST.
+    const routes = {
+      [dynamicSibling]: { params: ['lang', 'email'] } as unknown,
+      [literalSibling]: { params: ['lang'] } as unknown,
+    } as ProcessedRoutes
+
+    const sorted = sortBySpecificity(routes)
+
+    assertEquals(Object.keys(sorted), [literalSibling, dynamicSibling])
+  },
+)
+
+Deno.test(
+  'sortBySpecificity: a table with no ambiguity at all is returned with the same routes, ' +
+    'original order preserved for genuine ties',
+  () => {
+    const first = '/:lang/blog/foo/GET'
+    const second = '/:lang/blog/bar/GET'
+
+    const routes = {
+      [first]: { params: ['lang'] } as unknown,
+      [second]: { params: ['lang'] } as unknown,
+    } as ProcessedRoutes
+
+    const sorted = sortBySpecificity(routes)
+
+    assertEquals(Object.keys(sorted), [first, second])
+  },
+)
 
 Deno.test('pathToRegex should be return a correct regex for a route with params', () => {
   // `pathToRegex` now always compiles with the `d` flag (adds `.indices` to a successful `exec()`
