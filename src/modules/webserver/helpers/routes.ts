@@ -2,7 +2,7 @@ import type { HandlerFunction, ProcessedRoutes, RouteEntry } from 'typings/route
 import type { WebServerTypes } from 'typings/server.ts'
 import type { HandlerTypes } from 'typings/program.ts'
 
-import { getParamNames, isCatchAllRoute, pathToRegex } from 'utils/routes.ts'
+import { getParamNames, isCatchAllRoute, pathToRegex, sortBySpecificity } from 'utils/routes.ts'
 import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import { getApplicationMountPrefix } from 'modules/webserver/application-mount-registry.ts'
 import ProgramModule from 'modules/program/mod.ts'
@@ -245,8 +245,18 @@ export const routeProcessor = (
   const { relativePaths, catchAllPaths, routePaths, absolutePaths } = processedRoutes
 
   return {
-    relativePaths,
-    catchAllPaths,
+    // Reordered by specificity (literal-at-a-given-depth before `:param` at that same depth) —
+    // see `sortBySpecificity`'s own doc. Needed because two sibling routes can BOTH already carry
+    // an earlier `:param` (e.g. a shared `/:lang/...` prefix under `@zanix/space`'s file-based page
+    // discovery) and therefore land in the SAME bucket here, in filesystem/registration order —
+    // exactly the ambiguity the separate `absolutePaths`/`relativePaths`/`catchAllPaths` split
+    // above this comment does NOT resolve on its own, since neither sibling has zero params. Sorting
+    // here, once per `routeProcessor` call, is what lets the plain `for...in`/first-match-wins scan
+    // in `findMatchingRoute` (and, before it, `bucketRoutesByMethod`'s own re-bucketing, which
+    // itself preserves whatever order it's handed) resolve that ambiguity correctly regardless of
+    // which sibling was registered/discovered first.
+    relativePaths: sortBySpecificity(relativePaths),
+    catchAllPaths: sortBySpecificity(catchAllPaths),
     absolutePaths,
     routePaths: {
       absolute: routePaths.absolute,

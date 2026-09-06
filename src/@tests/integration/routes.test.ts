@@ -6,6 +6,7 @@ import Program from 'modules/program/mod.ts'
 import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import { InternalError } from '@zanix/errors'
 import logger from '@zanix/logger'
+import { findMatchingRoute } from 'utils/routes.ts'
 
 //Mocks
 console.info = () => {}
@@ -429,5 +430,86 @@ Deno.test(
     } finally {
       logSpy.restore()
     }
+  },
+)
+
+// --- specificity precedence between two `:param`-bearing siblings (confirmed real production
+// regression: `iam`, a `@zanix/space` consumer — a GET to `/en/password/recovery/callback`
+// (the confirmation step) was misrouted to the `/:lang/password/recovery/:email` handler (the
+// request step) because `@zanix/space`'s file-based page discovery registers `[email]` before
+// `callback` (alphabetical filesystem scan order), and BOTH routes already carry the earlier
+// `:lang` param, so neither lands in `absolutePaths` and both compete in the SAME `relativePaths`
+// bucket, where `findMatchingRoute`'s first-match-wins scan used to just take whichever was
+// inserted first) ---
+
+Deno.test(
+  'routeProcessor + findMatchingRoute: a literal sibling wins over a :param sibling sharing an ' +
+    'earlier :param prefix, even when the dynamic sibling is registered FIRST (the exact real ' +
+    'production ordering)',
+  () => {
+    Program.routes.resetContainer()
+
+    // Registered in the exact order the real bug reproduced: the dynamic sibling first, mirroring
+    // `[email]` sorting alphabetically before `callback` on a real filesystem scan.
+    Program.routes.defineRoute('rest', {
+      path: '/:lang/password/recovery/:email',
+      handler: () => 'recovery-request' as never,
+    })
+    Program.routes.defineRoute('rest', {
+      path: '/:lang/password/recovery/callback',
+      handler: () => 'recovery-callback' as never,
+    })
+
+    const { relativePaths } = routeProcessor('rest')
+    const matched = findMatchingRoute(relativePaths, '/en/password/recovery/callback/GET')
+
+    assertExists(matched)
+    assertEquals(matched.route.handler({} as never), 'recovery-callback' as never)
+  },
+)
+
+Deno.test(
+  'routeProcessor + findMatchingRoute: the same literal-sibling precedence holds when it is ' +
+    'registered LAST instead of first — order-independent either way',
+  () => {
+    Program.routes.resetContainer()
+
+    Program.routes.defineRoute('rest', {
+      path: '/:lang/password/recovery/callback',
+      handler: () => 'recovery-callback' as never,
+    })
+    Program.routes.defineRoute('rest', {
+      path: '/:lang/password/recovery/:email',
+      handler: () => 'recovery-request' as never,
+    })
+
+    const { relativePaths } = routeProcessor('rest')
+    const matched = findMatchingRoute(relativePaths, '/en/password/recovery/callback/GET')
+
+    assertExists(matched)
+    assertEquals(matched.route.handler({} as never), 'recovery-callback' as never)
+  },
+)
+
+Deno.test(
+  'routeProcessor + findMatchingRoute: the :param sibling still matches a genuinely dynamic ' +
+    'value — this fix narrows precedence, it does not break ordinary dynamic matching',
+  () => {
+    Program.routes.resetContainer()
+
+    Program.routes.defineRoute('rest', {
+      path: '/:lang/password/recovery/:email',
+      handler: () => 'recovery-request' as never,
+    })
+    Program.routes.defineRoute('rest', {
+      path: '/:lang/password/recovery/callback',
+      handler: () => 'recovery-callback' as never,
+    })
+
+    const { relativePaths } = routeProcessor('rest')
+    const matched = findMatchingRoute(relativePaths, '/en/password/recovery/john-doe/GET')
+
+    assertExists(matched)
+    assertEquals(matched.route.handler({} as never), 'recovery-request' as never)
   },
 )

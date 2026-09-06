@@ -247,6 +247,70 @@ export const bucketRoutesByMethod = (
 }
 
 /**
+ * Compares two route keys (a `fullPath` — or a `fullPath` plus its `/METHOD` suffix, both compare
+ * identically — split on `/`) segment by segment, from the root, and reports which one is more
+ * SPECIFIC — the same "static sibling beats dynamic sibling" precedence every mature router
+ * resolves this way, independent of registration order.
+ *
+ * At the first segment index where the two routes disagree on shape, a literal segment (doesn't
+ * start with `:`) always outranks a `:param`/`:name*` segment — that one difference decides the
+ * whole comparison, regardless of anything before or after it. Two routes that never disagree in
+ * shape over their shared-length prefix (both literal-vs-literal at every differing text, or both
+ * `:param`-shaped at every differing position) fall through to preferring the route with MORE
+ * segments — a longer, more deeply literal path is a reasonable default tie-break, and matters in
+ * practice once a catch-all (`:name*`) is involved: `/:lang/blog/:slug*` has a longer literal
+ * prefix than `/:x*` and must be tried first even though neither disagrees in shape before the
+ * shorter one runs out of segments.
+ *
+ * Returns a standard `Array.prototype.sort` comparator value: negative when `a` is more specific
+ * (sorts first), positive when `b` is (sorts first), `0` for a genuine tie — in which case
+ * {@linkcode sortBySpecificity}'s caller relies on `Array.prototype.sort`'s guaranteed stability to
+ * preserve original registration order, exactly like today's behavior for two routes this
+ * comparator truly cannot distinguish.
+ *
+ * @param a One route key.
+ * @param b The other route key.
+ */
+export function compareRouteSpecificity(a: string, b: string): number {
+  const segmentsA = a.split('/')
+  const segmentsB = b.split('/')
+  const sharedLength = Math.min(segmentsA.length, segmentsB.length)
+
+  for (let i = 0; i < sharedLength; i++) {
+    const isParamA = segmentsA[i].startsWith(':')
+    const isParamB = segmentsB[i].startsWith(':')
+    if (isParamA !== isParamB) return isParamA ? 1 : -1
+  }
+
+  return segmentsB.length - segmentsA.length
+}
+
+/**
+ * Reinserts every entry of `routes` in specificity order (most specific first — see
+ * {@linkcode compareRouteSpecificity}), so the naive `for...in` scan {@linkcode findMatchingRoute}
+ * performs (and, before it, {@linkcode bucketRoutesByMethod}'s own re-bucketing, which itself
+ * preserves whatever order it's handed) tries a literal sibling before a `:param` sibling at the
+ * same depth — regardless of which was registered/discovered first.
+ *
+ * A plain-object rebuild rather than an in-place mutation: iteration order for a plain object's
+ * string keys follows insertion order, so a fresh object built by inserting keys in the already-
+ * sorted sequence is what actually changes iteration order — reassigning keys on the existing
+ * object would not reorder anything already present.
+ *
+ * `routeProcessor` calls this once per bucket (`relativePaths`/`catchAllPaths`), only on its
+ * return path — the `routeCache`/`WeakMap` memoization that skips recomputing a route's own regex/
+ * params on an unchanged rebuild is untouched by this: it caches per-record processing results, not
+ * final bucket order, so this reordering step runs fresh every call, cheaply, over however many
+ * routes ended up in that bucket.
+ */
+export function sortBySpecificity(routes: ProcessedRoutes): ProcessedRoutes {
+  const sortedKeys = Object.keys(routes).sort(compareRouteSpecificity)
+  const sorted: ProcessedRoutes = {}
+  for (const key of sortedKeys) sorted[key] = routes[key]
+  return sorted
+}
+
+/**
  * A function to find a matching route by path
  * @param relativeRoutes
  * @param path
