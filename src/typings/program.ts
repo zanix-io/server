@@ -107,12 +107,8 @@ export type CoreCacheTypes<K> = {
 /**
  * Any core-connector slot key registered via `registerCoreConnectorSlot`
  * (`modules/infra/connectors/core/all.ts`). Deliberately just `string`, not a closed union or an
- * ambiently-augmented type: an earlier design tried making this `keyof` a `declare module`
- * -augmented registry interface, but that ambient-global-augmentation approach doesn't reliably
- * carry through to a real per-key return type anyway (TypeScript never mapped the string argument
- * to a specific return type from it — only validated that the string was "known"), and ambient
- * module augmentation is explicitly unsupported by JSR's `no-slow-types` publish check when it's
- * reachable from a package's public export surface. Real compile-time typing for
+ * ambiently-augmented type — see `CoreModules`' own doc (`typings/targets.ts`) for why an earlier
+ * ambient `declare module` design was dropped in favor of that generic. Real compile-time typing for
  * `this.providers.get(key)`/`this.connectors.get(key)` now comes from the `CoreModules` generic
  * each consumer can explicitly pass to `ZanixInteractor`/`ZanixProvider`/`ZanixConnector`
  * (`typings/targets.ts`) — this type exists only to document intent and give `@Connector`/

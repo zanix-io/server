@@ -10,9 +10,9 @@ import type { MiddlewareGlobalInterceptor } from 'typings/middlewares.ts'
 
 stub(console, 'info')
 
-// Real repro for the bug fixed this session: `cleanupInitializationsMetadata('onBoot')` used to
-// wipe global middlewares unconditionally after every single `WebServerManager.start()` call, with
-// no `finalize` gate — unlike `postBoot`'s routes/discovery, which already respected it. A global
+// Regression: `cleanupInitializationsMetadata('onBoot')` used to wipe global middlewares
+// unconditionally after every single `WebServerManager.start()` call, with no `finalize` gate —
+// unlike `postBoot`'s routes/discovery, which already respected it. A global
 // interceptor registered ONCE, before a multi-`bootstrapServers()`-call boot sequence (the exact
 // shape `@zanix/core`'s own `start.ts` uses for its admin+main servers), would silently stop being
 // baked into any `@Controller`-decorated route defined for a LATER call in that sequence, since

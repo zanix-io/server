@@ -130,6 +130,17 @@ export class WebServerManager {
     number,
     Map<string, Record<string, HealthCheckFn>>
   > = new Map()
+  // Per-port record of which Application currently owns each `dispatchKey` — the bookkeeping
+  // `#claimDispatchKey` reads/writes to tell a legitimate re-registration (the SAME Application
+  // rebuilding its own entry — see `shared-port.test.ts`'s "same-type servers" case, and any
+  // Application re-run through a second `bootstrapServers()` call) apart from a genuine collision
+  // (two DIFFERENT Applications whose own id/globalPrefix/port were all left unconfigured,
+  // independently resolving to the identical default dispatch key on the identical default port —
+  // see `#claimDispatchKey`'s own doc for the real production incident this closes). `box.current`
+  // itself only ever holds handler functions, nothing that identifies whose Application a given key
+  // belongs to, hence this separate map. Cleared alongside `#handlers`/`#livenessPorts`/
+  // `#readinessChecksByPort` on the same port-reuse boundary, and per-key on `unmount()`.
+  #dispatchOwners: Map<number, Map<string, string>> = new Map()
   // Guards `attachGlobalErrorHandlers` to run at most once per instance. `#start` installs it
   // lazily, the first time a server actually binds a real listener — see its own call site below.
   // A consumer that only imports `@zanix/server` for a type, a decorator, or a connector, or that
@@ -234,6 +245,79 @@ export class WebServerManager {
   }
 
   /**
+   * Claims `key` as this port's dispatch entry for `application`, or throws if it's already
+   * claimed by a DIFFERENT Application — the guard that closes a real, confirmed-in-production
+   * incident: two Applications of the same `WebServerTypes` (e.g. two `'rest'` servers — a
+   * process's own default-Application server and a named app's operations server,
+   * `@zanix/app`'s `bootstrapAppServer`), neither given an explicit `id`/`globalPrefix`/`port`,
+   * independently resolve to the identical default `dispatchKey` (`resolveGlobalPrefix`'s own
+   * `'api'` fallback, byte-for-byte the same regardless of which Application asked for it — see its
+   * own doc for why that default is deliberately Application-agnostic and not something this fix
+   * changes) AND the identical default port (`getEnvPort`'s own `PORT`/`PORT_<TYPE>` fallback,
+   * equally Application-agnostic). Before this guard, `create()`'s `box.current = {...box.current,
+   * [dispatchKey]: dispatchHandler}` silently OVERWROTE the first Application's entire route table
+   * with the second one's — since `getMainHandler` only ever serves ITS OWN Application's routes
+   * (never both), every route the first Application registered started 404ing the moment the
+   * second `create()` call ran, with no error/warning anywhere and nothing to see in a single
+   * process's own boot log (the overwritten server still "started" successfully, on the address it
+   * expected).
+   *
+   * **Deliberately does NOT change the default resolution itself** (see this method's own doc
+   * above) — `resolveGlobalPrefix`'s `'api'` fallback and `getEnvPort`'s env-based port both stay
+   * Application-agnostic by design, exactly as `gzip-rest-buffered.test.ts`/`health-defaults.test.ts`
+   * (among others) already assert for a single Application. Scoping either one by Application would
+   * be a breaking change to that already-shipped, already-tested contract, not an additive fix — so
+   * this guard instead turns the previously-silent collision into an immediate, actionable boot-time
+   * `InternalError`, the same "fail fast at activation instead of serving broken routes forever"
+   * shape `compileRuntime`'s own validation (`runtime.ts`) already uses for other misconfigurations.
+   *
+   * **Never trips for the legitimate, already-shipped sharing patterns**: the SAME Application
+   * re-claiming its own key (a second `bootstrapServers()` call for the same unconfigured
+   * Application on the same port — `server.test.ts`'s "reuse the port for same-type servers" case;
+   * `getMainHandler` rebuilds that Application's FULL route table each time, so re-claiming is a
+   * harmless, idempotent rebuild, never a data loss) is always allowed, and two Applications that
+   * DELIBERATELY differentiate themselves (an anchored `id`, an explicit distinct `globalPrefix`, or
+   * a distinct `port` — every `shared-port*.test.ts`/`health-cross-application-shared-port.test.ts`
+   * fixture) never reach this method with the same `key` in the first place, since their own
+   * `dispatchKey`s already differ.
+   *
+   * @param port The physical port this dispatch key is being claimed on.
+   * @param key The dispatch key (`Runtime.dispatchKey`/`.previousDispatchKey`) being claimed.
+   * @param application The Application claiming it (`Runtime.application`).
+   * @throws {InternalError} If `key` is already claimed, on this exact `port`, by a different
+   * Application.
+   */
+  private claimDispatchKey(port: number, key: string, application: string): void {
+    const owners = this.#dispatchOwners.get(port) ?? new Map<string, string>()
+    this.#dispatchOwners.set(port, owners)
+
+    const existingOwner = owners.get(key)
+    if (existingOwner !== undefined && existingOwner !== application) {
+      throw new InternalError(
+        `Two different Applications ("${existingOwner}" and "${application}") both resolved to ` +
+          `the same dispatch key ("${
+            key || "'' (unanchored, no globalPrefix)"
+          }") on port ${port}. Sharing one port across genuinely different Applications is fully ` +
+          'supported, but only when each one dispatches under its own distinct key — give this ' +
+          'Application (or the one already registered) an explicit "globalPrefix", an anchored ' +
+          '"id", or its own separate "port" so neither one silently overwrites the other\'s entire ' +
+          'route table on this shared listener.',
+        {
+          meta: {
+            source: 'zanix',
+            method: 'WebServerManager',
+            port,
+            dispatchKey: key,
+            applications: [existingOwner, application],
+          },
+        },
+      )
+    }
+
+    owners.set(key, application)
+  }
+
+  /**
    * Creates a new web server with the specified name and handler.
    * If a server with the same id already exists, it returns the existing server as-is.
    *
@@ -285,6 +369,14 @@ export class WebServerManager {
    * - There's a narrow window, right after the first server binds the port and before every other
    *   server sharing it has finished its own `create()` call, where a request matching one of the
    *   not-yet-registered servers' routes gets a `NOT_FOUND` instead of reaching its handler.
+   * - **Two DIFFERENT Applications sharing a port must dispatch under distinct keys** — an anchored
+   *   `id`, an explicit `globalPrefix`, or a separate `port` (every fixture above already does one
+   *   of these). If both were left fully unconfigured and independently resolved to the identical
+   *   default dispatch key on the identical default port, `create` throws an `InternalError` rather
+   *   than silently letting the second one overwrite the first one's entire route table — see
+   *   `claimDispatchKey`'s own doc. The SAME Application re-registering its own key on the same
+   *   port (a second `bootstrapServers()` call for it) is always allowed; only a mismatched
+   *   Application at the same key/port trips this.
    */
   public create<T extends WebServerTypes>(
     type: T,
@@ -371,8 +463,16 @@ export class WebServerManager {
 
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
-    // Port assignment
-    opts.port = this.getEnvPort(type) || opts.port || 8000 //default port
+    // Port assignment — an explicit `port` from the caller always wins over the env-based
+    // convention: explicit configuration outranks an ambient env var, the same "config beats
+    // convention" priority every other explicit option in this method already gets (SSL passed
+    // directly via `ServerOptions.ssl` vs. `SSL_KEY_PATH`/`SSL_CERT_PATH`, for instance). Only when
+    // the caller left `port` unset does `getEnvPort` (env-based) get a say, falling back to `8000`
+    // when neither is set. This alone doesn't prevent two independently-composed, fully-unconfigured
+    // Applications from still landing on the identical default port (see `claimDispatchKey`'s own
+    // doc for the actual guard against that) — it only ensures a caller who DID bother to configure
+    // one of the two never has that choice silently discarded by an ambient `PORT`.
+    opts.port = opts.port || this.getEnvPort(type) || 8000 //default port
 
     if (!this.#sslOptions && ssl) {
       this.#sslOptions = { cert: ssl.cert, key: ssl.key }
@@ -422,6 +522,14 @@ export class WebServerManager {
         )),
       }
       : {}
+
+    // Claim this port's dispatch key(s) for `application` BEFORE ever writing to `box.current` —
+    // see `claimDispatchKey`'s own doc for exactly which real collision this prevents and which
+    // already-shipped sharing patterns it never trips for. Thrown *before* any mutation, so a
+    // rejected `create()` call leaves the port's existing dispatch table completely untouched.
+    this.claimDispatchKey(opts.port, dispatchKey, application)
+    if (previousDispatchKey) this.claimDispatchKey(opts.port, previousDispatchKey, application)
+
     box.current = Object.freeze({
       ...box.current,
       [dispatchKey]: dispatchHandler,
@@ -496,6 +604,7 @@ export class WebServerManager {
     const currentServers = this.#servers
     const livenessPorts = this.#livenessPorts
     const readinessChecksByPort = this.#readinessChecksByPort
+    const dispatchOwners = this.#dispatchOwners
 
     currentServers[serverID] = {
       _start() {
@@ -545,11 +654,13 @@ export class WebServerManager {
             // for this same port number would need (and correctly get, via `??=`) a brand-new box
             // anyway, since reusing this one would mean binding a listener that no longer exists.
             delete handlers[port]
-            // Same reasoning applies to `#livenessPorts`/`#readinessChecksByPort` — a later
-            // `create()` on this reused port number gets a brand-new box with no health entries in
-            // it, so it must be free to register its own defaults again from scratch.
+            // Same reasoning applies to `#livenessPorts`/`#readinessChecksByPort`/`#dispatchOwners`
+            // — a later `create()` on this reused port number gets a brand-new box with no health
+            // entries and no dispatch-key claims in it, so it must be free to register its own
+            // defaults, and claim any key, again from scratch.
             livenessPorts.delete(port)
             readinessChecksByPort.delete(port)
+            dispatchOwners.delete(port)
             onceStop?.()
           })
           // overriding stop function
@@ -689,6 +800,12 @@ export class WebServerManager {
       const { [server.dispatchKey]: _removed, ...rest } = box.current
       box.current = Object.freeze(rest)
     }
+
+    // Releases this dispatch key's `claimDispatchKey` ownership too — otherwise a later, genuinely
+    // different Application that wants this exact key back on this exact port (the key really is
+    // free now, `id`'s own entry is gone) would spuriously collide against an Application that no
+    // longer has anything registered here.
+    this.#dispatchOwners.get(server.port)?.delete(server.dispatchKey)
 
     delete this.#servers[id]
   }

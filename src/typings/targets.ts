@@ -117,8 +117,8 @@ export type ZanixInteractorsGetter = {
  *    class, e.g. `ZanixProvider<{ asyncmq: ZanixAsyncMQProvider }>`) — returns that key's declared
  *    type. This is the only way to get a precisely-typed result from a string key; it requires the
  *    consumer to explicitly declare `T`, since ambient/global type augmentation doesn't reliably
- *    carry a real per-key type across package boundaries (see `CoreConnectors`' own doc,
- *    `typings/program.ts`).
+ *    carry a real per-key type across package boundaries (see `CoreModules`' own doc below for the
+ *    full reasoning).
  * 2. A Connector class — returns that exact class's instance type, same as always.
  * 3. Any other string — a loosely-typed fallback (`ZanixConnectorGeneric`), for a core slot key
  *    the calling class didn't declare in its own `T`. Still resolves correctly at runtime (or
@@ -200,8 +200,7 @@ export type ZanixConnectorClass<
  * *only* reliable way to get a real per-key return type: unlike an earlier design, this framework
  * does not rely on ambient/global `declare module` augmentation for this, since that doesn't carry
  * a per-key return type at all (only validates the key), and is unsupported by JSR's
- * `no-slow-types` check once reachable from a package's public surface — see `CoreConnectors`'
- * own doc (`typings/program.ts`) for the full reasoning.
+ * `no-slow-types` check once reachable from a package's public surface.
  *
  * @property {ZanixWorkerProvider} worker - Optional provider for the worker part of the system.
  * @property {ZanixAsyncMQProvider|} asyncmq - Optional provider for the asynchronous message queue.
@@ -236,7 +235,7 @@ export type CoreModules<
  * - If set to `false`, the connector will not automatically initialize and will require manual initialization.
  * - If set to an object, it allows configuring the auto-initialization behavior with the following properties:
  *    - `timeoutConnection`: The maximum time (in milliseconds) to wait for the connection to be established during auto-initialization. Defaults to **10000ms (10 seconds)**.
- *    - `retryInterval`: The interval (in milliseconds) between each retry. Defaults to **500ms**. Governs two separate things: retrying a failed `initialize()` call itself — only for `startMode: 'postBoot'`/`'lazy'`; `onSetup`/`onBoot` never retry `initialize()`, so boot stays fail-fast — and the interval between post-ready `isHealthy()` checks, for every `startMode`.
+ *    - `retryInterval`: The interval (in milliseconds) between each retry. Defaults to **500ms**. See `retryInterval`'s own doc below for the fail-fast/retry split it governs.
  *
  * @type {boolean | { timeoutConnection?: number; retryInterval?: number }}
  */
@@ -268,7 +267,7 @@ export type ConnectorOptions = {
    * - If set to `false`, the connector will not automatically initialize and will require manual initialization.
    * - If set to an object, it allows configuring the auto-initialization behavior with the following properties:
    *    - `timeoutConnection`: The maximum time (in milliseconds) to wait for the connection to be established during auto-initialization. Defaults to **10000ms (10 seconds)**.
-   *    - `retryInterval`: The interval (in milliseconds) between each retry. Defaults to **500ms**. Governs two separate things: retrying a failed `initialize()` call itself — only for `startMode: 'postBoot'`/`'lazy'`; `onSetup`/`onBoot` never retry `initialize()`, so boot stays fail-fast — and the interval between post-ready `isHealthy()` checks, for every `startMode`.
+   *    - `retryInterval`: The interval (in milliseconds) between each retry. Defaults to **500ms**. Same fail-fast/retry split as `retryInterval` above — see there for the full breakdown.
    */
   autoInitialize?: ConnectorAutoInitOptions
 }

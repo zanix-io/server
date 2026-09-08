@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.2.4] - 2026-09-08
+
+### Fixed
+
+- **Two different Applications of the same server type sharing a port could silently overwrite each
+  other's entire route table, with no error and no warning** — `WebServerManager.create()`
+  (`modules/webserver/manager.ts`) writes each server's dispatch handler into its port's shared
+  `HandlerBox`, keyed only by `dispatchKey` (`resolveGlobalPrefix`'s default `'api'` fallback for
+  `'rest'`) — a key that's deliberately Application-agnostic, so two Applications left fully
+  unconfigured (no `id`, `globalPrefix`, or `port` of their own) can independently resolve to the
+  identical default key on the identical default port (`getEnvPort` reads `PORT`/`PORT_<TYPE>`, also
+  Application-agnostic) purely by coincidence. Since `getMainHandler` only ever serves its own
+  Application's routes, the later `create()` call simply replaced the earlier one's handler outright
+  — every route the first Application had registered (still logged as "registered" at boot) started
+  returning a genuine 404 the moment the second server bound the same port, with nothing visible
+  until a real caller hit those routes. Confirmed live in production: a service's own default REST
+  API and a named app's `@zanix/app` operations server (`ctx.remote()`'s dispatch surface,
+  `bootstrapAppServer`) collided this way as soon as a real deployment set `PORT`. `create()` now
+  claims each port's dispatch key against the Application registering it (`claimDispatchKey`) and
+  throws an actionable `InternalError` — naming both Applications, the colliding key, and the port —
+  the moment two _different_ Applications collide on an unconfigured key, instead of serving broken
+  routes forever. Re-registering the same Application's own key (the already-shipped "reuse the
+  port" pattern) and every already-shipped deliberate-sharing pattern (an anchored `id`, an explicit
+  distinct `globalPrefix`, or a separate `port`) are both unaffected — this only trips on a genuine,
+  previously-silent collision. Also fixed the underlying port-assignment priority: an explicit
+  `port` passed by the caller now always outranks the ambient `PORT`/`PORT_<TYPE>` env var, matching
+  how every other explicit `ServerOptions` value already outranks its own env-based convention,
+  instead of the env var silently discarding a caller's own choice.
+
 ## [4.2.3] - 2026-09-06
 
 ### Fixed
