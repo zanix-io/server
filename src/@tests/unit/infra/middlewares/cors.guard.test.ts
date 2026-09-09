@@ -122,7 +122,9 @@ Deno.test('Cors validation pipe', async () => {
     Vary: 'Origin',
   })
 
-  // prefligths
+  // preflights — a real preflight `Response` must carry the SAME `Access-Control-Allow-*`
+  // headers a passing request gets, not only `Access-Control-Max-Age`: a browser with nothing to
+  // approve the real request against treats the preflight itself as a CORS failure.
   const response5 = await corsGuard({
     origins: '*',
     preflight: { maxAge: 600, optionsSuccessStatus: 204 },
@@ -140,7 +142,14 @@ Deno.test('Cors validation pipe', async () => {
 
   const preflightsResp = new Response(undefined, {
     status: 204,
-    headers: { 'Access-Control-Max-Age': '600' },
+    headers: {
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Expose-Headers': 'Content-Length, X-Kuma-Revision',
+      'Access-Control-Allow-Origin': '*',
+      'Vary': 'Origin',
+      'Access-Control-Max-Age': '600',
+    },
   })
 
   assertEquals(response5.response?.status, preflightsResp.status)
@@ -172,6 +181,47 @@ Deno.test('Cors validation pipe', async () => {
     'Access-Control-Expose-Headers': 'Content-Length',
   })
 })
+
+/**
+ * Regression coverage for a confirmed bug: the preflight short-circuit above used to return a
+ * `Response` carrying only `Access-Control-Max-Age`, discarding the very `Allow-Origin`/
+ * `Allow-Methods`/`Allow-Headers` headers a browser actually reads to decide whether the
+ * preflight succeeded. A caller configuring custom `allowedHeaders` (e.g. to let a real upload
+ * send `Authorization`) would see its preflight blocked by the browser regardless of that
+ * config, since none of it ever reached the preflight response itself.
+ */
+Deno.test(
+  'Cors: a preflight response carries the same custom allowedHeaders/allowedMethods a passing ' +
+    'request would get, not only Access-Control-Max-Age',
+  async () => {
+    const cors = corsGuard({
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Znx-Asset-Filename'],
+      preflight: { maxAge: 600, optionsSuccessStatus: 204 },
+    })
+    const baseUrl = new URL('http://url.com')
+
+    const response = await cors({
+      req: new Request(baseUrl, { method: 'OPTIONS' }),
+      payload: { params: undefined, search: undefined, body: undefined },
+      id: '',
+      url: baseUrl,
+      locals: {},
+      cookies: {},
+    })
+
+    assertEquals(response.response?.status, 204)
+    assertEquals(
+      response.response?.headers.get('Access-Control-Allow-Headers'),
+      'Content-Type, Authorization, X-Znx-Asset-Filename',
+    )
+    assertEquals(
+      response.response?.headers.get('Access-Control-Allow-Methods'),
+      'GET, POST, PUT, PATCH, DELETE',
+    )
+    assertEquals(response.response?.headers.get('Access-Control-Allow-Origin'), '*')
+    assertEquals(response.response?.headers.get('Access-Control-Max-Age'), '600')
+  },
+)
 
 /**
  * Regression coverage for a confirmed vulnerability: a WebSocket upgrade never gets a CORS

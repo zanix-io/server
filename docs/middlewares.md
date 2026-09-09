@@ -130,7 +130,8 @@ Defaults (identical logic across every server type, applied per-property when om
 - `allowedMethods`: `['GET', 'POST', 'PUT', 'PATCH', 'DELETE']` for `rest`, `['GET', 'POST']` for
   `graphql`/`ssr`, `['GET']` for `socket`.
 - `exposedHeaders: ['Content-Length', 'X-Kuma-Revision']`
-- `preflight`: unset — the browser decides its own cache duration for `OPTIONS` requests.
+- `preflight`: unset — no route answers a real `OPTIONS` request at all (see below), rather than
+  merely leaving its cache duration to the browser's own default.
 
 `HEAD` is never listed in `allowedMethods` itself, neither the defaults above nor your own override
 — it's always implicitly allowed whenever `GET` is (see [HEAD requests](./handlers.md#head-requests)
@@ -148,6 +149,17 @@ await bootstrapServers({
   },
 })
 ```
+
+**`preflight` is what makes a real `OPTIONS` request work at all, for any route.** There's no
+`Options()` decorator, so no route ever has an `OPTIONS` entry of its own — with `preflight` left
+unset, a real cross-origin request needing one (any request the "simple request" rules don't cover,
+e.g. a non-form `Content-Type` or a custom header like `Authorization`) gets a plain
+`405 METHOD_NOT_ALLOWED` for its preflight, and the browser blocks the real request that would have
+followed it. Setting `preflight` on a path some other method already registers answers a real
+`OPTIONS` request against it directly from `cors` config alone — never reaching that route's own
+handler, or any of its own `guards` (auth/rate-limit/etc.), since a preflight must succeed
+independently of them. An `OPTIONS` request against a path nothing registers at all still 404s, same
+as any other method.
 
 `credentials: true` (the default) only grants `Access-Control-Allow-Credentials` when `origins` is
 explicitly set to something other than `'*'` — leaving `origins` at its default responds as a

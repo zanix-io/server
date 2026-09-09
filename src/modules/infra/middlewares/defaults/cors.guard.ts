@@ -5,6 +5,35 @@ import type { HttpMethod } from 'typings/router.ts'
 
 import { HttpError } from '@zanix/errors'
 
+const EMPTY_CORS_OPTIONS: CorsOptions = {}
+
+// One built guard per distinct `(options, type)` pair, cached for as long as `options` itself is
+// referenced — `routerGuard` (`main.middlewares.ts`) calls `corsGuard(cors, type)` on every single
+// request (not just preflight — see `getMainHandler`'s own OPTIONS short-circuit for the other call
+// site), yet `cors`/`type` are the SAME object/value for a given server handler's whole lifetime:
+// `WebServerManager.create`/`refreshRoutes` both close over one `cors` reference across every
+// request and every route-table rebuild. Without this cache, every request would pay again for
+// setup work that never changes between requests — the `methodMap` literal, destructuring `options`
+// with its defaults, and the three `Array.join()` calls `buildCorsGuard` does once below.
+//
+// `EMPTY_CORS_OPTIONS` — a single shared object, not a fresh `{}` literal evaluated per call — is
+// what lets the common "no cors config at all" case (`options` omitted/`undefined`) hit this same
+// cache too: a plain `= {}` default parameter allocates a NEW object on every invocation, which
+// would never match a previous `WeakMap` entry and defeat the cache for that case entirely.
+//
+// The cache key is `options`' own object identity: the guard built for a given `options` reference
+// keeps reflecting whatever that object looked like when it was first cached, regardless of any
+// later in-place mutation of the same object — only a genuinely different `options` reference gets
+// its own, freshly built guard. `cors` is fixed config set once at server boot everywhere this
+// package constructs it, and there is no live-CORS-reconfiguration API to reach for instead —
+// `WebServerManager.refreshRoutes` only recompiles the route table; it reuses the exact same `cors`
+// reference `create()` closed over. A live-reconfiguration feature, if one is ever added, gets a
+// fresh guard for free by passing a new `options` object — the natural way to invalidate this cache.
+const corsGuardCache = new WeakMap<
+  CorsOptions,
+  Partial<Record<WebServerTypes, MiddlewareInternalGuard>>
+>()
+
 /**
  * Creates a CORS (Cross-Origin Resource Sharing) validation middleware.
  *
@@ -80,8 +109,20 @@ import { HttpError } from '@zanix/errors'
  * that must be used to configure CORS policy to the response.
  */
 export const corsGuard = (
-  options: CorsOptions = {},
+  options: CorsOptions = EMPTY_CORS_OPTIONS,
   type: WebServerTypes = 'rest',
+): MiddlewareInternalGuard => {
+  let byType = corsGuardCache.get(options)
+  if (!byType) {
+    byType = {}
+    corsGuardCache.set(options, byType)
+  }
+  return byType[type] ??= buildCorsGuard(options, type)
+}
+
+const buildCorsGuard = (
+  options: CorsOptions,
+  type: WebServerTypes,
 ): MiddlewareInternalGuard => {
   const methodMap: Record<WebServerTypes, HttpMethod[]> = {
     graphql: ['GET', 'POST'],
@@ -94,16 +135,24 @@ export const corsGuard = (
 
   const defaultAllowedMethods = methodMap[type]
 
-  return (ctx: HandlerContext) => {
-    const {
-      origins = '*',
-      preflight,
-      credentials = true,
-      allowedHeaders = ['Content-Type'],
-      allowedMethods = defaultAllowedMethods,
-      exposedHeaders = ['Content-Length', 'X-Kuma-Revision'],
-    } = options as CorsOptions
+  const {
+    origins = '*',
+    preflight,
+    credentials = true,
+    allowedHeaders = ['Content-Type'],
+    allowedMethods = defaultAllowedMethods,
+    exposedHeaders = ['Content-Length', 'X-Kuma-Revision'],
+  } = options
 
+  // Precomputed once per guard instance, never per request — `options` is fixed for this
+  // closure's whole lifetime, so re-joining these arrays on every request, including from the
+  // preflight branch below (which needs the full header set for a spec-correct response), would
+  // be pure waste.
+  const allowedMethodsHeader = allowedMethods.join(', ')
+  const allowedHeadersHeader = allowedHeaders.join(', ')
+  const exposedHeadersHeader = exposedHeaders.join(', ')
+
+  return (ctx: HandlerContext) => {
     const requestOrigin = ctx.req.headers.get('Origin')
 
     if (requestOrigin) {
@@ -126,11 +175,39 @@ export const corsGuard = (
       }
     }
 
+    // Valid origin headers — computed BEFORE the preflight short-circuit below, not only for a
+    // passthrough request. A real preflight response needs these same `Access-Control-Allow-*`
+    // headers to approve anything: a browser that gets back only `Access-Control-Max-Age`, with
+    // no `Allow-Origin`/`Allow-Methods`/`Allow-Headers`, treats the preflight as a CORS failure
+    // and blocks the real request that would have followed it — the opposite of what configuring
+    // `preflight` at all is meant to achieve.
+    const headers: Record<string, string> = {
+      'Access-Control-Allow-Methods': allowedMethodsHeader,
+      'Access-Control-Allow-Headers': allowedHeadersHeader,
+      'Access-Control-Expose-Headers': exposedHeadersHeader,
+    }
+    if (requestOrigin) {
+      // `origins: '*'` (the default) means "no allowlist configured" — it must never be
+      // combined with credentialed responses. Reflecting an arbitrary Origin back with
+      // `Allow-Credentials: true` would let any site make authenticated cross-origin
+      // requests. Only reflect + allow credentials when an explicit origin policy
+      // (array, RegExp, or function) was configured.
+      const allowCredentials = credentials && origins !== '*'
+      headers['Access-Control-Allow-Origin'] = allowCredentials ? requestOrigin : '*'
+      if (allowCredentials) {
+        headers['Access-Control-Allow-Credentials'] = 'true'
+      }
+      headers['Vary'] = 'Origin'
+    } else {
+      headers['Access-Control-Allow-Origin'] = '*'
+    }
+
     // Preflights
     if (ctx.req.method === 'OPTIONS' && preflight) {
       const response = new Response(undefined, {
         status: preflight.optionsSuccessStatus,
         headers: {
+          ...headers,
           'Access-Control-Max-Age': preflight.maxAge.toString(),
         },
       })
@@ -150,28 +227,6 @@ export const corsGuard = (
 
     // Websocket adaptation
     if (ctx.req.headers.get('Upgrade') === 'websocket') return {}
-
-    // Valid origin headers
-    const headers: Record<string, string> = {
-      'Access-Control-Allow-Methods': allowedMethods.join(', '),
-      'Access-Control-Allow-Headers': allowedHeaders.join(', '),
-      'Access-Control-Expose-Headers': exposedHeaders.join(', '),
-    }
-    if (requestOrigin) {
-      // `origins: '*'` (the default) means "no allowlist configured" — it must never be
-      // combined with credentialed responses. Reflecting an arbitrary Origin back with
-      // `Allow-Credentials: true` would let any site make authenticated cross-origin
-      // requests. Only reflect + allow credentials when an explicit origin policy
-      // (array, RegExp, or function) was configured.
-      const allowCredentials = credentials && origins !== '*'
-      headers['Access-Control-Allow-Origin'] = allowCredentials ? requestOrigin : '*'
-      if (allowCredentials) {
-        headers['Access-Control-Allow-Credentials'] = 'true'
-      }
-      headers['Vary'] = 'Origin'
-    } else {
-      headers['Access-Control-Allow-Origin'] = '*'
-    }
 
     return { headers }
   }

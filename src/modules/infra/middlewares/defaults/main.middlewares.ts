@@ -128,6 +128,11 @@ function mergeHeaders(
 // deno-lint-ignore no-explicit-any
 const isThenable = (value: any): value is Promise<any> => typeof value?.then === 'function'
 
+// `cookiesGuard()` takes no options — its closure has no per-call state, every instance behaves
+// identically — so one shared instance, built once here, covers every request; a fresh one per
+// call would gain nothing.
+const znxCookiesGuard = cookiesGuard()
+
 /**
  * Guards that must be executed across all types of HTTP web servers.
  * This ensures consistent behavior regardless of the server implementation.
@@ -181,6 +186,10 @@ export const mainPipe: MiddlewarePipe = async (
   context,
   pipes: MiddlewarePipe[],
 ) => {
+  // The common case (`routerPipe()` with no custom pipes — see this file's own benchmark baseline)
+  // has nothing to run here at all: skip the `.map()` array allocation and the `Promise.all` wrapper
+  // rather than paying for both just to await zero promises.
+  if (!pipes.length) return
   await Promise.all(pipes.map((pipe) => pipe(context)))
 }
 
@@ -246,8 +255,9 @@ export const routerGuard = (context: HandlerContext, options: {
 }) => {
   const { type, cors, guards = [] } = options
 
+  // `corsGuard` caches its returned guard by `(cors, type)` identity — see its own doc for why
+  // that matters here specifically.
   const baseCorsGuard = corsGuard(cors, type)
-  const znxCookiesGuard = cookiesGuard()
   return mainGuard(context, [baseCorsGuard, znxCookiesGuard, ...guards])
 }
 

@@ -192,6 +192,79 @@ Deno.test(
   },
 )
 
+Deno.test(
+  'getMainHandler: OPTIONS still 405s exactly like any other unsupported method when ' +
+    'cors.preflight is not configured — the new preflight interception is opt-in, not automatic',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '') as unknown as TestHandler
+    const request = new Request('http://localhost/known', { method: 'OPTIONS' })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'METHOD_NOT_ALLOWED')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a real preflight (OPTIONS + cors.preflight configured) against a path some ' +
+    "other method registers is answered directly by corsGuard — never reaching the route's own " +
+    'handler, and never 405ing',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => {
+        throw new Error('a preflight must never reach the real route handler')
+      },
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: {
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        preflight: { optionsSuccessStatus: 204, maxAge: 600 },
+      },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/known', { method: 'OPTIONS' })
+
+    const response = await handler(request)
+    assertEquals(response.status, 204)
+    assertEquals(
+      response.headers.get('access-control-allow-headers'),
+      'Content-Type, Authorization',
+    )
+    assertEquals(response.headers.get('access-control-max-age'), '600')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a preflight (OPTIONS + cors.preflight configured) against a path NOTHING ' +
+    'registers still 404s, same as for any other method — not silently answered as if the path ' +
+    'existed',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: { preflight: { optionsSuccessStatus: 204, maxAge: 600 } },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/unknown', { method: 'OPTIONS' })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'NOT_FOUND')
+
+    Program.routes.resetContainer()
+  },
+)
+
 // --- Trailing catch-all (`:name*`) — Task #82 -------------------------------------------------
 
 /** Captures whatever `ctx.payload.params` reads as, for direct assertion — avoids any dependency

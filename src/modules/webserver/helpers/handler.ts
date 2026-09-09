@@ -31,6 +31,7 @@ import {
   routerInterceptor,
   routerPipe,
 } from 'middlewares/defaults/main.middlewares.ts'
+import { corsGuard } from 'middlewares/defaults/cors.guard.ts'
 
 /**
  * Turns an already-fully-built `Response` into a spec-correct `HEAD` response (RFC 9110 §9.3.2):
@@ -247,6 +248,29 @@ export const getMainHandler = (
 
     // Check for absolute paths
     const path = cleanRoute(url.pathname)
+
+    // A genuine CORS preflight (`OPTIONS`) request never has its own registered route — there's
+    // no `Options()` decorator, the same "no route of its own" starting point `HEAD`'s own
+    // fallback above documents. Unlike `HEAD` (which re-runs the path's real `GET` handler),
+    // though, a preflight must never reach a real handler — or any of the route's own custom
+    // `guards` (auth/rate-limit/etc.) — at all: the browser hasn't sent the real request yet, and
+    // a preflight answered from `corsGuard`'s own config alone is the entire point of configuring
+    // `cors.preflight`. Checked here, before route lookup, because the ordinary route tables
+    // (`absolutePaths`/`relativeByMethod`/`catchAllByMethod`) have no `OPTIONS` entry to ever
+    // match against — without this, every `OPTIONS` request fell through to the same
+    // `METHOD_NOT_ALLOWED` path a genuinely unsupported method gets below, and `corsGuard`'s own
+    // preflight branch (`cors.guard.ts`) was never reached in a real, deployed server no matter
+    // how `cors.preflight` was configured. Scoped to a path some OTHER method already registers
+    // (the identical check the 405-vs-404 decision below already makes) — a path nothing serves at
+    // all still 404s for `OPTIONS`, same as for any other method.
+    if (
+      req.method === 'OPTIONS' && cors?.preflight &&
+      (routePaths.absolute.has(path) || routePaths.relative.test(path))
+    ) {
+      const { response } = await corsGuard(cors, type)(context)
+      if (response) return response
+    }
+
     const fullPath = `${path}/${req.method}`
     const absoluteRoute = absolutePaths[fullPath] ??
       (isHeadRequest ? absolutePaths[`${path}/GET`] : undefined)

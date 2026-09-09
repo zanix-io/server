@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.2.6] - 2026-09-09
+
+### Fixed
+
+- **`corsGuard`'s preflight (`OPTIONS`) short-circuit response carried only
+  `Access-Control-Max-Age`, discarding `Access-Control-Allow-Origin`/`-Allow-Methods`/
+  `-Allow-Headers`.** A real browser reads those headers on the preflight response ITSELF to decide
+  whether to send the real request that follows — with none of them present, the browser treats the
+  preflight as a CORS failure and blocks the real request regardless of how
+  `allowedHeaders`/`allowedMethods`/`origins` were configured, since none of that configuration ever
+  reached the preflight response before this fix.
+  `modules/infra/middlewares/defaults/
+  cors.guard.ts` now computes the same
+  `Access-Control-Allow-*`/`Vary` header set a passing request gets BEFORE the preflight
+  short-circuit, and merges it onto the preflight `Response` alongside `Access-Control-Max-Age`.
+- **A real CORS preflight (`OPTIONS`) request never reached `corsGuard` at all, for any route.**
+  There's no `Options()` decorator, so no route table ever has an `OPTIONS` entry — the router's own
+  dispatch (`webserver/helpers/handler.ts`) matched a request's path+method against the route tables
+  BEFORE any guard (including `corsGuard`) ever ran, and rejected an unmatched `OPTIONS` with
+  `METHOD_NOT_ALLOWED` (405) the same as any other genuinely unsupported method — the fix above only
+  ever applied to a preflight this dispatch logic let through, which never actually happened for a
+  real `Get()`/`Post()`/etc. route. `getMainHandler` now checks for a preflight (`OPTIONS` with
+  `cors.preflight` configured, against a path some other method already registers) before route
+  lookup, and answers it directly via `corsGuard` — never reaching a route's own custom `guards`
+  (auth/rate-limit/etc.), since a preflight must succeed independently of them. A path with no
+  registered route at all still 404s for `OPTIONS`, same as for any other method.
+
 ## [4.2.5] - 2026-09-08
 
 ### Fixed
