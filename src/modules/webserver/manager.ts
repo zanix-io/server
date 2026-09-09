@@ -346,6 +346,13 @@ export class WebServerManager {
    * every Application sharing the port that opts into health contributes its own `checks`, merged
    * (never dropped) into a single `{shared, apps}` response — see `buildReadinessHandler`'s own
    * doc and `#readinessChecksByPort`'s own doc for the accumulation mechanism.
+   * @param {number} [defaultPort] - The LAST fallback tried when resolving this server's port —
+   * only reached once both `options.server.port` (explicit config) and the `PORT_<TYPE>`/`PORT`
+   * env vars (see `getEnvPort`) are unset. `bootstrapServers` (`webserver/mod.ts`) passes each
+   * type's own literal default here (`SOCKET_PORT`/`STATIC_PORT`/`GRAPHQL_PORT`; REST passes
+   * none) instead of folding it into `options.server.port` itself — folding it in earlier would
+   * make it indistinguishable from explicit config, permanently shadowing the env-var fallback
+   * below. Omitted, this method's own hardcoded `8000` is the final fallback.
    * @returns {ServerID} The id of the created server, or the given/existing id if a
    * server with that id was already registered (the existing server is left untouched).
    *
@@ -385,6 +392,7 @@ export class WebServerManager {
       globalPrefix: options.server?.globalPrefix,
     }),
     health: ResolvedHealthOptions | undefined = undefined,
+    defaultPort: number | undefined = undefined,
   ): ServerID {
     const {
       preHandler,
@@ -463,16 +471,21 @@ export class WebServerManager {
 
     const { onListen: currentListenHandler, onError: currentErrorHandler } = opts
 
-    // Port assignment — an explicit `port` from the caller always wins over the env-based
-    // convention: explicit configuration outranks an ambient env var, the same "config beats
-    // convention" priority every other explicit option in this method already gets (SSL passed
-    // directly via `ServerOptions.ssl` vs. `SSL_KEY_PATH`/`SSL_CERT_PATH`, for instance). Only when
-    // the caller left `port` unset does `getEnvPort` (env-based) get a say, falling back to `8000`
-    // when neither is set. This alone doesn't prevent two independently-composed, fully-unconfigured
-    // Applications from still landing on the identical default port (see `claimDispatchKey`'s own
-    // doc for the actual guard against that) — it only ensures a caller who DID bother to configure
-    // one of the two never has that choice silently discarded by an ambient `PORT`.
-    opts.port = opts.port || this.getEnvPort(type) || 8000 //default port
+    // Port assignment — a 4-deep fallback chain, each step tried only once the previous one comes
+    // back empty: (1) an explicit `port` from the caller always wins over anything else — explicit
+    // configuration outranks an ambient env var, the same "config beats convention" priority every
+    // other explicit option in this method already gets (SSL passed directly via `ServerOptions.ssl`
+    // vs. `SSL_KEY_PATH`/`SSL_CERT_PATH`, for instance); (2) `getEnvPort` (`PORT_<TYPE>`/`PORT`,
+    // env-based); (3) `defaultPort`, this type's own literal default (`SOCKET_PORT`/`STATIC_PORT`/
+    // `GRAPHQL_PORT` — see this method's own `@param defaultPort` doc for why the caller passes it
+    // here instead of folding it into `opts.port` itself); (4) this method's own hardcoded `8000`.
+    // This chain alone doesn't prevent two independently-composed, fully-unconfigured Applications
+    // from still landing on the identical default port (see `claimDispatchKey`'s own doc for the
+    // actual guard against that) — it only ensures a caller who DID bother to configure one of the
+    // two never has that choice silently discarded by an ambient `PORT`, and that step (2) is
+    // always actually reachable regardless of type — see `defaultPort`'s own doc above for why it
+    // must arrive here rather than pre-folded into `opts.port`.
+    opts.port = opts.port || this.getEnvPort(type) || defaultPort || 8000 //default port
 
     if (!this.#sslOptions && ssl) {
       this.#sslOptions = { cert: ssl.cert, key: ssl.key }

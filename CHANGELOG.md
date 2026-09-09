@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.2.5] - 2026-09-08
+
+### Fixed
+
+- **`PORT_SSR`/`PORT_SOCKET`/`PORT_GRAPHQL` (and the shared `PORT` fallback) were silently ignored
+  for `ssr`, `socket`, and `graphql` servers, both in `zanix space dev` and in production
+  (`bootstrapRemoteApp`) — only `rest` ever honored them.** `bootstrapServerType`
+  (`modules/webserver/mod.ts`) folded each type's own literal port default (`SOCKET_PORT`/
+  `STATIC_PORT`/`GRAPHQL_PORT`, `utils/constants.ts`) into `options.server.port` — as
+  `port || defaultPort` — before ever calling `WebServerManager.create()`. Since nobody sets
+  `ssr.port`/`socket.port`/`graphql.port` by hand in the common case, `port` resolved to that
+  literal default immediately, at the call site, and arrived at `create()` already truthy.
+  `create()`'s own port-resolution chain (`manager.ts`) —
+  `opts.port || this.getEnvPort(type) ||
+  8000` — only ever consults `getEnvPort()` (the real
+  `PORT_<TYPE>`/`PORT` reader) when `opts.port` is still empty by the time it runs, so for these
+  three types that env-var lookup was structurally unreachable: a pre-resolved default always won
+  first. `rest`'s own call site never passed a `defaultPort` at all, so it was never affected.
+  `bootstrapServerType` now forwards `port` to `create()` exactly as given — possibly `undefined` —
+  and passes `defaultPort` through as `create()`'s own new, separate argument instead of pre-folding
+  it; `create()`'s chain becomes `opts.port || this.getEnvPort(type) || defaultPort || 8000`, so the
+  env-var lookup is always reachable and ranks below explicit config but above every type's
+  hardcoded default, for every server type uniformly — matching how `rest` already behaved.
+
 ## [4.2.4] - 2026-09-08
 
 ### Fixed

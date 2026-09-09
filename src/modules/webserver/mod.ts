@@ -258,7 +258,13 @@ const bootstrapServersImpl = async (
     options: BootstrapServerOptions[T]
     /** Unanchored default (skipped when anchored) — see `resolveGlobalPrefix`. Omitted for `'ssr'`. */
     defaultPrefix?: string
-    /** Falls back to `WebServerManager.create`'s own default (8000) when omitted, as REST does. */
+    /**
+     * This type's own literal port default (`SOCKET_PORT`/`STATIC_PORT`/`GRAPHQL_PORT`), forwarded
+     * to `WebServerManager.create` as its own argument — never folded into `options.port` here, or
+     * the `PORT_<TYPE>`/`PORT` env vars (`getEnvPort`, ranked above it in `create`'s own fallback
+     * chain) would never be reached for this type. Omitted for REST, whose call below relies purely
+     * on `create`'s own chain (env vars, then its hardcoded 8000).
+     */
     defaultPort?: number
     /** REST-only: registers Discovery routes before `Runtime` resolution reads the route table. */
     beforeCreate?: () => void
@@ -296,14 +302,21 @@ const bootstrapServersImpl = async (
       explicitId,
       previousId,
     })
+    // `port` is forwarded as-is — possibly `undefined` — never pre-folded with `defaultPort` here:
+    // `WebServerManager.create`'s own port-resolution chain (`manager.ts`, `opts.port ||
+    // this.getEnvPort(type) || defaultPort || 8000`) is the one place that fallback happens, so the
+    // `PORT_<TYPE>`/`PORT` env vars stay reachable for every type, not just REST (whose own call
+    // below never had a `defaultPort` to fold in the first place). `defaultPort` is passed through
+    // as its own argument instead, ranking below the env-var lookup in that chain.
     const id = webServerManager.create(
       type,
       {
         preHandler,
-        server: { ...opts, globalPrefix, port: port || defaultPort },
+        server: { ...opts, globalPrefix, port },
       },
       runtime,
       health,
+      defaultPort,
     )
     onCreate?.(id)
     servers.push(id)
