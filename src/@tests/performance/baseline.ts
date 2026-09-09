@@ -292,7 +292,15 @@ const RECORDED: Record<
   'lifecycle:param:table:large': [27500, 24500, 10.9, 32.6, 0.45, 'inSuiteMargin'],
   'lifecycle:param:table:medium': [40800, 37500, 8.1, 40.7, null, 'inSuiteUnstable'],
   'lifecycle:param:table:small': [46100, 37900, 17.8, 27.3, 0.45, 'inSuiteMargin'],
-  'middleware:cors:preflight': [4450000, 4130000, 7.2, 68.2, 0.35, 'stable'],
+  // Re-recorded 2026-09-09 (two fresh sessions, `--runs=5` each, reference M1, Deno 2.9.6) after
+  // `ddbe7ae` ("Fix corsguard and preflight", v4.2.6): the preflight short-circuit used to return
+  // a `Response` carrying only `Access-Control-Max-Age`, which was a real bug (see CHANGELOG
+  // v4.2.6) — a browser reads `Access-Control-Allow-Origin/-Methods/-Headers` on the preflight
+  // response ITSELF before deciding whether to send the real request that follows. The fix now
+  // computes and merges the full header set into that response, which is genuinely more work per
+  // `OPTIONS` request, not a lost fast path. The two sessions measured 734.1k/735.4k ops/s,
+  // tightly agreeing (unlike the old baseline's 7.2% spread) — this is the new stable floor.
+  'middleware:cors:preflight': [734087, 646573, 11.9, 20.4, 0.35, 'stable'],
   'middleware:cors:simple': [3380000, 3190000, 5.6, 10.2, 0.35, 'stable'],
   'middleware:guard:custom3': [281400, 271200, 3.6, 15.6, 0.35, 'stable'],
   'middleware:guard:default': [386300, 363400, 5.9, 12.0, 0.45, 'inSuiteMargin'],

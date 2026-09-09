@@ -147,10 +147,44 @@ const buildCorsGuard = (
   // Precomputed once per guard instance, never per request — `options` is fixed for this
   // closure's whole lifetime, so re-joining these arrays on every request, including from the
   // preflight branch below (which needs the full header set for a spec-correct response), would
-  // be pure waste.
+  // be pure waste. `maxAgeHeader` stays `''` when `preflight` itself is unset — it is only ever
+  // read from the branch that already checked `preflight` is truthy, below.
   const allowedMethodsHeader = allowedMethods.join(', ')
   const allowedHeadersHeader = allowedHeaders.join(', ')
   const exposedHeadersHeader = exposedHeaders.join(', ')
+  const maxAgeHeader = preflight ? preflight.maxAge.toString() : ''
+
+  // The `Access-Control-Allow-*`/`Vary` header set a passing request gets — also what a real
+  // preflight response needs merged onto it, since a browser reads these on the preflight
+  // response ITSELF (not only the real request that follows) to decide whether it succeeded; see
+  // this guard's own doc. Kept as its own closure, built once per guard instance rather than
+  // inlined per request, so the two call sites below can each build it ONLY when they actually
+  // need it — a websocket upgrade or a `METHOD_NOT_ALLOWED` rejection never does (see their own
+  // branches below) — restoring the "skip it unless a real response needs it" property the
+  // preflight fix would otherwise have paid on every single request, gated or not.
+  const buildHeaders = (requestOrigin: string | null): Record<string, string> => {
+    const headers: Record<string, string> = {
+      'Access-Control-Allow-Methods': allowedMethodsHeader,
+      'Access-Control-Allow-Headers': allowedHeadersHeader,
+      'Access-Control-Expose-Headers': exposedHeadersHeader,
+    }
+    if (requestOrigin) {
+      // `origins: '*'` (the default) means "no allowlist configured" — it must never be
+      // combined with credentialed responses. Reflecting an arbitrary Origin back with
+      // `Allow-Credentials: true` would let any site make authenticated cross-origin
+      // requests. Only reflect + allow credentials when an explicit origin policy
+      // (array, RegExp, or function) was configured.
+      const allowCredentials = credentials && origins !== '*'
+      headers['Access-Control-Allow-Origin'] = allowCredentials ? requestOrigin : '*'
+      if (allowCredentials) {
+        headers['Access-Control-Allow-Credentials'] = 'true'
+      }
+      headers['Vary'] = 'Origin'
+    } else {
+      headers['Access-Control-Allow-Origin'] = '*'
+    }
+    return headers
+  }
 
   return (ctx: HandlerContext) => {
     const requestOrigin = ctx.req.headers.get('Origin')
@@ -175,43 +209,16 @@ const buildCorsGuard = (
       }
     }
 
-    // Valid origin headers — computed BEFORE the preflight short-circuit below, not only for a
-    // passthrough request. A real preflight response needs these same `Access-Control-Allow-*`
-    // headers to approve anything: a browser that gets back only `Access-Control-Max-Age`, with
-    // no `Allow-Origin`/`Allow-Methods`/`Allow-Headers`, treats the preflight as a CORS failure
-    // and blocks the real request that would have followed it — the opposite of what configuring
-    // `preflight` at all is meant to achieve.
-    const headers: Record<string, string> = {
-      'Access-Control-Allow-Methods': allowedMethodsHeader,
-      'Access-Control-Allow-Headers': allowedHeadersHeader,
-      'Access-Control-Expose-Headers': exposedHeadersHeader,
-    }
-    if (requestOrigin) {
-      // `origins: '*'` (the default) means "no allowlist configured" — it must never be
-      // combined with credentialed responses. Reflecting an arbitrary Origin back with
-      // `Allow-Credentials: true` would let any site make authenticated cross-origin
-      // requests. Only reflect + allow credentials when an explicit origin policy
-      // (array, RegExp, or function) was configured.
-      const allowCredentials = credentials && origins !== '*'
-      headers['Access-Control-Allow-Origin'] = allowCredentials ? requestOrigin : '*'
-      if (allowCredentials) {
-        headers['Access-Control-Allow-Credentials'] = 'true'
-      }
-      headers['Vary'] = 'Origin'
-    } else {
-      headers['Access-Control-Allow-Origin'] = '*'
-    }
-
-    // Preflights
+    // Preflights. Writes `Access-Control-Max-Age` directly onto the `headers` object `buildHeaders`
+    // just allocated — that object is request-local and nothing else reads it afterwards, so
+    // mutating it in place and handing it straight to `Response` skips the extra allocate-and-copy
+    // an object spread would otherwise cost on every single preflight.
     if (ctx.req.method === 'OPTIONS' && preflight) {
-      const response = new Response(undefined, {
-        status: preflight.optionsSuccessStatus,
-        headers: {
-          ...headers,
-          'Access-Control-Max-Age': preflight.maxAge.toString(),
-        },
-      })
-      return { response }
+      const headers = buildHeaders(requestOrigin)
+      headers['Access-Control-Max-Age'] = maxAgeHeader
+      return {
+        response: new Response(undefined, { status: preflight.optionsSuccessStatus, headers }),
+      }
     }
 
     // Allowed methods validation. `HEAD` is never listed explicitly in `allowedMethods` — neither
@@ -228,6 +235,6 @@ const buildCorsGuard = (
     // Websocket adaptation
     if (ctx.req.headers.get('Upgrade') === 'websocket') return {}
 
-    return { headers }
+    return { headers: buildHeaders(requestOrigin) }
   }
 }
