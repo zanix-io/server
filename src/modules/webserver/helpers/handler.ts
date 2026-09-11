@@ -24,7 +24,7 @@ import { DEFAULT_APPLICATION } from 'modules/program/metadata/application.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import { routeProcessor } from './routes.ts'
 import { httpErrorResponse } from 'utils/errors/helper.ts'
-import { attachRequestToError } from 'utils/errors/request-context.ts'
+import { attachHeadersToError, attachRequestToError } from 'utils/errors/request-context.ts'
 import { HttpError, InternalError } from '@zanix/errors'
 import {
   routerGuard,
@@ -83,6 +83,14 @@ const stripResponseBody = async (response: Response): Promise<Response> => {
  * around both is what makes `attachRequestToErrors` apply uniformly to every guard/pipe throw
  * (framework-owned like CORS's `BAD_REQUEST`/`METHOD_NOT_ALLOWED`, or a consumer's own custom
  * guard/pipe) without each of them needing to call `attachRequestToError` itself.
+ *
+ * This same `catch` is also where a `routerPipe` throw gets `headers` — the guard chain's own
+ * accumulated headers, already resolved successfully by this point (a `routerGuard` throw instead
+ * stamps its own, necessarily partial, `baseHeaders` directly from inside `mainGuard` — see
+ * `attachHeadersToError`'s own doc for why both phases need this) — stamped onto it via
+ * `attachHeadersToError`, so `onErrorListener`'s own terminal `httpErrorResponse` fallback can still
+ * include them instead of a cross-origin caller seeing a bare CORS failure over a custom pipe's own
+ * denial/validation throw.
  */
 const mainProcess = (options: {
   route: ProcessedRouteDefinition
@@ -96,13 +104,20 @@ const mainProcess = (options: {
   const { context, gzip, cors, type, attachRequestToErrors } = options
 
   const process = async () => {
+    // Hoisted out of the `try` (rather than a `const` destructured inside it) so the `catch` below
+    // can still reach it — `undefined` for as long as `routerGuard` itself hasn't resolved yet,
+    // which is exactly the one case (a guard THROWING) that already stamps its own, necessarily
+    // partial, headers directly onto the error from inside `mainGuard` instead — see
+    // `attachHeadersToError`'s own doc.
+    let headers: Headers | undefined
     try {
-      const { response, headers } = await routerGuard(context, {
+      const guardResult = await routerGuard(context, {
         type,
         cors,
         guards,
       })
-      if (response) return response
+      headers = guardResult.headers
+      if (guardResult.response) return guardResult.response
       await routerPipe(context, pipes)
       return routerInterceptor(context, null as never, {
         gzip,
@@ -112,8 +127,9 @@ const mainProcess = (options: {
         type,
       })
     } catch (error) {
-      if (attachRequestToErrors && error instanceof Error) {
-        throw attachRequestToError(error, context.req)
+      if (error instanceof Error) {
+        if (headers) attachHeadersToError(error, headers)
+        if (attachRequestToErrors) throw attachRequestToError(error, context.req)
       }
       throw error
     }
@@ -302,18 +318,40 @@ export const getMainHandler = (
             findMatchingRoute(catchAllByMethod.GET ?? EMPTY_ROUTES, getFullPath)
           : undefined)
     if (!processedRoute) {
-      if (routePaths.absolute.has(path) || routePaths.relative.test(path)) {
-        const error = new HttpError('METHOD_NOT_ALLOWED', { id: context.id })
-        throw attachRequestToErrors ? attachRequestToError(error, req) : error
+      const error = routePaths.absolute.has(path) || routePaths.relative.test(path)
+        ? new HttpError('METHOD_NOT_ALLOWED', { id: context.id })
+        // `path` is safe to expose in the response: the caller already knows it, it's the one
+        // they requested — see `@zanix/errors`' `ErrorOptions.exposeMeta` doc.
+        : new HttpError('NOT_FOUND', { id: context.id, meta: { path }, exposeMeta: true })
+
+      // A genuinely unmatched path never reaches `routerGuard`/`mainGuard` at all — no route means
+      // no guard chain to run — so without this, a cross-origin caller hitting a typo'd/removed
+      // endpoint sees a bare CORS failure masking the real 404/405 underneath, the exact same
+      // masking `attachHeadersToError`/`getHeadersFromError`/`onErrorListener` already fix for a
+      // MATCHED route's own guard/pipe/handler throw. Reuses the SAME per-server `corsGuard`
+      // instance the preflight branch above already builds (cached by `(cors, type)` identity).
+      // Skipped entirely when `cors` itself is unconfigured — nothing to attach.
+      //
+      // `response` is deliberately never read here — a preflight (`OPTIONS` + `cors.preflight`)
+      // against a path NOTHING serves must still 404, not silently succeed as if the path existed
+      // (see the preflight branch's own doc above); ignoring `corsGuard`'s own preflight response
+      // here (rather than returning it) preserves that. Similarly, a `METHOD_NOT_ALLOWED` corsGuard
+      // throws for its OWN `allowedMethods` policy (independent of what this server's route table
+      // actually registers) is deliberately swallowed here, not surfaced — only a genuinely
+      // REJECTED origin (`BAD_REQUEST`) takes precedence over the route-level error below, since
+      // that's a more specific, more honest answer either way (the request would have been
+      // rejected by CORS regardless of whether the path were real).
+      if (cors) {
+        try {
+          const { headers } = await corsGuard(cors, type)(context)
+          if (headers) attachHeadersToError(error, new Headers(headers))
+        } catch (corsError) {
+          if (corsError instanceof HttpError && corsError.status.code === 'BAD_REQUEST') {
+            throw attachRequestToErrors ? attachRequestToError(corsError, req) : corsError
+          }
+        }
       }
 
-      // `path` is safe to expose in the response: the caller already knows it, it's the one they
-      // requested — see `@zanix/errors`' `ErrorOptions.exposeMeta` doc.
-      const error = new HttpError('NOT_FOUND', {
-        id: context.id,
-        meta: { path },
-        exposeMeta: true,
-      })
       throw attachRequestToErrors ? attachRequestToError(error, req) : error
     }
 

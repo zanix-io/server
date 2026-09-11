@@ -1,6 +1,11 @@
 import { assert, assertEquals, assertStrictEquals } from '@std/assert'
 import { HttpError } from '@zanix/errors'
-import { attachRequestToError, getRequestFromError } from 'utils/errors/request-context.ts'
+import {
+  attachHeadersToError,
+  attachRequestToError,
+  getHeadersFromError,
+  getRequestFromError,
+} from 'utils/errors/request-context.ts'
 
 console.error = () => {}
 
@@ -64,3 +69,36 @@ Deno.test(
     )
   },
 )
+
+Deno.test('attachHeadersToError: getHeadersFromError reads back the exact same instance', () => {
+  const headers = new Headers({ 'Access-Control-Allow-Origin': 'http://localhost:20202' })
+  const error = attachHeadersToError(new HttpError('NOT_FOUND', {}), headers)
+
+  assertStrictEquals(getHeadersFromError(error), headers)
+})
+
+Deno.test('getHeadersFromError: undefined for an error never given to attachHeadersToError', () => {
+  assertEquals(getHeadersFromError(new HttpError('NOT_FOUND', {})), undefined)
+  assertEquals(getHeadersFromError(new Error('plain')), undefined)
+  assertEquals(getHeadersFromError('not an object'), undefined)
+  assertEquals(getHeadersFromError(null), undefined)
+})
+
+Deno.test('getHeadersFromError: undefined if the attached value is not a real Headers', () => {
+  const error = new HttpError('NOT_FOUND', {})
+  Object.defineProperty(error, 'headers', {
+    value: { 'Access-Control-Allow-Origin': '*' },
+    enumerable: false,
+  })
+
+  assertEquals(getHeadersFromError(error), undefined)
+})
+
+Deno.test('attachHeadersToError: invisible to enumerable-only introspection, same as attachRequestToError', () => {
+  const headers = new Headers({ 'Access-Control-Allow-Origin': 'http://localhost:20202' })
+  const error = attachHeadersToError(new HttpError('NOT_FOUND', { meta: { path: '/x' } }), headers)
+
+  assert(!Object.keys(error).includes('headers'))
+  assert(!Object.entries(error).some(([key]) => key === 'headers'))
+  assert(!JSON.stringify(error).includes('Access-Control-Allow-Origin'))
+})

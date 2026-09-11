@@ -11,6 +11,7 @@ import type { HandlerContext } from 'typings/context.ts'
 
 import { getConnectors, getInteractors, getProviders } from 'modules/program/public.ts'
 import { httpErrorResponse, logAppError } from 'utils/errors/helper.ts'
+import { attachHeadersToError, getHeadersFromError } from 'utils/errors/request-context.ts'
 import { getResponseInterceptor } from './response.interceptor.ts'
 import { cleanUpPipe, contextSettingPipe } from './context.pipe.ts'
 import { gzipResponseFromResponse, gzipStreamingResponse } from 'utils/gzip.ts'
@@ -159,9 +160,32 @@ export const mainGuard = async (
   })
 
   for (let i = 0; i < guards.length; i++) {
-    const outcome = guards[i](context as never)
-    // deno-lint-ignore no-await-in-loop
-    const { response, headers } = isThenable(outcome) ? await outcome : outcome
+    let outcome
+    try {
+      outcome = guards[i](context as never)
+      // deno-lint-ignore no-await-in-loop
+      outcome = isThenable(outcome) ? await outcome : outcome
+    } catch (error) {
+      // A guard denying by THROWING (rather than returning `{ response }`) is the other real way
+      // one can deny a request — and, left alone, loses the SAME earlier-guard headers this loop's
+      // own `{ response }` branch below already protects (see its own doc): the throw propagates
+      // straight past `mainInterceptor`'s merge, uncaught, all the way to `onErrorListener`'s
+      // terminal `httpErrorResponse` fallback. Stamping `baseHeaders` — everything accumulated from
+      // guards that ran BEFORE this one — onto the error here is what lets that fallback (via
+      // `getHeadersFromError`) still include them. See `attachHeadersToError`'s own doc for the
+      // full mechanism.
+      //
+      // Only when the error doesn't ALREADY carry headers — never overwrites a guard's own, more
+      // specific attachment (e.g. `corsGuard`'s own `METHOD_NOT_ALLOWED` throw already stamps its
+      // real `buildHeaders(requestOrigin)`, not merely `baseHeaders`, which is EMPTY for `corsGuard`
+      // specifically since it always runs FIRST here — see that guard's own doc). Every OTHER
+      // guard's throw never attaches anything itself, so this fallback is what covers it.
+      if (error instanceof Error && !getHeadersFromError(error)) {
+        attachHeadersToError(error, baseHeaders)
+      }
+      throw error
+    }
+    const { response, headers } = outcome
     // Guarded rather than `headers ?? {}`: a guard that sets no header is the common case, and
     // `Object.entries({})` allocated an array to iterate zero times.
     if (headers) mergeHeaders(baseHeaders, Object.entries(headers), { overwrite: true })
@@ -331,6 +355,20 @@ export const routerInterceptor: MiddlewareInterceptor = async (
       code: 'ROUTE_ERROR',
     })
 
-    return httpErrorResponse(e, { contextId: context.id })
+    // `headers` here is the SAME accumulated `baseHeaders` `mainGuard` built (most concretely
+    // `corsGuard`'s own `Access-Control-Allow-Origin`/`-Allow-Methods`/`-Allow-Headers`/`Vary`) —
+    // `mainInterceptor`'s own merge (inside the `try` above) only ever runs for a response the
+    // HANDLER itself successfully returns; a handler that THROWS (any ordinary business-logic
+    // `HttpError`, e.g. a `404` for a route like `DELETE /assets/:id` on an id that doesn't exist)
+    // skips that merge entirely and lands here instead. Without forwarding `headers` into this
+    // `httpErrorResponse` call too, the resulting error response carries NO CORS headers at all —
+    // a real cross-origin browser reports a CORS failure (`No 'Access-Control-Allow-Origin' header
+    // is present`) and never surfaces the real `404`/whatever status underneath, indistinguishable
+    // from a genuine misconfiguration. Distinct from `4.3.0`'s own fix (a GUARD's throw-free `{
+    // response }` denial losing headers) — this is the same loss for a HANDLER's own thrown error.
+    return httpErrorResponse(e, {
+      contextId: context.id,
+      headers: headers ? Object.fromEntries(headers) : undefined,
+    })
   }
 }

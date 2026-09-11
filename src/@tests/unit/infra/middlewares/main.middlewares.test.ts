@@ -1,4 +1,6 @@
-import { assert, assertEquals } from '@std/assert'
+import { assert, assertEquals, assertStrictEquals } from '@std/assert'
+import { HttpError } from '@zanix/errors'
+import { attachHeadersToError, getHeadersFromError } from 'utils/errors/request-context.ts'
 import {
   GUARD_BLOCKED_HEADERS_LOCALS_KEY,
   GUARD_HEADERS_LOCALS_KEY,
@@ -8,6 +10,41 @@ import {
 } from 'modules/infra/middlewares/defaults/main.middlewares.ts'
 
 console.error = () => {}
+
+Deno.test(
+  "routerInterceptor: a HANDLER'S OWN thrown error still carries the guard chain's accumulated " +
+    "headers — e.g. corsGuard's Access-Control-Allow-Origin survives a route handler throwing a " +
+    'plain business-logic HttpError (a 404 for an id that no longer exists), so a cross-origin ' +
+    'caller sees the real 404 instead of a CORS failure masking it. Distinct from ' +
+    "mainGuard's own 'a LATER guard short-circuiting with its own denial response' case above — " +
+    'this is the same header loss for a HANDLER throw, which never reaches mainGuard at all.',
+  async () => {
+    const context = {
+      id: 'ctx-handler-throw',
+      url: new URL('http://localhost/assets/missing-id'),
+      req: new Request('http://localhost/assets/missing-id'),
+    } as never
+
+    const handler = () => {
+      throw new HttpError('NOT_FOUND', { meta: { source: 'zanix', id: 'missing-id' } })
+    }
+
+    const guardHeaders = new Headers({
+      'Access-Control-Allow-Origin': 'http://localhost:20202',
+      'Vary': 'Origin',
+    })
+
+    const response = await routerInterceptor(context, null as never, {
+      interceptors: [],
+      handler,
+      headers: guardHeaders,
+    }) as Response
+
+    assertEquals(response.status, 404)
+    assertEquals(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
+    assertEquals(response.headers.get('Vary'), 'Origin')
+  },
+)
 
 Deno.test('routerInterceptor: no status on the error defaults the response to 500', async () => {
   const context = {
@@ -85,6 +122,70 @@ Deno.test(
     assertEquals(response.status, 401)
     assertEquals(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
     assertEquals(response.headers.get('Vary'), 'Origin')
+  },
+)
+
+Deno.test(
+  'mainGuard: a LATER guard denying by THROWING (not returning { response }) stamps the ' +
+    "EARLIER guards' own accumulated headers onto the error before it escapes — the throw " +
+    "counterpart to the { response }-denial case above, since a throw skips this function's " +
+    "own return entirely and would otherwise lose corsGuard's headers just the same.",
+  async () => {
+    const context = { id: 'ctx-2c-throw' } as never
+
+    const corsLikeGuard = () => ({
+      headers: { 'Access-Control-Allow-Origin': 'http://localhost:20202', 'Vary': 'Origin' },
+    })
+    const thrownError = new HttpError('FORBIDDEN', {})
+    const throwingGuard = () => {
+      throw thrownError
+    }
+
+    let caught: unknown
+    try {
+      await mainGuard(context, [corsLikeGuard, throwingGuard] as never)
+    } catch (error) {
+      caught = error
+    }
+
+    assertStrictEquals(caught, thrownError)
+    const headers = getHeadersFromError(caught)
+    assert(headers instanceof Headers)
+    assertEquals(headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
+    assertEquals(headers.get('Vary'), 'Origin')
+  },
+)
+
+Deno.test(
+  "mainGuard: a guard that already stamped ITS OWN headers before throwing (e.g. corsGuard's own " +
+    'METHOD_NOT_ALLOWED, real Access-Control-Allow-Origin included) keeps them — never clobbered ' +
+    "by this function's own EMPTY baseHeaders fallback just because this guard happens to be " +
+    'FIRST in the chain, with no earlier guard to accumulate from',
+  async () => {
+    const context = { id: 'ctx-2c-throw-pre-stamped' } as never
+
+    const thrownError = attachHeadersToError(
+      new HttpError('METHOD_NOT_ALLOWED', {}),
+      new Headers({ 'Access-Control-Allow-Origin': 'http://localhost:20202' }),
+    )
+    const selfStampingGuard = () => {
+      throw thrownError
+    }
+
+    let caught: unknown
+    try {
+      await mainGuard(context, [selfStampingGuard] as never)
+    } catch (error) {
+      caught = error
+    }
+
+    assertStrictEquals(caught, thrownError)
+    // Still the guard's OWN real headers — not overwritten with an empty Headers() just because
+    // `baseHeaders` (everything accumulated from guards that ran BEFORE this one) is empty here.
+    assertEquals(
+      getHeadersFromError(caught)?.get('Access-Control-Allow-Origin'),
+      'http://localhost:20202',
+    )
   },
 )
 

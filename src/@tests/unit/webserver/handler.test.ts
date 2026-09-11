@@ -1,9 +1,7 @@
-import type { HttpError } from '@zanix/errors'
-
-import { assertEquals, assertExists } from '@std/assert'
-import { InternalError } from '@zanix/errors'
+import { assert, assertEquals, assertExists } from '@std/assert'
+import { HttpError, InternalError } from '@zanix/errors'
 import { getMainHandler, multiplexer } from 'modules/webserver/helpers/handler.ts'
-import { getRequestFromError } from 'utils/errors/request-context.ts'
+import { getHeadersFromError, getRequestFromError } from 'utils/errors/request-context.ts'
 import Program from 'modules/program/mod.ts'
 import {
   getGraphqlHandlerFactory,
@@ -187,6 +185,230 @@ Deno.test(
     const optedInError = await optedInHandler(request).catch((e: unknown) => e) as HttpError
     assertEquals(optedInError.status.code, 'BAD_REQUEST')
     assertEquals(getRequestFromError(optedInError), request)
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a genuinely unmatched path (no route at all in this server) still stamps ' +
+    "corsGuard's own headers onto the NOT_FOUND error it throws — a route never means a guard " +
+    'chain runs (no `routerGuard`/`mainGuard` at all), so without this a cross-origin caller ' +
+    "hitting a typo'd/removed endpoint sees a bare CORS failure masking the real 404 underneath.",
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: { origins: ['http://localhost:20202'] },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/totally-unknown', {
+      headers: { Origin: 'http://localhost:20202' },
+    })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'NOT_FOUND')
+    const headers = getHeadersFromError(error)
+    assert(headers instanceof Headers)
+    assertEquals(headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a path that DOES exist, just not for this method, also stamps CORS headers ' +
+    'onto the resulting METHOD_NOT_ALLOWED — same fix, the 405 sibling of the NOT_FOUND case above.',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: { origins: ['http://localhost:20202'] },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/known', {
+      method: 'POST',
+      headers: { Origin: 'http://localhost:20202' },
+    })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'METHOD_NOT_ALLOWED')
+    const headers = getHeadersFromError(error)
+    assert(headers instanceof Headers)
+    assertEquals(headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  "getMainHandler: an unmatched path from a REJECTED origin surfaces corsGuard's own BAD_REQUEST " +
+    'instead of a plain NOT_FOUND — a more specific, more honest answer either way (the request ' +
+    'would have been rejected by CORS regardless of whether the path were real), and never leaks ' +
+    "whether the path exists to an origin that isn't allowed to ask.",
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: { origins: ['https://allowed.example'] },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/totally-unknown', {
+      headers: { Origin: 'https://evil.example' },
+    })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'BAD_REQUEST')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: an unmatched path with NO cors configured at all is unaffected — plain ' +
+    'NOT_FOUND, no headers stamped, same as before this fix (nothing to attach without a cors config)',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '') as unknown as TestHandler
+    const request = new Request('http://localhost/totally-unknown')
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'NOT_FOUND')
+    assertEquals(getHeadersFromError(error), undefined)
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  'getMainHandler: a real preflight (OPTIONS + cors.preflight) against a path NOTHING registers ' +
+    'still 404s, not silently answered as if the path existed — the unmatched-path CORS fix above ' +
+    "deliberately never reads corsGuard's own preflight `response`, only reused for its `headers`, " +
+    "so it can't reopen the exact bug the preflight branch's own scoping already prevents.",
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: {
+        origins: ['http://localhost:20202'],
+        preflight: { optionsSuccessStatus: 204, maxAge: 600 },
+      },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/totally-unknown', {
+      method: 'OPTIONS',
+      headers: { Origin: 'http://localhost:20202' },
+    })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'NOT_FOUND')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  "getMainHandler: corsGuard's OWN METHOD_NOT_ALLOWED (its own allowedMethods policy) is " +
+    'deliberately swallowed for an unmatched path, not surfaced — only a REJECTED ORIGIN takes ' +
+    'precedence over the route-level error; a method corsGuard itself disallows still falls ' +
+    "through to this server's own real NOT_FOUND/METHOD_NOT_ALLOWED unchanged (out of scope for " +
+    "this fix — see this repo's own discussion on corsGuard's internal METHOD_NOT_ALLOWED throw).",
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: { origins: ['http://localhost:20202'], allowedMethods: ['GET'] },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/totally-unknown', {
+      method: 'DELETE',
+      headers: { Origin: 'http://localhost:20202' },
+    })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    // Still the route-level NOT_FOUND (this server never registered '/totally-unknown' for
+    // anything), never corsGuard's own METHOD_NOT_ALLOWED for its unrelated allowedMethods policy.
+    assertEquals(error.status.code, 'NOT_FOUND')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  "getMainHandler: a custom PIPE throwing still stamps corsGuard's own accumulated headers onto " +
+    "the escaping error — mainProcess's own catch, distinct from mainGuard's (a guard throwing, " +
+    'covered at the unit level in main.middlewares.test.ts) since a pipe runs AFTER routerGuard ' +
+    'already resolved successfully. Without this, a cross-origin caller denied by a custom pipe ' +
+    "(a common real shape — e.g. an app's own request-validation pipe) sees a bare CORS failure " +
+    'masking the real denial underneath.',
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      handler: () => 'ok' as never,
+      pipes: [() => {
+        throw new HttpError('BAD_REQUEST', { message: 'invalid payload' })
+      }],
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: { origins: ['http://localhost:20202'] },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/known', {
+      headers: { Origin: 'http://localhost:20202' },
+    })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'BAD_REQUEST')
+    const headers = getHeadersFromError(error)
+    assert(headers instanceof Headers)
+    assertEquals(headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
+
+    Program.routes.resetContainer()
+  },
+)
+
+Deno.test(
+  "getMainHandler: on a MATCHED route (registered for the exact method requested), corsGuard's " +
+    'OWN METHOD_NOT_ALLOWED (allowed origin, but this method is outside its OWN allowedMethods ' +
+    "policy) still carries real CORS headers end to end — corsGuard's own fix (cors.guard.test.ts) " +
+    "plus mainGuard's 'never clobber an already-stamped header' fix (main.middlewares.test.ts) " +
+    'composed through the real getMainHandler pipeline (reaching mainGuard at all requires the ' +
+    "ROUTE ITSELF to match this method — see the sibling 'unmatched path' tests above for the " +
+    "DIFFERENT, pre-guard case where the route table itself doesn't have this method).",
+  async () => {
+    Program.routes.defineRoute('rest', {
+      path: '/known',
+      httpMethod: 'DELETE',
+      handler: () => 'ok' as never,
+    })
+
+    const handler = getMainHandler('rest', undefined, '', {
+      cors: { origins: ['http://localhost:20202'], allowedMethods: ['GET'] },
+    }) as unknown as TestHandler
+    const request = new Request('http://localhost/known', {
+      method: 'DELETE',
+      headers: { Origin: 'http://localhost:20202' },
+    })
+
+    const error = await handler(request).catch((e: unknown) => e) as HttpError
+    assertEquals(error.status.code, 'METHOD_NOT_ALLOWED')
+    const headers = getHeadersFromError(error)
+    assert(headers instanceof Headers)
+    assertEquals(headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
 
     Program.routes.resetContainer()
   },

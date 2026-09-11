@@ -3,6 +3,7 @@ import { assertThrows } from '@std/assert/assert-throws'
 import { HttpError } from '@zanix/errors'
 import { assert } from '@std/assert'
 import { corsGuard } from 'modules/infra/middlewares/defaults/cors.guard.ts'
+import { getHeadersFromError } from 'utils/errors/request-context.ts'
 
 Deno.test('Cors validation pipe', async () => {
   const cors = corsGuard({
@@ -376,3 +377,73 @@ Deno.test({
     assertEquals(response.headers?.['Access-Control-Allow-Credentials'], undefined)
   },
 })
+
+/**
+ * Regression coverage for a confirmed bug: a `METHOD_NOT_ALLOWED` throw (a genuinely ALLOWED
+ * origin, just a verb outside `allowedMethods`) never called `buildHeaders` at all — a real
+ * cross-origin caller using a legitimately allowed origin, just the wrong HTTP verb, would still
+ * see a bare CORS failure masking the real `405` underneath (`mainGuard`'s own catch has nothing
+ * but an EMPTY `baseHeaders` to fall back to for `corsGuard` specifically, since it always runs
+ * FIRST in the guard chain). Distinct from a REJECTED origin (`BAD_REQUEST`), which deliberately
+ * stays bare — see this test file's own "method not allowed" case above for that contrast.
+ */
+Deno.test(
+  'Cors: a METHOD_NOT_ALLOWED throw (allowed origin, disallowed method) still attaches the real ' +
+    'Access-Control-Allow-Origin/-Methods/-Headers/Vary headers via attachHeadersToError, not a ' +
+    'bare throw with nothing for onErrorListener to read back',
+  () => {
+    const cors = corsGuard({
+      origins: ['https://example.com'],
+      allowedMethods: ['GET'],
+    })
+    const baseUrl = new URL('http://url.com')
+
+    const error = assertThrows(
+      () =>
+        cors({
+          req: new Request(baseUrl, {
+            method: 'DELETE',
+            headers: { 'Origin': 'https://example.com' },
+          }),
+          payload: { params: undefined, search: undefined, body: undefined },
+          id: '',
+          url: baseUrl,
+          locals: {},
+          cookies: {},
+        }),
+      HttpError,
+    )
+
+    assertEquals(error.status.code, 'METHOD_NOT_ALLOWED')
+    const headers = getHeadersFromError(error)
+    assert(headers instanceof Headers)
+    assertEquals(headers.get('Access-Control-Allow-Origin'), 'https://example.com')
+    assertEquals(headers.get('Access-Control-Allow-Methods'), 'GET')
+    assertEquals(headers.get('Vary'), 'Origin')
+  },
+)
+
+Deno.test(
+  'Cors: a REJECTED origin (BAD_REQUEST) deliberately attaches no headers at all — telling a ' +
+    "blocked origin it's welcome via Access-Control-Allow-Origin would defeat the rejection itself",
+  () => {
+    const cors = corsGuard({ origins: ['https://example.com'] })
+    const baseUrl = new URL('http://url.com')
+
+    const error = assertThrows(
+      () =>
+        cors({
+          req: new Request(baseUrl, { headers: { 'Origin': 'https://evil.example' } }),
+          payload: { params: undefined, search: undefined, body: undefined },
+          id: '',
+          url: baseUrl,
+          locals: {},
+          cookies: {},
+        }),
+      HttpError,
+    )
+
+    assertEquals(error.status.code, 'BAD_REQUEST')
+    assertEquals(getHeadersFromError(error), undefined)
+  },
+)

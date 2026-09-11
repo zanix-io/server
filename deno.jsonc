@@ -115,7 +115,6 @@
     "include": ["src/@tests/benchmarks/**/*.bench.ts"]
   },
   "zanix": {
-    "project": "library",
-    "hash": "zs226a"
+    "project": "library"
   }
 }

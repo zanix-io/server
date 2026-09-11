@@ -5,6 +5,86 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.3.1] - 2026-09-11
+
+### Fixed
+
+- **A LATER guard's own denial response (`{ response }`, never thrown) carried only ITS OWN headers,
+  discarding every EARLIER guard's own — most concretely `corsGuard`'s own
+  `Access-Control-Allow-Origin`/`-Allow-Methods`/`-Allow-Headers`/`Vary`, since `corsGuard` always
+  runs FIRST in `routerGuard`'s own guard list.** `mainGuard`
+  (`modules/infra/middlewares/defaults/
+  main.middlewares.ts`) already accumulated every guard's
+  own headers into a shared `baseHeaders` as it walked the guard list, but only ever handed that
+  accumulation to the CALLER on the success path (`return { headers: baseHeaders }`, read by
+  `mainInterceptor` for a handler's own response) — a guard short-circuiting with its own denial
+  `response` returned straight out of the loop instead, with `baseHeaders` simply discarded.
+  Confirmed live: a consumer app's own `imagePublicOrAuthGuard` (`guards.read`, gated behind
+  `corsGuard` + `rateLimitGuard`) falling through to `jwtValidationGuard()` for an unauthenticated
+  read of a non-image/unknown asset — every failure branch of `jwtValidationGuard` itself returns
+  `{ response }` rather than throwing (see that guard's own doc, `@zanix/auth`) — produced a real
+  `401` response with NO `Access-Control-Allow-*` header at all. A real browser reading that
+  response cross-origin reports a CORS failure
+  (`No
+  'Access-Control-Allow-Origin' header is present`) and blocks the app's own code from ever
+  seeing the real `401` underneath, indistinguishable from a genuine misconfiguration. `mainGuard`
+  now merges `baseHeaders` onto a denying guard's own `response.headers` before returning it
+  (`overwrite: false` — the denying guard's own explicit header, e.g. `WWW-Authenticate`, is never
+  second-guessed; `baseHeaders` only fills in what that response doesn't already set itself), the
+  same "earlier guard supplies the base, later guard/handler can still override" precedence
+  `mainInterceptor`'s own merge already applies for a handler's response. Distinct from `4.2.6`'s
+  own preflight fix (`OPTIONS` requests reaching `corsGuard` at all) — this covers a real,
+  non-preflight request whose CORS headers were lost to a LATER guard's throw-free denial, a case
+  `4.2.6` never touched. This fix shipped in the `4.3.0` code itself; this entry backfills the
+  changelog description that release's own commit omitted.
+- **A route HANDLER's own thrown error (a plain business-logic `HttpError`, distinct from a guard's
+  denial above) also lost every guard's accumulated headers.** `routerInterceptor`'s own `try/catch`
+  (`main.middlewares.ts`) builds the final error `Response` via
+  `httpErrorResponse(e, { contextId })` whenever a handler throws instead of returning — but never
+  forwarded the SAME accumulated `headers` `mainInterceptor`'s own merge already applies to a
+  handler's SUCCESSFUL response. Confirmed live: `DELETE /assets/:id` (`@zanix/space`'s own
+  `AssetsController`) throwing `HttpError('NOT_FOUND')` for an id that no longer exists reached a
+  real browser with no `Access-Control-Allow-Origin` at all — a cross-origin caller saw a bare CORS
+  failure masking the real `404` underneath. `routerInterceptor`'s `catch` now passes `headers`
+  through to `httpErrorResponse` too.
+- **A GUARD or PIPE denying by THROWING (rather than a guard returning `{ response }`, already
+  covered above) lost every EARLIER guard's headers too — worse, escaping all the way to
+  `Deno.serve`'s own `onError` with nothing at all to read back.** `mainGuard`'s own guard loop had
+  no `try/catch` around each guard call: a throw (`corsGuard`'s own `BAD_REQUEST`/
+  `METHOD_NOT_ALLOWED`, or any consumer guard denying by throwing — a common real shape) escaped
+  straight past `mainInterceptor`'s merge, uncaught, to `onErrorListener`'s
+  (`webserver/helpers/listeners.ts`) terminal `httpErrorResponse(error)` fallback, which carried NO
+  headers whatsoever. Same loss for a custom PIPE throwing (`mainProcess`,
+  `webserver/helpers/handler.ts`), after `routerGuard` had already resolved successfully. New
+  `attachHeadersToError`/`getHeadersFromError` (`utils/errors/request-context.ts`, the same
+  non-enumerable-property mechanism as the existing `attachRequestToError`/`getRequestFromError`,
+  but UNCONDITIONAL — outbound response headers have no equivalent privacy concern to gate behind an
+  opt-in the way a raw `Request` does) let both call sites stamp the accumulated headers onto the
+  escaping error, and `onErrorListener` now reads them back for its own fallback response.
+- **A genuinely unmatched path (no route in this server's table at all) or a path matched for a
+  DIFFERENT method never reached `corsGuard`/`mainGuard` in the first place — its own
+  `NOT_FOUND`/`METHOD_NOT_ALLOWED` carried no CORS headers either, regardless of whether the
+  caller's origin would have been valid.** `getMainHandler` now reuses the SAME per-server, cached
+  `corsGuard(cors, type)` instance the preflight branch above it already builds — attaching its
+  `headers` (via `attachHeadersToError`) onto the route-level error before throwing when the origin
+  is otherwise fine, or letting a genuinely REJECTED origin's own `BAD_REQUEST` take precedence
+  instead (a more honest answer either way, and one that never reveals whether the path exists to a
+  disallowed origin). Deliberately never reads `corsGuard`'s own preflight `response` here — an
+  `OPTIONS` request against a path NOTHING serves still 404s, never silently answered as if the path
+  existed. Also deliberately swallows `corsGuard`'s OWN `METHOD_NOT_ALLOWED` here (its own
+  `allowedMethods` policy, independent of this server's actual route table) rather than surfacing it
+  — see the next entry for that one.
+- **`corsGuard`'s OWN `METHOD_NOT_ALLOWED` throw (a genuinely ALLOWED origin, just a verb outside
+  its `allowedMethods`) never called `buildHeaders` at all — a deliberate, documented optimization
+  that, combined with the guard-throw fix above, meant this specific throw still stamped an EMPTY
+  `Headers()` (nothing accumulated from an earlier guard, since `corsGuard` always runs FIRST).**
+  `cors.guard.ts` now calls the same `buildHeaders(requestOrigin)` the success path already computes
+  and attaches it via `attachHeadersToError` before throwing. `mainGuard`'s own catch (see the
+  guard-throw fix above) now also checks `getHeadersFromError` first, so it never clobbers a guard's
+  own, more specific attachment with its own empty `baseHeaders` fallback. Distinct from a REJECTED
+  origin (`BAD_REQUEST`), which deliberately stays bare — granting `Access-Control-Allow-Origin` to
+  a blocked origin would defeat the rejection itself.
+
 ## [4.3.0] - 2026-09-11
 
 ### Added
@@ -26,12 +106,12 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   (read fresh off this function's own return value each call), but any OTHER property the guard
   itself reassigns on `ctx` — most concretely `ctx.req`, the one documented, confirmed-safe way a
   guard injects a header before `cookiesGuard`'s own `ctx.cookies` freeze (the "cookie consent
-  bypass" shape `zanix/iam`'s own `cookieConsentBypassGuard` and `@presenza/web`'s
-  `cookiesAcceptedGuard` both use) — was silently discarded the instant the wrapper returned, since
-  only the throwaway copy ever saw it. Worked when the guard function was called directly (as every
-  existing unit test for this exact pattern did) but silently did nothing once actually registered
-  via `registerGlobalGuard`/`@zanix/space`'s `defineMiddleware` — the only way it's used in
-  production. `modules/infra/middlewares/defs/guards.ts` now mutates the real `ctx` via
+  bypass" shape two separate consumer apps' own `cookieConsentBypassGuard` and
+  `cookiesAcceptedGuard` guards both use) — was silently discarded the instant the wrapper returned,
+  since only the throwaway copy ever saw it. Worked when the guard function was called directly (as
+  every existing unit test for this exact pattern did) but silently did nothing once actually
+  registered via `registerGlobalGuard`/`@zanix/space`'s `defineMiddleware` — the only way it's used
+  in production. `modules/infra/middlewares/defs/guards.ts` now mutates the real `ctx` via
   `Object.assign` instead, mirroring `mainGuard`'s own identical population of the same three fields
   for page-level guards.
 

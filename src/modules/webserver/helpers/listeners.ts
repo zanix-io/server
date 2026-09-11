@@ -1,8 +1,24 @@
 import type { ServerOptions } from 'typings/server.ts'
 
 import { httpErrorResponse, logAppError } from 'utils/errors/helper.ts'
+import { getHeadersFromError } from 'utils/errors/request-context.ts'
 import logger from '@zanix/logger'
 
+/**
+ * This is the ONE terminal `Response`-building site for an error that escaped `mainGuard`'s own
+ * guard loop or a custom `routerPipe` throw (see `mainProcess`'s own doc, `webserver/helpers/
+ * handler.ts`, for exactly which two phases these are) — every server type funnels here via
+ * `Deno.serve`'s own `onError` (`manager.ts`). Without reading back whatever
+ * {@link getHeadersFromError} finds, the final `httpErrorResponse(error)` fallback below would carry
+ * NO headers at all, including `corsGuard`'s own `Access-Control-Allow-Origin`/`Vary` — a real
+ * cross-origin browser would report a bare CORS failure over what's actually a normal denial
+ * (a rate limit, a permission check, any consumer guard/pipe that denies by throwing instead of
+ * returning `{ response }`), masking the real status entirely. This does NOT extend to a CONSUMER's
+ * own `currentErrorHandler` response below — a consumer that supplies its own `onError` is already
+ * choosing to build its own `Response` from scratch, and can read `getHeadersFromError(error)`
+ * itself if it wants the same headers merged in, the same voluntary-adoption model
+ * `getRequestFromError` already establishes for the request itself.
+ */
 export const onErrorListener =
   (currentErrorHandler: ServerOptions['onError'], serverName: string) =>
   async (error: unknown): Promise<Response> => {
@@ -27,7 +43,8 @@ export const onErrorListener =
       )
     }
 
-    return httpErrorResponse(error)
+    const headers = getHeadersFromError(error)
+    return httpErrorResponse(error, { headers: headers ? Object.fromEntries(headers) : undefined })
   }
 
 export const onListen = (

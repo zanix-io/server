@@ -1,5 +1,6 @@
 import { assert, assertEquals } from '@std/assert'
 import { onErrorListener, onListen } from 'modules/webserver/helpers/listeners.ts'
+import { attachHeadersToError } from 'utils/errors/request-context.ts'
 import { assertSpyCalls, spy } from '@std/testing/mock'
 import logger from '@zanix/logger'
 
@@ -68,6 +69,25 @@ Deno.test({
     const response = await listener(new Error('boom'))
 
     assertEquals(response.status, 500)
+  },
+})
+
+Deno.test({
+  name: 'onErrorListener: the default httpErrorResponse fallback carries whatever headers ' +
+    'attachHeadersToError stamped on the error (mainGuard/mainProcess, for a guard/pipe throw) — ' +
+    'without this, a cross-origin caller sees a bare CORS failure over the real denial/status',
+  fn: async () => {
+    const listener = onErrorListener(undefined, 'test-server')
+
+    const error = attachHeadersToError(
+      new Error('denied'),
+      new Headers({ 'Access-Control-Allow-Origin': 'http://localhost:20202', 'Vary': 'Origin' }),
+    )
+
+    const response = await listener(error)
+
+    assertEquals(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
+    assertEquals(response.headers.get('Vary'), 'Origin')
   },
 })
 

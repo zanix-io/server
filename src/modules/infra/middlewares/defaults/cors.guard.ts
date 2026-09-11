@@ -4,6 +4,7 @@ import type { WebServerTypes } from 'typings/server.ts'
 import type { HttpMethod } from 'typings/router.ts'
 
 import { HttpError } from '@zanix/errors'
+import { attachHeadersToError } from 'utils/errors/request-context.ts'
 
 const EMPTY_CORS_OPTIONS: CorsOptions = {}
 
@@ -229,7 +230,22 @@ const buildCorsGuard = (
     // loses `HEAD` too, same as any other CORS-restricted method.
     const isImplicitHead = ctx.req.method === 'HEAD' && allowedMethods.includes('GET')
     if (!isImplicitHead && !allowedMethods.includes(ctx.req.method as HttpMethod)) {
-      throw new HttpError('METHOD_NOT_ALLOWED', { id: ctx.id })
+      // Unlike a REJECTED origin above (deliberately left bare — a caller CORS itself has decided
+      // can't talk to this server shouldn't be told "you're allowed" via these headers either, so
+      // the browser correctly still reports it as a CORS failure), the origin here already PASSED
+      // validation — only the METHOD is the problem. `mainGuard`'s own catch (`main.middlewares.ts`)
+      // would otherwise stamp only ITS OWN `baseHeaders` onto this throw, which is EMPTY for
+      // `corsGuard` specifically (it always runs FIRST in `routerGuard`'s own guard list, so no
+      // earlier guard's headers exist yet to accumulate) — a real cross-origin caller using a
+      // genuinely allowed origin, just the wrong verb, would otherwise still see a bare CORS
+      // failure masking the real `405` underneath. Reuses `buildHeaders` — the SAME computation the
+      // success path below already does for this exact `requestOrigin`, no separate logic. See
+      // `attachHeadersToError`'s own doc; `mainGuard`'s catch only falls back to `baseHeaders` when
+      // a guard's own throw didn't already attach something more specific, like this one does.
+      throw attachHeadersToError(
+        new HttpError('METHOD_NOT_ALLOWED', { id: ctx.id }),
+        new Headers(buildHeaders(requestOrigin)),
+      )
     }
 
     // Websocket adaptation
