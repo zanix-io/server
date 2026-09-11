@@ -57,13 +57,28 @@ export function registerGlobalGuard(
   // middleware and translated into the corresponding HTTP response. Server-side logging
   // is controlled by the `verbose` option: `true` or `undefined` enables error logging,
   // while `false` disables it.
-  const guard: MiddlewareGuard = (ctx) =>
-    target({
-      ...ctx,
+  //
+  // `Object.assign(ctx, {...})` — mutates the SAME context object every later guard/pipe/
+  // interceptor in this request keeps reading, never a `{...ctx, ...}` spread. A spread here used
+  // to hand `target` a DIVORCED COPY: `interactors`/`providers`/`connectors` landed on it correctly
+  // (this function's own return value, read fresh each call), but any OTHER property `target`
+  // reassigns on `ctx` — most concretely `ctx.req` itself, the one documented, confirmed-safe way a
+  // guard can inject a header before `cookiesGuard`'s own `ctx.cookies` freeze (see
+  // `@zanix/auth`-style "cookie consent bypass" guards) — was silently lost the moment this wrapper
+  // returned, since only the copy ever saw it. `mainGuard` (`main.middlewares.ts`) already
+  // populates the identical `interactors`/`providers`/`connectors` triplet the exact same way, via
+  // `Object.assign(context, ...)` right before its own guard loop runs — this mirrors that, so a
+  // GLOBAL guard (registered here, via `defineMiddleware`) now behaves identically to a page-level
+  // `@Guard(...)` one for this, instead of being the one guard shape whose own `ctx` mutations never
+  // survive past itself.
+  const guard: MiddlewareGuard = (ctx) => {
+    Object.assign(ctx, {
       interactors: getInteractors(ctx.id),
       providers: getProviders(ctx.id),
       connectors: getConnectors(ctx.id),
     })
+    return target(ctx)
+  }
 
   ProgramModule.middlewares.addGlobalGuard(guard, server)
 }

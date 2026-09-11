@@ -95,6 +95,42 @@ Deno.test({
   },
 })
 
+// Regression coverage for a real, confirmed bug: the wrapper this function builds used to hand
+// `target` a `{...ctx, ...}` SPREAD COPY rather than the real `ctx` object — `interactors`/
+// `providers`/`connectors` landed correctly (read fresh off this function's own return value each
+// call), but any OTHER property `target` reassigns on its own `ctx` parameter (most concretely
+// `ctx.req` — the one documented way a guard can inject a header before `cookiesGuard`'s own
+// `ctx.cookies` freeze) was silently discarded the moment this wrapper returned, since only the
+// divorced copy ever saw it. A global guard mutating `ctx.req` to pass a signal forward to a LATER
+// guard/interceptor in the same request — exactly what a "cookie consent bypass" guard needs to do
+// — worked in isolation (a direct unit-test call bypasses this wrapper entirely) but silently did
+// nothing once actually registered via `registerGlobalGuard`/`defineMiddleware`.
+Deno.test(
+  'registerGlobalGuard should hand the target guard the SAME ctx object (not a copy) — a ctx ' +
+    'reassignment the target makes must be visible to whatever reads ctx after it returns',
+  () => {
+    const mockAddGlobalGuard = spy((_guard, _server) => {})
+    Program.middlewares.addGlobalGuard = mockAddGlobalGuard
+
+    const replacementReq = { url: 'http://localhost/replaced' }
+    const targetGuard = spy((ctx: any) => {
+      ctx.req = replacementReq
+      return {}
+    }) as any
+    targetGuard.exports = { server: ['ssr'] }
+
+    registerGlobalGuard(targetGuard)
+    const guardFn = mockAddGlobalGuard.calls[0].args[0] as any
+
+    const ctx = { id: 'ctx-mutate', req: { url: 'http://localhost/original' } }
+    guardFn(ctx)
+
+    // The real, shared ctx object itself now carries the reassignment `target` made — not just a
+    // copy `target` was handed and the caller can never see again.
+    assertEquals(ctx.req, replacementReq)
+  },
+)
+
 Deno.test('registerGlobalGuard should default to all servers when no exports are given', () => {
   const mockAddGlobalGuard = spy((_guard, _server) => {})
   Program.middlewares.addGlobalGuard = mockAddGlobalGuard

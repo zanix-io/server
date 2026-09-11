@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.2.7] - 2026-09-10
+
+### Fixed
+
+- **`registerGlobalGuard` handed a global guard a `{...ctx}` SPREAD COPY of the request context
+  instead of the real, shared one.** `interactors`/`providers`/`connectors` still landed correctly
+  (read fresh off this function's own return value each call), but any OTHER property the guard
+  itself reassigns on `ctx` — most concretely `ctx.req`, the one documented, confirmed-safe way a
+  guard injects a header before `cookiesGuard`'s own `ctx.cookies` freeze (the "cookie consent
+  bypass" shape `zanix/iam`'s own `cookieConsentBypassGuard` and `@presenza/web`'s
+  `cookiesAcceptedGuard` both use) — was silently discarded the instant the wrapper returned, since
+  only the throwaway copy ever saw it. Worked when the guard function was called directly (as every
+  existing unit test for this exact pattern did) but silently did nothing once actually registered
+  via `registerGlobalGuard`/`@zanix/space`'s `defineMiddleware` — the only way it's used in
+  production. `modules/infra/middlewares/defs/guards.ts` now mutates the real `ctx` via
+  `Object.assign` instead, mirroring `mainGuard`'s own identical population of the same three fields
+  for page-level guards.
+
 ## [4.2.6] - 2026-09-09
 
 ### Fixed
