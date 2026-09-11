@@ -8,7 +8,11 @@ import {
   assertStringIncludes,
 } from '@std/assert'
 import { HttpError } from '@zanix/errors'
-import { resetRestClientEtagCache, RestClient } from 'modules/infra/connectors/core/rest.ts'
+import {
+  resetRestClientEtagCache,
+  RestClient,
+  RestClientError,
+} from 'modules/infra/connectors/core/rest.ts'
 import ProgramModule from 'modules/program/mod.ts'
 import PublicProgramModule from 'modules/program/public.ts'
 import { getTargetKey } from 'utils/targets.ts'
@@ -115,6 +119,79 @@ Deno.test('throws HttpError for non-OK HTTP responses', async () => {
     HttpError,
     'Rest Client Http Error',
   )
+})
+
+Deno.test('RestClientError.realHttpStatus/retryAfterSeconds: exposes the upstream 429 status and Retry-After header', async () => {
+  const mockFetch = spy((_url: string) =>
+    Promise.resolve(
+      new Response('Too Many Requests', {
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: { 'Content-Type': 'text/plain', 'Retry-After': '42' },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  try {
+    await client.http.get('/login')
+    throw new Error('expected client.http.get to reject')
+  } catch (e) {
+    assert(e instanceof RestClientError)
+    assertStrictEquals(e.realHttpStatus, 429)
+    assertStrictEquals(e.retryAfterSeconds, 42)
+  }
+})
+
+Deno.test('RestClientError.retryAfterSeconds: undefined when the response carries no Retry-After header', async () => {
+  const mockFetch = spy((_url: string) =>
+    Promise.resolve(
+      new Response('Not Found', {
+        status: 404,
+        statusText: 'Not Found',
+        headers: { 'Content-Type': 'text/plain' },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  try {
+    await client.http.get('/missing')
+    throw new Error('expected client.http.get to reject')
+  } catch (e) {
+    assert(e instanceof RestClientError)
+    assertStrictEquals(e.retryAfterSeconds, undefined)
+  }
+})
+
+Deno.test('RestClientError.retryAfterSeconds: undefined for a non-numeric Retry-After value (the HTTP-date form)', async () => {
+  const mockFetch = spy((_url: string) =>
+    Promise.resolve(
+      new Response('Too Many Requests', {
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: {
+          'Content-Type': 'text/plain',
+          'Retry-After': 'Wed, 21 Oct 2026 07:28:00 GMT',
+        },
+      }),
+    )
+  )
+  globalThis.fetch = mockFetch as unknown as typeof fetch
+
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  try {
+    await client.http.get('/login')
+    throw new Error('expected client.http.get to reject')
+  } catch (e) {
+    assert(e instanceof RestClientError)
+    assertStrictEquals(e.retryAfterSeconds, undefined)
+  }
 })
 
 Deno.test('cleans route URLs with double slashes and can be rewrited by options', async () => {

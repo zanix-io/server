@@ -321,6 +321,15 @@ export class RestClient extends ZanixConnector {
         // (`upstreamStatus`/`upstreamStatusText`, not buried in a message string) precisely so a
         // caller with that context CAN reclassify — see `OAuth2Connector.exchangeCode`'s own doc
         // for a real example.
+        // `Retry-After` (`rateLimitGuard`'s own doc, `@zanix/auth`) is always the delay-in-seconds
+        // form in this ecosystem, never the alternate HTTP-date form the header also allows — so a
+        // plain integer parse is enough; anything else (header absent, or a value this client
+        // doesn't recognize) leaves `retryAfterSeconds` `undefined` rather than guessing.
+        const retryAfterHeader = response.headers.get('Retry-After')
+        const retryAfterSeconds = retryAfterHeader && /^\d+$/.test(retryAfterHeader)
+          ? Number(retryAfterHeader)
+          : undefined
+
         throw new RestClientError('BAD_GATEWAY', {
           cause: new Error(`[HTTP ${response.status}]: ${response.statusText}\n${text}`),
           message: 'Rest Client Http Error',
@@ -329,6 +338,7 @@ export class RestClient extends ZanixConnector {
             url,
             upstreamStatus: response.status,
             upstreamStatusText: response.statusText,
+            retryAfterSeconds,
           },
         })
       }
@@ -409,5 +419,18 @@ export class RestClientError extends HttpError {
   public get realHttpStatus(): number | undefined {
     const upstreamStatus = this.meta?.upstreamStatus
     return typeof upstreamStatus === 'number' ? upstreamStatus : undefined
+  }
+
+  /**
+   * The upstream `Retry-After` response header, in seconds — set whenever the failed response
+   * carried one (typically alongside a `429`, e.g. `rateLimitGuard`'s own real header). `undefined`
+   * when the response had no such header, or a genuine transport-level failure with no response at
+   * all. Lets a caller with UI context (a login page rendering a real countdown, not just a static
+   * "try again later" message) compute an absolute retry instant (`Date.now() + retryAfterSeconds *
+   * 1000`) without re-parsing a raw header itself.
+   */
+  public get retryAfterSeconds(): number | undefined {
+    const value = this.meta?.retryAfterSeconds
+    return typeof value === 'number' ? value : undefined
   }
 }

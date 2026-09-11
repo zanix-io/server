@@ -166,6 +166,17 @@ export const mainGuard = async (
     // `Object.entries({})` allocated an array to iterate zero times.
     if (headers) mergeHeaders(baseHeaders, Object.entries(headers), { overwrite: true })
     if (response) {
+      // A denying guard's `response` only carries its own headers, not any EARLIER guard's — most
+      // importantly `corsGuard`'s own `Access-Control-Allow-Origin`/`Vary`/etc., since `corsGuard`
+      // always runs FIRST in `routerGuard`'s own guard list. Merging `baseHeaders` onto the
+      // response here keeps those earlier headers on a cross-origin request denied by a LATER
+      // guard (an app's own `jwtValidationGuard`/`rateLimitGuard`/custom guard); without them, the
+      // browser reports a CORS failure (`No 'Access-Control-Allow-Origin' header is present`) that
+      // masks the real, correct denial status underneath. `overwrite: false` — same rule
+      // `mainInterceptor`'s own merge already uses for a handler's response — so a header the
+      // denying guard's own response already sets on itself (e.g. `WWW-Authenticate`) is never
+      // second-guessed; `baseHeaders` only fills in what that response doesn't already carry.
+      mergeHeaders(response.headers, baseHeaders, { overwrite: false })
       return { response }
     }
   }

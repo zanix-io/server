@@ -66,6 +66,67 @@ Deno.test(
 )
 
 Deno.test(
+  'mainGuard: a LATER guard short-circuiting with its own denial response still carries an ' +
+    "EARLIER guard's own headers — e.g. corsGuard's Access-Control-Allow-Origin survives a " +
+    'subsequent auth guard denying the same request, so a cross-origin request denied by any ' +
+    'guard after corsGuard still reaches the browser with CORS headers intact instead of ' +
+    'surfacing as a CORS failure masking the real 401/403/429 underneath.',
+  async () => {
+    const context = { id: 'ctx-2c' } as never
+
+    const corsLikeGuard = () => ({
+      headers: { 'Access-Control-Allow-Origin': 'http://localhost:20202', 'Vary': 'Origin' },
+    })
+    const denyingGuard = () => ({ response: new Response(null, { status: 401 }) })
+
+    const { response } = await mainGuard(context, [corsLikeGuard, denyingGuard] as never)
+
+    assert(response instanceof Response)
+    assertEquals(response.status, 401)
+    assertEquals(response.headers.get('Access-Control-Allow-Origin'), 'http://localhost:20202')
+    assertEquals(response.headers.get('Vary'), 'Origin')
+  },
+)
+
+Deno.test(
+  "mainGuard: the denying guard's OWN header on its own response always wins over an earlier " +
+    "guard's same-name header — mirrors mainInterceptor's own handler-wins rule, applied here to " +
+    "the denying guard's response instead of a handler's",
+  async () => {
+    const context = { id: 'ctx-2d' } as never
+
+    const earlierGuard = () => ({ headers: { 'X-Custom-Header': 'from-earlier-guard' } })
+    const denyingGuard = () => ({
+      response: new Response(null, {
+        status: 403,
+        headers: { 'X-Custom-Header': 'from-denying-guard' },
+      }),
+    })
+
+    const { response } = await mainGuard(context, [earlierGuard, denyingGuard] as never)
+
+    assert(response instanceof Response)
+    assertEquals(response.headers.get('X-Custom-Header'), 'from-denying-guard')
+  },
+)
+
+Deno.test(
+  'mainGuard: a FIRST guard short-circuiting has no earlier headers to lose — kept as a baseline ' +
+    "so a future change can't silently reintroduce a dependency on a non-empty baseHeaders",
+  async () => {
+    const context = { id: 'ctx-2e' } as never
+
+    const denyingGuard = () => ({ response: new Response(null, { status: 401 }) })
+
+    const { response } = await mainGuard(context, [denyingGuard] as never)
+
+    assert(response instanceof Response)
+    assertEquals(response.status, 401)
+    assertEquals([...response.headers.entries()].length, 0)
+  },
+)
+
+Deno.test(
   'mainInterceptor: multiple Set-Cookie headers from guards all reach the final Response',
   async () => {
     const context = {

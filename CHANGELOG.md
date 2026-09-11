@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.3.0] - 2026-09-11
+
+### Added
+
+- **`RestClientError.retryAfterSeconds`** — the upstream `Retry-After` response header (seconds form
+  only, never the alternate HTTP-date form), alongside the existing `realHttpStatus`. Lets a caller
+  with real UI context — a login page rendering a live countdown instead of a static "too many
+  attempts" message — compute an absolute retry instant (`Date.now() + retryAfterSeconds *
+  1000`)
+  without re-parsing a raw header itself. `undefined` when the response carried no such header, or
+  for a genuine transport-level failure with no response at all.
+
 ## [4.2.7] - 2026-09-10
 
 ### Fixed
