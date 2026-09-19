@@ -71,6 +71,43 @@ const stripResponseBody = async (response: Response): Promise<Response> => {
 }
 
 /**
+ * Skipped only for a route that opts in via `rto: { rawBody: true }` — every other route (the
+ * default) keeps parsing eagerly here, at the same point in the pipeline as always.
+ * `bodyPayloadProperty` has no route awareness on its own — it parses any `application/json`/
+ * `application/x-www-form-urlencoded` body unconditionally, permanently consuming the request
+ * stream. `rawBody: true` leaves that stream untouched instead, so the route's own handler can
+ * read `ctx.req` itself for the exact raw bytes (e.g. to verify a webhook signature). This never
+ * runs lazily on first `ctx.payload.body` access — an async read can't be a synchronous property
+ * getter.
+ *
+ * A top-level function, not a closure defined inside the per-request handler — `getMainHandler`'s
+ * returned function runs once per REQUEST, so a closure declared inside it (over `req`/`context`)
+ * would allocate a fresh function object on every single request, including one whose route never
+ * even calls this (an unmatched-path 404 never reaches either call site below). Measured real,
+ * gated regression: `lifecycle:notfound` and `lifecycle:json:small` both dropped below their
+ * floor in `runtime-performance.test.ts` with that shape.
+ */
+const populateBody = async (options: {
+  route: { rto?: ProcessedRouteDefinition['rto'] }
+  context: HandlerContext
+  req: Request
+  maxBodyBytes?: number
+  attachRequestToErrors?: boolean
+}) => {
+  const { route, context, req, maxBodyBytes, attachRequestToErrors } = options
+  if (route.rto?.rawBody) return
+  try {
+    Object.assign(context.payload, {
+      body: await bodyPayloadProperty(req, context.id, maxBodyBytes),
+    })
+  } catch (error) {
+    throw attachRequestToErrors && error instanceof HttpError
+      ? attachRequestToError(error, req)
+      : error
+  }
+}
+
+/**
  * Main process execution. `enableALS` (see `GenericHandlerOptions.enableALS`'s own doc for the
  * Deno-vs-Node-compat caveat) opens one `asyncContext` scope per request here — the
  * highest-concurrency use of `AsyncContext` in this codebase, since a busy server runs many of
@@ -228,27 +265,6 @@ export const getMainHandler = (
       locals: {},
     } as HandlerContext
 
-    // Skipped only for a route that opts in via `rto: { rawBody: true }` — every other route
-    // (the default) keeps parsing eagerly here, at the same point in the pipeline as always.
-    // `bodyPayloadProperty` has no route awareness on its own — it parses any `application/json`/
-    // `application/x-www-form-urlencoded` body unconditionally, permanently consuming the request
-    // stream. `rawBody: true` leaves that stream untouched instead, so the route's own handler can
-    // read `ctx.req` itself for the exact raw bytes (e.g. to verify a webhook signature). This
-    // never runs lazily on first `ctx.payload.body` access — an async read can't be a synchronous
-    // property getter.
-    const populateBody = async (route: { rto?: ProcessedRouteDefinition['rto'] }) => {
-      if (route.rto?.rawBody) return
-      try {
-        Object.assign(context.payload, {
-          body: await bodyPayloadProperty(req, context.id, maxBodyBytes),
-        })
-      } catch (error) {
-        throw attachRequestToErrors && error instanceof HttpError
-          ? attachRequestToError(error, req)
-          : error
-      }
-    }
-
     // Define a lazy-loaded getters to improve efficiency by computing values only when accessed
     Object.defineProperty(
       context.payload,
@@ -303,7 +319,13 @@ export const getMainHandler = (
       (isHeadRequest ? absolutePaths[`${path}/GET`] : undefined)
 
     if (absoluteRoute) {
-      await populateBody(absoluteRoute)
+      await populateBody({
+        route: absoluteRoute,
+        context,
+        req,
+        maxBodyBytes,
+        attachRequestToErrors,
+      })
       const response = mainProcess({
         route: absoluteRoute,
         context,
@@ -369,7 +391,7 @@ export const getMainHandler = (
 
     const { route, match } = processedRoute
 
-    await populateBody(route)
+    await populateBody({ route, context, req, maxBodyBytes, attachRequestToErrors })
 
     // A THUNK, not a pre-computed string — building it here is just capturing `url`/`req.method`
     // in a closure, essentially free. The actual `cleanRoute()` call only happens if/when
