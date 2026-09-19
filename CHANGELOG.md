@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.3.2] - 2026-09-19
+
+### Fixed
+
+- **`ssr` responses stopped streaming under Deno ≥ 2.9.7 whenever the client sent
+  `Accept-Encoding: gzip` — i.e. every real browser.** `gzipStreamingResponse` piped the body
+  through `CompressionStream('gzip')`, which has no flush API and, per the Compression Streams spec,
+  is free to hold input back until its internal buffer fills or the stream closes. Up to Deno 2.9.6
+  the runtime flushed on every write as an implementation detail, which this function silently
+  relied on; Deno 2.9.7 ("avoid flushing compression streams on every write", denoland/deno#36744)
+  removed that, so only the 10-byte gzip header crossed the wire while a streamed render was running
+  and the whole body arrived at the end — a `Suspense`/`loading.tsx` fallback shell was no longer
+  delivered ahead of the suspended content. `gzipStreamingResponse` now compresses through a
+  `node:zlib` gzip stream flushed with `Z_SYNC_FLUSH` after every chunk, so each source chunk is
+  decodable by the client as soon as it is produced, on every Deno version. Only `ssr` servers are
+  affected: every other server type goes through `gzipResponseFromResponse`, whose body is already
+  fully materialized, so it never depended on flush timing.
+- **The gzip streaming tests could not detect this regression, and a failure would hang instead of
+  reporting.** `gzip-ssr-streaming.test.ts` only asserted that response headers arrived, and
+  `gzip.test.ts` accepted any non-empty first chunk — the bare gzip header satisfied both. They now
+  decode the body as it arrives and require the first chunk's actual content before the source is
+  released, with a bounded wait; the functional test also releases the fixture's stream and cancels
+  the body in `finally`, since a graceful `stop()` otherwise waits forever on the in-flight request.
+
 ## [4.3.1] - 2026-09-11
 
 ### Fixed

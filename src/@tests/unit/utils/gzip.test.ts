@@ -122,43 +122,48 @@ Deno.test(
     assertEquals(response.headers.get('content-encoding'), 'gzip')
     assertEquals(response.headers.get('content-length'), null)
 
+    // Decode the wire bytes as they arrive and require the FIRST chunk's actual content before the
+    // source closes. Asserting on compressed byte counts alone isn't enough: a compressor that
+    // holds input back still emits its 10-byte gzip header immediately (Deno >= 2.9.7's plain
+    // `CompressionStream` does exactly this), so "some bytes arrived" proves nothing about flushing.
+    const firstChunk = '<html><body>' + 'x'.repeat(2000)
     // deno-lint-ignore no-non-null-assertion
-    const reader = response.body!.getReader()
-    const first = await Promise.race([
-      reader.read(),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new Error(
-                'timed out — the compressed stream never produced output ' +
-                  'while the source was still open, meaning the body got buffered first',
-              ),
+    const reader = response.body!.pipeThrough(new DecompressionStream('gzip')).getReader()
+    const decoder = new TextDecoder()
+    let received = ''
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () =>
+          reject(
+            new Error(
+              'timed out — the first chunk never became decodable while the source was still ' +
+                'open, meaning the compressor is holding input back until the stream closes',
             ),
-          1000,
-        )
-      ),
-    ])
-    assert(
-      !first.done && first.value.length > 0,
-      'expected compressed bytes before the source closed',
-    )
+          ),
+        2000,
+      )
+    })
+    try {
+      while (received.length < firstChunk.length) {
+        // deno-lint-ignore no-await-in-loop -- each read depends on the previous one
+        const next = await Promise.race([reader.read(), deadline])
+        assert(!next.done, 'the stream ended before the source was released')
+        received += decoder.decode(next.value, { stream: true })
+      }
+    } finally {
+      clearTimeout(timer)
+    }
+    assertEquals(received, firstChunk)
 
     releaseSecondChunk()
-    let done = false
-    const chunks: Uint8Array[] = first.value ? [first.value] : []
-    while (!done) {
-      // deno-lint-ignore no-await-in-loop
+    while (true) {
+      // deno-lint-ignore no-await-in-loop -- each read depends on the previous one
       const next = await reader.read()
-      done = next.done
-      if (next.value) chunks.push(next.value)
+      if (next.done) break
+      received += decoder.decode(next.value, { stream: true })
     }
-
-    const decompressed = new Blob(chunks as never).stream().pipeThrough(
-      new DecompressionStream('gzip'),
-    )
-    const text = await new Response(decompressed).text()
-    assertEquals(text, '<html><body>' + 'x'.repeat(2000) + '</body></html>')
+    assertEquals(received, firstChunk + '</body></html>')
   },
 )
 

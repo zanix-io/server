@@ -1,6 +1,7 @@
 import type { GzipSettings } from 'typings/general.ts'
 import { JSON_CONTENT_HEADER } from './constants.ts'
 import { encoder } from '@zanix/helpers'
+import { constants, createGzip } from 'node:zlib'
 
 const COMPRESSIBLE_REGEX = /(text|json|javascript|xml|svg|css|html)/i
 
@@ -115,6 +116,39 @@ export function gzipResponse(
 }
 
 /**
+ * A gzip `TransformStream` that flushes the compressor (`Z_SYNC_FLUSH`) after every chunk, so each
+ * chunk written in is decodable by the client as soon as it is emitted. `CompressionStream` cannot
+ * be used for this: it has no flush API and, per the Compression Streams spec, is free to hold
+ * input back until its internal buffer fills or the stream closes — Deno ≥ 2.9.7 does exactly that
+ * (earlier versions flushed on every write as an implementation detail), which silently turned a
+ * streamed SSR render into a buffered one.
+ */
+function createFlushingGzipStream(): TransformStream<Uint8Array, Uint8Array> {
+  const gzip = createGzip()
+  return new TransformStream<Uint8Array, Uint8Array>({
+    start(controller) {
+      gzip.on('data', (chunk: Uint8Array) => controller.enqueue(new Uint8Array(chunk)))
+      gzip.on('error', (error) => controller.error(error))
+    },
+    transform: (chunk) =>
+      new Promise<void>((resolve, reject) => {
+        gzip.write(chunk, (error) => {
+          if (error) return reject(error)
+          gzip.flush(constants.Z_SYNC_FLUSH, resolve)
+        })
+      }),
+    flush: () =>
+      new Promise<void>((resolve) => {
+        gzip.once('end', resolve)
+        gzip.end()
+      }),
+    cancel: () => {
+      gzip.destroy()
+    },
+  })
+}
+
+/**
  * GZIP-compresses a `Response` WITHOUT buffering its body first — unlike
  * {@link gzipResponseFromResponse}, which reads the entire body into memory via `arrayBuffer()`
  * before deciding whether to compress it. That buffering is invisible for an ordinary REST/GraphQL
@@ -130,7 +164,8 @@ export function gzipResponse(
  * {@link COMPRESSIBLE_REGEX}, or that has no body at all, is returned completely untouched.
  *
  * @param {Response} response - The source response, whose `body` (if present) is piped directly
- * through `CompressionStream('gzip')` — never read into memory as a whole.
+ * through a per-chunk-flushing gzip stream — never read into memory as a whole, and every source
+ * chunk reaches the client as soon as it is produced (see {@link createFlushingGzipStream}).
  * @returns {Response} A new `Response` with the same status/statusText, streamed and
  * gzip-compressed when its content-type qualifies; the original response, untouched, otherwise.
  *
@@ -144,7 +179,7 @@ export function gzipStreamingResponse(response: Response): Response {
   const contentType = headers.get('content-type') ?? ''
   if (!response.body || !COMPRESSIBLE_REGEX.test(contentType)) return response
 
-  const compressed = response.body.pipeThrough(new CompressionStream('gzip'))
+  const compressed = response.body.pipeThrough(createFlushingGzipStream())
   headers.set('content-encoding', 'gzip')
   headers.delete('content-length')
 

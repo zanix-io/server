@@ -39,8 +39,9 @@ memory first (`gzipResponseFromResponse` via `response.clone().arrayBuffer()`) �
 that's already fully materialized, but it would silently drain a live `ReadableStream` before
 compressing a single byte of it.
 
-`gzipStreamingResponse` exists for exactly that case: it pipes `response.body` directly through
-`CompressionStream` without ever buffering it, so a genuinely streamed response (like SSR output)
+`gzipStreamingResponse` exists for exactly that case: it pipes `response.body` directly through a
+gzip stream that flushes after every chunk (`CompressionStream` can't be used — it may hold input
+back until it closes), without ever buffering it, so a genuinely streamed response (like SSR output)
 keeps flowing to the client as it's produced. It has no `threshold` option — with a live stream the
 total size isn't known upfront, so the only gate is content type; a non-compressible or bodyless
 response is returned untouched. **`bootstrapServers` already picks this automatically for `ssr`

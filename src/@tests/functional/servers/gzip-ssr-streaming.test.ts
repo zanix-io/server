@@ -15,13 +15,14 @@ stub(console, 'info')
 Deno.test(
   'gzip: an ssr streaming response starts flowing to the client before the render finishes, and the final gzip-decoded body is still exactly correct',
   async () => {
-    const { releaseSecondChunk, FULL_BODY } = await import(
+    const { releaseSecondChunk, FIRST_CHUNK, FULL_BODY } = await import(
       './fixtures/gzip-ssr-streaming.fixture.ts'
     )
 
     const servers = await bootstrapServers({
       ssr: { port: 4420, application: 'gzip-ssr-streaming' },
     })
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
 
     try {
       const addr = webServerManager.info(servers[0]).addr
@@ -53,16 +54,57 @@ Deno.test(
       const res = await fetchPromise
       assertEquals(res.headers.get('content-length'), null) // streamed — never a known length upfront
 
+      // Headers alone don't prove bytes are flowing: a compressor that holds input back still lets
+      // the response start. Read the first body chunk (decoded by `fetch()` itself) BEFORE the
+      // fixture's stream is allowed to finish — it must already carry `FIRST_CHUNK`.
+      // deno-lint-ignore no-non-null-assertion
+      reader = res.body!.getReader()
+      const decoder = new TextDecoder()
+      let received = ''
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const deadline = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                'timed out — no decodable body bytes arrived while the SSR render was still ' +
+                  'running, meaning the gzip stream is holding chunks back until it closes',
+              ),
+            ),
+          5000,
+        )
+      })
+      try {
+        while (received.length < FIRST_CHUNK.length) {
+          // deno-lint-ignore no-await-in-loop -- each read depends on the previous one
+          const next = await Promise.race([reader.read(), deadline])
+          assert(!next.done, 'the response ended before the fixture released its second chunk')
+          received += decoder.decode(next.value, { stream: true })
+        }
+      } finally {
+        clearTimeout(timer)
+      }
+      assertEquals(received, FIRST_CHUNK)
+
       // Only now let the fixture's stream actually finish, and verify the eventual content is
-      // still byte-for-byte correct — streaming must not come at the cost of correctness. `fetch()`
-      // transparently decodes `content-encoding: gzip` itself (and hides the header once decoded),
-      // so `res.text()` already yields the plain body here — the wire-level proof that gzip
-      // actually ran lives in the unit tests (`gzip.test.ts`), which inspect the `Response` object
-      // directly before it ever crosses an HTTP boundary.
+      // still byte-for-byte correct — streaming must not come at the cost of correctness.
+      // `fetch()` transparently decodes `content-encoding: gzip` itself (and hides the header once
+      // decoded), so the wire-level proof that gzip actually ran lives in the unit tests
+      // (`gzip.test.ts`), which inspect the `Response` object directly.
       releaseSecondChunk()
-      const text = await res.text()
-      assertEquals(text, FULL_BODY)
+      while (true) {
+        // deno-lint-ignore no-await-in-loop -- each read depends on the previous one
+        const next = await reader.read()
+        if (next.done) break
+        received += decoder.decode(next.value, { stream: true })
+      }
+      assertEquals(received, FULL_BODY)
     } finally {
+      // On any failure above the fixture's stream is still open, and a graceful `stop()` waits on
+      // in-flight requests forever — release it and drop the body so a failure surfaces as itself
+      // instead of a hung test.
+      releaseSecondChunk()
+      await reader?.cancel().catch(() => {})
       await webServerManager.stop(servers)
     }
   },
