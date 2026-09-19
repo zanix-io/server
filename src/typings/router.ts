@@ -4,6 +4,7 @@ import type { MetadataTargetSymbols } from './program.ts'
 import type { WebServerTypes } from './server.ts'
 import type { ClassConstructor } from './targets.ts'
 import type { RtoTypes } from '@zanix/types'
+import type { HandlerDecoratorMethodOptions as _HandlerDecoratorMethodOptions } from './decorators.ts'
 
 /** Any value a route handler may return: raw data, an array, a string, or a full `Response`. */
 export type HandlerResponse =
@@ -79,6 +80,13 @@ export type ProcessedRouteDefinition =
      * A function that processes or handles route logic.
      */
     handler: HandlerFunction
+    /**
+     * The RTO(s) this route validates against, plus `rawBody` — see
+     * {@link _HandlerDecoratorMethodOptions.rto} for what each does. Declared here rather than
+     * folded into `RouteDefinition` so it stays optional even under `Required<>` below —
+     * graphql/socket/ssr's own route values never set it.
+     */
+    rto?: RtoTypes & { rawBody?: boolean }
   }
   & Omit<Required<RouteDefinition>, 'handler'>
 

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.3.3] - 2026-09-19
+
+### Fixed
+
+- **A route with no `Body` RTO still had its request body eagerly parsed, permanently consuming the
+  stream before the handler ever ran.** `bodyPayloadProperty` (`utils/routes.ts`) read and
+  `JSON.parse`d/form-decoded any `application/json`/`application/x-www-form-urlencoded` body
+  unconditionally, for every request, regardless of whether the matched route needed it — a handler
+  that reads `ctx.req` itself for the exact raw bytes (a signed-webhook route verifying an HMAC
+  signature against the original payload, for instance) found the stream already consumed, with
+  `ctx.req.text()`/`.json()` throwing `TypeError: Body already consumed` and the original bytes
+  unrecoverable. A route now opts into skipping this via `rawBody: true` on its method decorator's
+  `rto` option (`@Post`/`@Put`/`@Patch`/`@Delete`, e.g. `@Post('webhook', { rawBody: true })`);
+  `getMainHandler` leaves the stream untouched for that route's handler. Every other route is
+  unaffected — parsing still happens eagerly, at the same point in the pipeline, exactly as before.
+
 ## [4.3.2] - 2026-09-19
 
 ### Fixed

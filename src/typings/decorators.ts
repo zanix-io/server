@@ -207,8 +207,17 @@ export type ProviderDecoratorOptions<L extends Exclude<Lifetime, 'TRANSIENT'>> =
 export type HandlerDecoratorMethodOptions = {
   /** Either the route path or, when omitted, the RTO passed as the first positional argument. */
   pathOrRTO?: string | RtoTypes
-  /** The RTO used to validate the request/event data, when a path is also given. */
-  rto?: RtoTypes
+  /**
+   * The RTO used to validate the request/event data, when a path is also given.
+   *
+   * `rawBody: true` leaves the request body entirely unparsed by the framework — no `Body`/
+   * `Search` validation runs, and `ctx.req`'s stream reaches the handler untouched, for a handler
+   * that reads the exact raw bytes itself (e.g. to verify a webhook signature, which a
+   * framework-driven `JSON.parse` would otherwise silently invalidate by consuming the stream
+   * first). Every other route parses the body as usual; this is opt-in, never inferred from the
+   * absence of `Body`.
+   */
+  rto?: RtoTypes & { rawBody?: boolean }
 }
 
 export type ResolverTypes = 'Query' | 'Mutation'

@@ -117,7 +117,7 @@ export const routeProcessor = (
       return acc
     }
 
-    const { handler, path, interceptors, pipes, httpMethod, guards } = record
+    const { handler, path, interceptors, pipes, httpMethod, guards, rto } = record
     // The mount prefix sits between `globalPrefix` and this route's own controller-prefix/
     // method-path (`path`): `globalPrefix + applicationMountPrefix + controllerPrefix +
     // methodPath`. `mountPrefix` empty (the default) makes `mountedPath === path`, identical to
@@ -199,6 +199,7 @@ export const routeProcessor = (
       enableALS,
       guards,
       pipes,
+      rto,
     } as ProcessedRoutes[0]
 
     let cacheEntry: CachedProcessedRoute

@@ -228,14 +228,25 @@ export const getMainHandler = (
       locals: {},
     } as HandlerContext
 
-    try {
-      Object.assign(context.payload, {
-        body: await bodyPayloadProperty(req, context.id, maxBodyBytes),
-      })
-    } catch (error) {
-      throw attachRequestToErrors && error instanceof HttpError
-        ? attachRequestToError(error, req)
-        : error
+    // Skipped only for a route that opts in via `rto: { rawBody: true }` — every other route
+    // (the default) keeps parsing eagerly here, at the same point in the pipeline as always.
+    // `bodyPayloadProperty` has no route awareness on its own — it parses any `application/json`/
+    // `application/x-www-form-urlencoded` body unconditionally, permanently consuming the request
+    // stream. `rawBody: true` leaves that stream untouched instead, so the route's own handler can
+    // read `ctx.req` itself for the exact raw bytes (e.g. to verify a webhook signature). This
+    // never runs lazily on first `ctx.payload.body` access — an async read can't be a synchronous
+    // property getter.
+    const populateBody = async (route: { rto?: ProcessedRouteDefinition['rto'] }) => {
+      if (route.rto?.rawBody) return
+      try {
+        Object.assign(context.payload, {
+          body: await bodyPayloadProperty(req, context.id, maxBodyBytes),
+        })
+      } catch (error) {
+        throw attachRequestToErrors && error instanceof HttpError
+          ? attachRequestToError(error, req)
+          : error
+      }
     }
 
     // Define a lazy-loaded getters to improve efficiency by computing values only when accessed
@@ -292,6 +303,7 @@ export const getMainHandler = (
       (isHeadRequest ? absolutePaths[`${path}/GET`] : undefined)
 
     if (absoluteRoute) {
+      await populateBody(absoluteRoute)
       const response = mainProcess({
         route: absoluteRoute,
         context,
@@ -356,6 +368,8 @@ export const getMainHandler = (
     }
 
     const { route, match } = processedRoute
+
+    await populateBody(route)
 
     // A THUNK, not a pre-computed string — building it here is just capturing `url`/`req.method`
     // in a closure, essentially free. The actual `cleanRoute()` call only happens if/when
