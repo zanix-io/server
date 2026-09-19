@@ -20,9 +20,9 @@ adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
   `rto` option (`@Post`/`@Put`/`@Patch`/`@Delete`, e.g. `@Post('webhook', { rawBody: true })`);
   `getMainHandler` leaves the stream untouched for that route's handler. Every other route is
   unaffected — parsing still happens eagerly, at the same point in the pipeline, exactly as before.
-  The gate itself is a top-level function, not a closure allocated per request, so it carries no
-  measurable cost on the hot path — verified against `runtime-performance.test.ts`'s own gated
-  `lifecycle:notfound`/`lifecycle:json:*` floors.
+  The `rawBody` check is inlined at each dispatch point rather than factored into a shared helper,
+  so the common (non-`rawBody`) case pays no extra call frame or allocation — verified against
+  `runtime-performance.test.ts`'s own gated `lifecycle:notfound`/`lifecycle:json:*` floors.
 
 ## [4.3.2] - 2026-09-19
 
