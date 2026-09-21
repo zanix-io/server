@@ -1,6 +1,6 @@
 {
   "name": "@zanix/server",
-  "version": "4.3.3",
+  "version": "4.3.4",
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true,
@@ -76,7 +76,11 @@
     // `src/modules/infra/handlers/graphql/mod.ts`'s own doc for why. `ZanixResolver`/`Resolver`/
     // `Query`/`Mutation`/`Request` are exported ONLY from here, never from the root `.` barrel — a
     // consumer building a GraphQL server imports them from here.
-    "./graphql": "./src/modules/infra/handlers/graphql/mod.ts"
+    "./graphql": "./src/modules/infra/handlers/graphql/mod.ts",
+    // `RestClientError` alone, behind a module that imports only `@zanix/errors`. The root `.` exports
+    // it too, but the root brings the whole server, which a browser bundle cannot contain — see that
+    // file's own doc. Same class as the root's, not a copy.
+    "./client-errors": "./src/utils/errors/rest-client-error.ts"
   },
   "tasks": {
     // The benchmark suite (`src/@tests/benchmarks/`), ONE FILE PER PROCESS.

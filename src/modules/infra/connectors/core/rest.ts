@@ -2,6 +2,7 @@ import type { ReloadDescriptor, RequestOptions, RestFullOptions } from 'typings/
 import type { HttpMethod } from 'typings/router.ts'
 
 import { HttpError } from '@zanix/errors'
+import { RestClientError } from 'utils/errors/rest-client-error.ts'
 import { ZanixConnector } from '../base.ts'
 import { AUTH_HEADERS, JSON_CONTENT_HEADER } from 'utils/constants.ts'
 import { cleanRoute } from '@zanix/helpers'
@@ -390,47 +391,4 @@ export class RestClient extends ZanixConnector {
   }
 }
 
-/**
- * Thrown by {@link RestClient} for any failed call — a non-2xx upstream response, or a genuine
- * transport-level failure (DNS, timeout, connection refused). `RestClient` itself has no domain
- * knowledge of whose fault a non-2xx response is — a consumer's own bad input, or a genuine fault
- * in whatever it called — so it always defaults to `'BAD_GATEWAY'` as the honest status (see
- * `#http()`'s own doc). The real upstream status, when one exists, survives structured in
- * `meta.upstreamStatus`/`meta.upstreamStatusText` and is readable directly off the error via
- * {@link RestClientError.realHttpStatus}, for whichever caller DOES have the context to
- * reclassify with it.
- *
- * @example
- * ```ts
- * try {
- *   await client.http.get('/users/1')
- * } catch (error) {
- *   if (error instanceof RestClientError && error.realHttpStatus === 404) {
- *     // the resource genuinely doesn't exist upstream — not "my dependency is down"
- *   }
- * }
- * ```
- */
-export class RestClientError extends HttpError {
-  /**
-   * The real HTTP status code the upstream call actually received. `undefined` for a genuine
-   * transport-level failure — no response came back at all, so there's no real status to report.
-   */
-  public get realHttpStatus(): number | undefined {
-    const upstreamStatus = this.meta?.upstreamStatus
-    return typeof upstreamStatus === 'number' ? upstreamStatus : undefined
-  }
-
-  /**
-   * The upstream `Retry-After` response header, in seconds — set whenever the failed response
-   * carried one (typically alongside a `429`, e.g. `rateLimitGuard`'s own real header). `undefined`
-   * when the response had no such header, or a genuine transport-level failure with no response at
-   * all. Lets a caller with UI context (a login page rendering a real countdown, not just a static
-   * "try again later" message) compute an absolute retry instant (`Date.now() + retryAfterSeconds *
-   * 1000`) without re-parsing a raw header itself.
-   */
-  public get retryAfterSeconds(): number | undefined {
-    const value = this.meta?.retryAfterSeconds
-    return typeof value === 'number' ? value : undefined
-  }
-}
+export { RestClientError }

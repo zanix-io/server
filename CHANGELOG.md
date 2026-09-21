@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.3.4] - 2026-09-21
+
+### Fixed
+
+- **`RestClientError` could not be used in code bundled for a browser.** The class lived in the REST
+  connector's module, so importing it, even only for an `instanceof` check in an error boundary,
+  brought in everything the root entry brings: the worker provider and `@zanix/utils`'s
+  `WorkerManager`, whose `new Worker(new URL(...))` a bundler's worker plugin tries to bundle and
+  fails the whole client build on. The class now lives in a module that depends only on
+  `@zanix/errors`, exported as `@zanix/server/client-errors` as well. The root entry and the REST
+  connector re-export that same class, so every existing import, and every `instanceof` check
+  written against it, works unchanged.
+
 ## [4.3.3] - 2026-09-19
 
 ### Fixed

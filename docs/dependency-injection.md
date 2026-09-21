@@ -462,6 +462,16 @@ try {
 }
 ```
 
+**In code bundled for a browser**, import it from `@zanix/server/client-errors` instead. It is the
+same class, but the root entry brings the whole server with it (the worker provider and
+`@zanix/utils`'s `WorkerManager` among it), which a client bundle cannot contain and its bundler
+fails on. The `client-errors` entry depends only on `@zanix/errors`, so an `instanceof` check in an
+error boundary works without it:
+
+```ts
+import { RestClientError } from 'jsr:@zanix/server@[version]/client-errors'
+```
+
 ### `GraphQLClient`'s own GraphQL-level error handling
 
 A GraphQL endpoint can answer `200 OK` and still carry an `errors` array instead of (or alongside)
