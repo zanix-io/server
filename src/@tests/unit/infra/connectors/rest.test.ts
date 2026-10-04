@@ -744,3 +744,121 @@ Deno.test('omitting reload (the default) keeps the plain, unwrapped return value
   assertEquals(result, { ok: true })
   assertEquals('reloadDescriptor' in (result as object), false)
 })
+
+// --- search: query-string parameters ---
+
+const captureUrls = (headersFor?: (n: number) => Record<string, string>) => {
+  const urls: string[] = []
+  const sent: any[] = []
+  globalThis.fetch = ((url: string, opts: any) => {
+    urls.push(url)
+    sent.push(opts)
+    return Promise.resolve(
+      new Response(JSON.stringify({ n: urls.length }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...headersFor?.(urls.length) },
+      }),
+    )
+  }) as unknown as typeof fetch
+  return { urls, sent }
+}
+
+Deno.test('search: appends the serialized parameters with "?" and omits null/undefined', async () => {
+  const { urls, sent } = captureUrls()
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  await client.http.get('/users', { search: { page: 2, limit: 20, q: undefined, r: null } })
+
+  assertEquals(urls, ['https://api.example.com/users?page=2&limit=20'])
+  assertEquals('search' in sent[0], false)
+})
+
+Deno.test('search: appends with "&" when the endpoint already has a query string', async () => {
+  const { urls } = captureUrls()
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  await client.http.get('/users?sort=asc', { search: { page: 1 } })
+
+  assertEquals(urls, ['https://api.example.com/users?sort=asc&page=1'])
+})
+
+Deno.test('search: leaves the URL untouched when every value is omitted or the object is empty', async () => {
+  const { urls } = captureUrls()
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  await client.http.get('/users', { search: { a: undefined, b: null } })
+  await client.http.get('/users', { search: {} })
+  await client.http.get('/users?x=1', { search: {} })
+
+  assertEquals(urls, [
+    'https://api.example.com/users',
+    'https://api.example.com/users',
+    'https://api.example.com/users?x=1',
+  ])
+})
+
+Deno.test('search: arrays repeat the key, nested objects use brackets, values are encoded', async () => {
+  const { urls } = captureUrls()
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  await client.http.get('/items', {
+    search: { tag: ['a', 'b'], filter: { min: 1 }, q: 'a b&c//d' },
+  })
+
+  assertEquals(urls, [
+    'https://api.example.com/items?tag=a&tag=b&filter%5Bmin%5D=1&q=a+b%26c%2F%2Fd',
+  ])
+})
+
+Deno.test('search: works on non-GET methods and with a per-call baseUrl', async () => {
+  const { urls } = captureUrls()
+
+  await new MyApiClient().http.post('//items//1', {
+    baseUrl: 'https://api.example.com',
+    search: { dry: true },
+  })
+
+  assertEquals(urls, ['https://api.example.com/items/1?dry=true'])
+})
+
+Deno.test('search: without it the URL is exactly the endpoint, literal query included', async () => {
+  const { urls } = captureUrls()
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  await client.http.get('/users?a=1&b=2')
+
+  assertEquals(urls, ['https://api.example.com/users?a=1&b=2'])
+})
+
+Deno.test('search: two different searches on the same endpoint never share an ETag cache entry', async () => {
+  resetRestClientEtagCache()
+  const { urls, sent } = captureUrls((n) => ({ 'ETag': `"v${n}"` }))
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  await client.http.get('/etag-search', { search: { page: 1 } })
+  await client.http.get('/etag-search', { search: { page: 2 } })
+  await client.http.get('/etag-search', { search: { page: 1 } })
+
+  assertEquals(urls, [
+    'https://api.example.com/etag-search?page=1',
+    'https://api.example.com/etag-search?page=2',
+    'https://api.example.com/etag-search?page=1',
+  ])
+  assertEquals(sent[0].headers['If-None-Match'], undefined)
+  // page=2 is a different resource: it must not be conditioned on page=1's ETag.
+  assertEquals(sent[1].headers['If-None-Match'], undefined)
+  // Repeating page=1 reuses its own entry.
+  assertEquals(sent[2].headers['If-None-Match'], '"v1"')
+})
+
+Deno.test('search: reload: true returns the final URL, query included, as the descriptor endpoint', async () => {
+  captureUrls()
+  const client = new MyApiClient({ baseUrl: 'https://api.example.com' })
+
+  const result = await client.http.get<{ n: number }>('/users?sort=asc', {
+    reload: true,
+    search: { page: 3 },
+  })
+
+  assertEquals(result.reloadDescriptor.endpoint, 'https://api.example.com/users?sort=asc&page=3')
+})

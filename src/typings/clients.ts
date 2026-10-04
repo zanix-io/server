@@ -56,6 +56,19 @@ export type RestFullOptions = Omit<RequestInit, 'method'> & {
   /** Set to `true` to get this call's `{ data, reloadDescriptor }` shape back — see
    * {@link ReloadDescriptor}. Defaults to `false` (today's plain return value, unchanged). */
   reload?: boolean
+  /**
+   * Query-string parameters appended to the request URL, serialized with `toSearchParams` from
+   * `@zanix/utils/urls`: `null`/`undefined` values are omitted, an array becomes repeated keys
+   * (`a=1&a=2`), and a nested object uses bracket notation (`a[b]=1`). They are joined with `&`
+   * when the endpoint already carries a `?...` and with `?` otherwise; when nothing remains after
+   * omitting empty values, the URL is left untouched. The final query is part of the `ETag` cache
+   * key and of `reloadDescriptor.endpoint`.
+   *
+   * @example
+   * await client.http.get('/users', { search: { page: 2, limit: 20, q: undefined } })
+   * // GET https://api.example.com/users?page=2&limit=20
+   */
+  search?: Record<string, unknown>
 }
 
 /**

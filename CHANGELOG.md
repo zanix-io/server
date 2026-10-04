@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.4.1] - 2026-10-04
+
+### Added
+
+- **`RestClient` calls accept `search`, a query-string object.** `RestFullOptions` gains an optional
+  `search` field, serialized with `toSearchParams` from `@zanix/utils/urls` and appended to the
+  request URL: `client.http.get('/users', { search: { page: 2, limit: 20 } })` requests
+  `/users?page=2&limit=20`. `null` and `undefined` values are omitted, an array becomes repeated
+  keys and a nested object uses bracket notation. The query joins with `&` when the endpoint already
+  contains a `?`, and the URL is left as is when no value remains. The final query is part of the
+  `ETag` cache key and of `reloadDescriptor.endpoint`. A call without `search` builds the same URL
+  as before.
+
 ## [4.4.0] - 2026-10-03
 
 ### Added

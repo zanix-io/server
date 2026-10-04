@@ -6,6 +6,7 @@ import { RestClientError } from 'utils/errors/rest-client-error.ts'
 import { ZanixConnector } from '../base.ts'
 import { AUTH_HEADERS, JSON_CONTENT_HEADER } from 'utils/constants.ts'
 import { cleanRoute } from '@zanix/helpers'
+import { toSearchParams } from '@zanix/urls'
 import { getConnectors } from '../../../program/public.ts'
 import type { ZanixCacheConnector } from './cache.ts'
 
@@ -276,6 +277,9 @@ export class RestClient extends ZanixConnector {
     const wantsReload = options.reload === true
     delete options.reload
 
+    const search = options.search
+    delete options.search
+
     const [protocol, restOfUrl] = (baseUrl ? `${baseUrl}/${endpoint}` : endpoint).split('://')
 
     if (!restOfUrl) {
@@ -286,7 +290,11 @@ export class RestClient extends ZanixConnector {
       })
     }
 
-    const url = `${protocol}:/${cleanRoute(restOfUrl, true)}`
+    const cleanUrl = `${protocol}:/${cleanRoute(restOfUrl, true)}`
+    // Appended after `cleanRoute`, never through it: the serialized query is already encoded, and
+    // the endpoint's own text (including a literal `?...`) goes through exactly as before.
+    const query = search ? toSearchParams(search).toString() : ''
+    const url = query ? `${cleanUrl}${cleanUrl.includes('?') ? '&' : '?'}${query}` : cleanUrl
     const cacheKey = `${url} ${identityKey(options.headers, this.etagIdentityHeaders)}`
     const etagCacheStore = this.#resolveEtagCache(useEtag)
 

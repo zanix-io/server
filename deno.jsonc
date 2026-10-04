@@ -1,6 +1,6 @@
 {
   "name": "@zanix/server",
-  "version": "4.4.0",
+  "version": "4.4.1",
   "nodeModulesDir": "auto",
   "compilerOptions": {
     "strict": true,
@@ -52,6 +52,7 @@
     "@std/testing": "jsr:@std/testing@1.0.9",
     "@zanix/logger": "jsr:@zanix/utils@^4.8.0/logger",
     "@zanix/helpers": "jsr:@zanix/utils@^4.8.0/helpers",
+    "@zanix/urls": "jsr:@zanix/utils@^4.8.0/urls",
     "@zanix/validator": "jsr:@zanix/utils@^4.8.0/validator",
     "@zanix/regex": "jsr:@zanix/utils@^4.8.0/regex",
     "@zanix/errors": "jsr:@zanix/utils@^4.8.0/errors",

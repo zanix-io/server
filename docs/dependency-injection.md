@@ -351,6 +351,26 @@ class PostgresConnector extends ZanixDatabaseConnector {
 }
 ```
 
+### `RestClient`'s query string
+
+Pass `search` in a call's options instead of building the query string by hand. It is serialized
+with `toSearchParams` (`@zanix/utils/urls`): `null`/`undefined` values are omitted, an array becomes
+repeated keys (`tag=a&tag=b`) and a nested object uses bracket notation (`filter[min]=1`).
+
+```ts
+const client = new BillingClient({ baseUrl: 'https://billing.internal' })
+
+await client.http.get('invoices', { search: { page: 2, limit: 20, status: undefined } })
+// GET https://billing.internal/invoices?page=2&limit=20
+
+await client.http.get('invoices?sort=asc', { search: { page: 2 } })
+// GET https://billing.internal/invoices?sort=asc&page=2
+```
+
+When the endpoint already has a `?`, the parameters join with `&`; when nothing remains after
+omitting empty values, the URL gets no `?`. The final query is part of the `ETag` cache key, so two
+different searches never share a cached value, and `reloadDescriptor.endpoint` carries it too.
+
 ### `RestClient`'s `ETag` caching
 
 `GET` requests are cached and revalidated through conditional `ETag`/`If-None-Match` by default — no
