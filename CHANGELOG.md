@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/) and this project
 adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [4.4.0] - 2026-10-03
+
+### Added
+
+- **The dispatcher writes the start of each request into `ctx.locals`.** When it creates a request's
+  context, before any guard, pipe or handler runs, the dispatcher sets
+  `ctx.locals[REQUEST_STARTED_AT_LOCALS_KEY]` (`'requestStartedAt'`, exported, typed
+  `number | undefined` on `HandlerContext['locals']`) to a reading of the monotonic clock
+  `performance.now()`, in milliseconds. Until now nothing in a request's context said when it began,
+  so a middleware could not measure how long a request took without a guard registered just to take
+  a timestamp. It is plain data in `locals`, like every other key: every stage reads and writes the
+  same `locals` object, so it reaches the interceptors through global and route guards, pipes and
+  the handler, for REST, SSR and the other route types, and a middleware that assigns a new object
+  to `ctx.locals` or deletes the key removes it, so a reader must treat a missing value as "no start
+  known". The only effect on an application that does not read it is that extra key and one clock
+  read per request (about 0.1 µs).
+- **`@RequestTiming({ slowMs })` and `createTimingInterceptor({ name, slowMs })`, a measuring
+  interceptor you register on purpose.** The decorator measures a handler method, or every route of
+  a class; the function builds the interceptor to register globally with
+  `registerGlobalInterceptor`. It reads the start from `ctx.locals`, so the interceptor is the only
+  thing to register: no guard, no table of routes and no environment variable, and nothing registers
+  it for you. `slowMs` is required per registration, with no default. A request at or over it is
+  logged at `warn`, which persists, with `method`, `handler` (the `name`, or the decorated method's
+  or class's name, never the URL), `httpStatus`, `contextId`, `durationMs` and `slowMs`, up to
+  `maxLogsPerSecond` (10 by default) per second per interceptor, and the next entry reports how many
+  were dropped. `logAll: true` also prints a `debug` line per request, to choose the budgets, and
+  `serverTiming: true` adds `Server-Timing: total;dur=<ms>`. It measures from the dispatcher
+  creating the context to the interceptor, so a request that ends before the interceptor stage (a
+  guard that answers, a throw) is not measured, and a request without a valid start is not measured
+  or logged at all. It respects the logger's minimum level. See
+  [Observability → Request timing](./docs/observability.md#request-timing).
+- `REQUEST_STARTED_AT_LOCALS_KEY`, `createTimingInterceptor`, `RequestTiming`,
+  `REQUEST_TIMING_LABEL`, `DEFAULT_REQUEST_TIMING_MAX_LOGS_PER_SECOND` and the
+  `RequestTimingDecoratorOptions`, `TimingInterceptorOptions` and `RequestTimingLogger` types are
+  exported.
+
+### Changed
+
+- `@zanix/utils` is now `^4.8.0`, which adds the `logger.timer` and `logger.isLevelEnabled` the
+  request timing is built on.
+
 ## [4.3.4] - 2026-09-21
 
 ### Fixed

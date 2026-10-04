@@ -104,6 +104,21 @@ rateLimitGuard.exports = { server: ['rest'] }
 registerGlobalGuard(rateLimitGuard)
 ```
 
+A ready-made interceptor that measures how long routes take, `RequestTiming` (per handler or class)
+and `createTimingInterceptor` (global), is registered the same way and is meant to be removed when
+the measurement is over: see [Observability → Request timing](./observability.md#request-timing).
+
+## What `ctx.locals` carries
+
+`ctx.locals` is the per-request container middlewares and handlers share: every stage of a request
+reads and writes the same `locals` object, so a key a guard sets is there in the pipes, the handler
+and the interceptors. The dispatcher writes one key itself when it creates the context, before any
+guard runs: `REQUEST_STARTED_AT_LOCALS_KEY` (`'requestStartedAt'`), the time the request reached the
+dispatcher, a reading of `performance.now()` in milliseconds. Read it from your own middleware as
+`ctx.locals.requestStartedAt` (a `number`, or `undefined` if a middleware replaced `locals` or
+deleted the key). See
+[Observability → The start of a request](./observability.md#the-start-of-a-request-request_started_at_locals_key).
+
 ## Built-in defaults
 
 The framework registers a small set of default middlewares out of the box, including CORS handling

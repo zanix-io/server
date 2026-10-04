@@ -272,6 +272,8 @@ see the [Configuration](./docs/configuration.md#environment-variables) guide for
 - [Dependency Injection](./docs/dependency-injection.md) — connectors, providers, interactors, and
   their lifecycle (`lifetime`/`startMode`).
 - [Configuration](./docs/configuration.md) — default ports, constants, and environment variables.
+- [Observability](./docs/observability.md) — request timing: an interceptor you register on purpose
+  (`@RequestTiming`) to find out how long routes take.
 - [Error Handling](./docs/errors.md) — how errors are logged, serialized, and returned to clients.
 - [Utilities Reference](./docs/utilities.md) — routing, compression, and target-management helpers.
 

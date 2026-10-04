@@ -121,6 +121,33 @@ export const LIFETIME_MODE: Record<Lifetime, Lifetime> = {
 export const INSTANCE_KEY_SEPARATOR = '::'
 export const HANDLER_METADATA_PROPERTY_KEY = 'handler_properties'
 
+/**
+ * The `ctx.locals` key the dispatcher writes when it creates a request's context: the moment the
+ * request reached the dispatcher, from a monotonic clock (`performance.now()`), in milliseconds.
+ *
+ * Only a difference between two readings of that clock means anything: its origin is unspecified,
+ * and unlike `Date.now()` it never jumps when the system time changes. It is written once, before
+ * any guard, pipe or handler runs, so a middleware (an interceptor that measures how long a request
+ * took, say) can read it without anything else being registered. It is plain data in `locals`, like
+ * every other key there: code that replaces `ctx.locals` or deletes the key removes it, and a reader
+ * must treat a missing or invalid value as "no start known".
+ *
+ * @example
+ * ```ts
+ * import { REQUEST_STARTED_AT_LOCALS_KEY } from '@zanix/server'
+ * import type { MiddlewareInterceptor } from '@zanix/server'
+ *
+ * export const logDuration: MiddlewareInterceptor = (ctx, response) => {
+ *   const startedAt = ctx.locals[REQUEST_STARTED_AT_LOCALS_KEY]
+ *   if (typeof startedAt === 'number') {
+ *     console.log(`${ctx.req.method} took ${performance.now() - startedAt} ms`)
+ *   }
+ *   return response
+ * }
+ * ```
+ */
+export const REQUEST_STARTED_AT_LOCALS_KEY = 'requestStartedAt'
+
 export const DEFAULT_CONTEXT_ID = 'zanix-default-ctx'
 
 export const PARAM_PATTERN = /\/:\w+/

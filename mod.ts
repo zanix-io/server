@@ -94,6 +94,18 @@ export {
   GUARD_BLOCKED_HEADERS_LOCALS_KEY,
   GUARD_HEADERS_LOCALS_KEY,
 } from 'modules/infra/middlewares/defaults/main.middlewares.ts'
+export { REQUEST_STARTED_AT_LOCALS_KEY } from 'utils/constants.ts'
+export {
+  createTimingInterceptor,
+  DEFAULT_REQUEST_TIMING_MAX_LOGS_PER_SECOND,
+  REQUEST_TIMING_LABEL,
+  RequestTiming,
+} from 'modules/infra/middlewares/request-timing.ts'
+export type {
+  RequestTimingDecoratorOptions,
+  RequestTimingLogger,
+  TimingInterceptorOptions,
+} from 'modules/infra/middlewares/request-timing.ts'
 export type {
   ResolvedVersionProtocolOptions,
   VersionProtocolOption,
@@ -304,6 +316,14 @@ export type {
 export type { RtoTypes } from '@zanix/types'
 /** Re-exported because `RtoTypes` (above) and `HandlerGenericClass`'s own validation reference it. */
 export type { BaseRTO } from '@zanix/validator'
+
+/** Re-exported because `RequestTimingLogger` (below) references them. */
+export type {
+  LoggerMethods,
+  LoggerTimer,
+  LoggerTimerLevel,
+  LoggerTimerOptions,
+} from '@zanix/logger'
 
 // Base/internal classes referenced by the public API's inheritance chains and signatures
 export type { Program } from 'modules/program/public.ts'

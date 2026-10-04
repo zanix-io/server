@@ -177,6 +177,12 @@ export interface HandlerContext<
      * Temporary session information associated with the current request.
      */
     session?: Session
+    /**
+     * When the request reached the dispatcher: a reading of the monotonic clock
+     * (`performance.now()`), in milliseconds. Written once, before any guard runs, under
+     * `REQUEST_STARTED_AT_LOCALS_KEY`. Absent if a middleware replaced `locals` or deleted it.
+     */
+    requestStartedAt?: number
   }
   /**
    * Session information associated with the current request.

@@ -43,7 +43,7 @@ jobs:
         # `*-live.test.ts` files are excluded: they hit a real, third-party network service outside
         # this repo's control (see graphql-introspect-live.test.ts's own doc), so its uptime must
         # never gate `deno publish`. The `test-live` job below runs them without gating.
-        run: deno test --allow-all --ignore='**/*-live.test.ts'
+        run: deno test --allow-all --min-dep-age 0 --ignore='**/*-live.test.ts'
 
   # `*-live.test.ts` files hit a real, third-party network service outside this repo's control (see
   # graphql-introspect-live.test.ts's own doc), so they run in their own job and never gate

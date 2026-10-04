@@ -32,6 +32,7 @@ import {
   routerPipe,
 } from 'middlewares/defaults/main.middlewares.ts'
 import { corsGuard } from 'middlewares/defaults/cors.guard.ts'
+import { REQUEST_STARTED_AT_LOCALS_KEY } from 'utils/constants.ts'
 
 /**
  * Turns an already-fully-built `Response` into a spec-correct `HEAD` response (RFC 9110 §9.3.2):
@@ -225,7 +226,8 @@ export const getMainHandler = (
       payload: {},
       req,
       url,
-      locals: {},
+      // The start of the request, for any middleware that wants it (see the key's own doc).
+      locals: { [REQUEST_STARTED_AT_LOCALS_KEY]: performance.now() },
     } as HandlerContext
 
     // Define a lazy-loaded getters to improve efficiency by computing values only when accessed
