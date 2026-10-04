@@ -1,7 +1,8 @@
 # Observability
 
 Tools for seeing what a running server does. Today: [request timing](#request-timing), a measuring
-interceptor you register on purpose, for as long as you are measuring.
+interceptor you register on purpose, either for as long as you are measuring or as a standing budget
+on a route you own.
 
 ## Request timing
 
@@ -13,14 +14,31 @@ environment variable.
 ### It is a tool you register on purpose
 
 Request timing is **not part of the server and does not switch on by itself**. No default pipeline
-step refers to it and nothing registers it for you. It is for two moments:
+step refers to it and nothing registers it for you. It has two uses:
 
-- **Investigating a slowness.** A route feels slow and you want numbers.
-- **Validating a change.** You made a route faster, or changed what it does, and you want to see its
-  durations before and after.
+- **A measurement.** You are investigating a slowness (a route feels slow and you want numbers) or
+  validating a change (you made a route faster and want its durations before and after). Register
+  it, measure, and **delete the registration when the measurement is over**. Use `logAll` to choose
+  the budget.
+- **A standing budget.** A route you own has a duration it must stay under, and you want a warning
+  when it does not. Leave the registration in place, with a `slowMs` taken from measurements of that
+  route, not guessed.
 
-Register it, measure, and **delete the registration when the measurement is over**. It is not meant
-to stay. While it is not registered it has no cost and no effect on a request.
+While it is not registered it has no cost and no effect on a request. Registered, a request under
+its budget writes nothing (without `logAll`); a request at or over it writes one `warn`, which
+persists, capped by `maxLogsPerSecond`.
+
+#### Keeping it as a standing budget
+
+- **Take the budget from measurements** of the route in the environment that matters, and leave room
+  for a cold start. A budget set without data turns into `warn` entries that look like a problem and
+  are not.
+- **Register it only on the routes that have a budget.** One on every route
+  (`createTimingInterceptor` with `registerGlobalInterceptor`) is a blunt tool for finding slow
+  routes, not a standing one.
+- **Pair it with a test** that fails when the route leaves its budget: the interceptor tells you in
+  production after the fact, the test tells you before the change merges.
+- **Name it** (`name`) so the entry says which route it is without reading the URL.
 
 ### On a handler
 
@@ -79,9 +97,10 @@ slow routes, then put `@RequestTiming` with a proper budget on the ones that mat
 
 ### Removing it
 
-Delete the decorator lines, or the three statements above. `createTimingInterceptor` keeps no module
-state, starts no timer and adds no listener: each interceptor's cap lives in its own closure, so
-nothing is left once the registration is gone.
+When a measurement is over, or a standing budget no longer applies, delete the decorator lines, or
+the three statements above. `createTimingInterceptor` keeps no module state, starts no timer and
+adds no listener: each interceptor's cap lives in its own closure, so nothing is left once the
+registration is gone.
 
 ### Options
 

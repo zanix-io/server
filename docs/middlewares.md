@@ -105,8 +105,9 @@ registerGlobalGuard(rateLimitGuard)
 ```
 
 A ready-made interceptor that measures how long routes take, `RequestTiming` (per handler or class)
-and `createTimingInterceptor` (global), is registered the same way and is meant to be removed when
-the measurement is over: see [Observability → Request timing](./observability.md#request-timing).
+and `createTimingInterceptor` (global), is registered the same way. Remove it when a measurement is
+over, or leave it as a standing budget on a route you own: see
+[Observability → Request timing](./observability.md#request-timing).
 
 ## What `ctx.locals` carries
 

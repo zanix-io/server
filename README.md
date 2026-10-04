@@ -273,7 +273,7 @@ see the [Configuration](./docs/configuration.md#environment-variables) guide for
   their lifecycle (`lifetime`/`startMode`).
 - [Configuration](./docs/configuration.md) — default ports, constants, and environment variables.
 - [Observability](./docs/observability.md) — request timing: an interceptor you register on purpose
-  (`@RequestTiming`) to find out how long routes take.
+  (`@RequestTiming`) to measure how long routes take, or to keep a budget on a route you own.
 - [Error Handling](./docs/errors.md) — how errors are logged, serialized, and returned to clients.
 - [Utilities Reference](./docs/utilities.md) — routing, compression, and target-management helpers.
 
