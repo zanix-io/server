@@ -20,6 +20,7 @@
     "jsr:@std/path@1.0.0-rc.2": "1.0.0-rc.2",
     "jsr:@std/streams@~0.224.5": "0.224.5",
     "jsr:@std/testing@1.0.9": "1.0.9",
+    "jsr:@zanix/utils@^4.1.0": "4.8.0",
     "jsr:@zanix/utils@^4.8.0": "4.8.0",
     "npm:graphql@16": "16.14.2"
   },
